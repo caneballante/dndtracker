@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Session Recorder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap 5 (CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+    .dot-idle { background: #adb5bd; }
+    .dot-rec  { background: #dc3545; }
+    .dot-warn { background: #f0ad4e; }
+    .dot-stop { background: #6c757d; }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .log {
+      white-space: pre-wrap;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 10px;
+      padding: 12px;
+      max-height: 220px;
+      overflow-y: auto;
+      font-size: 0.9rem;
+    }
+    .big-btn { min-width: 170px; }
+  </style>
+</head>
+
+<body class="bg-light">
+  <div class="container py-4">
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+
+        <div class="card shadow-sm">
+          <div class="card-body p-4">
+            <div class="d-flex align-items-start justify-content-between gap-3">
+              <div>
+                <h1 class="h4 mb-1">🎙️ Session Recorder v.6</h1>
+                <div class="text-muted">
+                  Records audio in chunks and uploads to <span class="mono">server.py</span> endpoints
+                </div>
+              </div>
+              <div class="text-end">
+                <div class="small text-muted">Session ID</div>
+                <div class="mono" id="sessionId">(not started)</div>
+              </div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-flex align-items-center mb-3">
+              <span id="statusDot" class="status-dot dot-idle"></span>
+              <div>
+                <div><strong>Status:</strong> <span id="statusText">Idle</span></div>
+                <div class="text-muted small">
+                  Chunk: <span class="mono" id="chunkCounter">0</span> · Next upload in: <span class="mono" id="countdown">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mb-4">
+              <button id="startBtn" class="btn btn-danger btn-lg big-btn">Start</button>
+              <button id="stopBtn" class="btn btn-secondary btn-lg big-btn" disabled>Stop</button>
+
+              <div class="mt-2">
+                <a id="latestChunkLink" href="#" target="_blank" class="small" style="display:none;">
+                  ▶︎ Play latest uploaded chunk
+                </a>
+              </div>
+
+              <div class="ms-auto d-flex flex-wrap gap-2">
+                <div>
+                  <label class="form-label small mb-1">Chunk length (minutes)</label>
+                  <input id="chunkMinutes" type="number" class="form-control" value="2" min="1" max="30" style="width:120px;">
+                </div>
+                <div>
+                  <label class="form-label small mb-1">Shared secret (optional)</label>
+                  <input id="token" type="password" class="form-control" placeholder="(optional)" style="width:220px;">
+                </div>
+              </div>
+            </div>
+
+            <div class="row g-2 mt-3">
+              <div class="col-12">
+                <label class="form-label" for="partyMeta">Party (player • character • class)</label>
+                <textarea id="partyMeta" class="form-control" rows="4"
+                  placeholder="Jon — Pippin — Bard
+Jeanne — ..."></textarea>
+                <div class="form-text">
+                  (Metadata saving is temporarily disabled until we add <code>/api/meta</code>.)
+                </div>
+              </div>
+            </div>
+
+            <hr>
+
+            <section id="live-status" style="margin-top:16px;">
+              <h3>Live session status</h3>
+              <div id="status-line" style="font-family: monospace; margin-bottom: 8px;">
+                loading…
+              </div>
+              <pre id="status-json"
+                style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:300px; overflow:auto;">
+              </pre>
+            </section>
+
+            <details>
+              <summary class="mb-2">Technical log</summary>
+              <div id="log" class="log mono"></div>
+            </details>
+
+            <div class="mt-3 small text-muted">
+              Tip: Microphone capture typically requires HTTPS (works on <span class="mono">localhost</span> too).
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+<script>
+// ================================
+// MAIN APPLICATION MODULE
+// ================================
+(() => {
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+
+  const logEl = document.getElementById('log');
+  const sessionIdEl = document.getElementById('sessionId');
+  const chunkCounterEl = document.getElementById('chunkCounter');
+  const countdownEl = document.getElementById('countdown');
+
+  const tokenEl = document.getElementById('token');
+  const chunkMinutesEl = document.getElementById('chunkMinutes');
+  const latestChunkLinkEl = document.getElementById('latestChunkLink');
+  const partyMetaEl = document.getElementById('partyMeta');
+
+  let stream = null;
+  let recorder = null;
+  let sessionId = null;
+  let chunkIndex = 0;
+
+  let nextCutAt = null;
+  let countdownTimer = null;
+
+  let metaPosted = false; // still here for later
+  // NOTE: We are not running a poller in this module; live status has its own module below.
+
+  function log(msg) {
+    const now = new Date().toLocaleTimeString();
+    logEl.textContent = `[${now}] ${msg}\n` + logEl.textContent;
+  }
+
+  function setStatus(state) {
+    statusDot.classList.remove('dot-idle', 'dot-rec', 'dot-stop', 'dot-warn');
+    statusText.classList.remove('text-warning');
+
+    if (state === 'recording') {
+      statusDot.classList.add('dot-rec');
+      statusText.textContent = 'Recording';
+    } else if (state === 'recording-unsecured') {
+      statusDot.classList.add('dot-warn');
+      statusText.textContent = 'Recording (no token)';
+      statusText.classList.add('text-warning');
+    } else if (state === 'stopped') {
+      statusDot.classList.add('dot-stop');
+      statusText.textContent = 'Stopped';
+    } else {
+      statusDot.classList.add('dot-idle');
+      statusText.textContent = 'Idle';
+    }
+  }
+
+  function startCountdown(chunkMs) {
+    stopCountdown();
+    nextCutAt = Date.now() + chunkMs;
+
+    countdownTimer = setInterval(() => {
+      const remaining = nextCutAt - Date.now();
+      if (remaining <= 0) {
+        countdownEl.textContent = 'uploading…';
+        return;
+      }
+      const s = Math.floor(remaining / 1000);
+      const mm = String(Math.floor(s / 60)).padStart(2, '0');
+      const ss = String(s % 60).padStart(2, '0');
+      countdownEl.textContent = `${mm}:${ss}`;
+    }, 500);
+  }
+
+  function stopCountdown() {
+    if (countdownTimer) clearInterval(countdownTimer);
+    countdownTimer = null;
+    countdownEl.textContent = '—';
+  }
+
+  function pickMimeType() {
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/mp4'
+    ];
+    for (const c of candidates) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported(c)) return c;
+    }
+    return '';
+  }
+
+  // Placeholder for later (disabled in ondataavailable for now)
+async function postMetaOnce() {
+  if (metaPosted) return;
+
+  const meta = (partyMetaEl?.value || '').trim();
+  if (!meta) {
+    metaPosted = true;
+    return;
+  }
+
+  const res = await fetch('/api/meta', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId,
+      party: meta
+    })
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json.ok) {
+    throw new Error(json?.error || `Meta upload failed (${res.status})`);
+  }
+
+  metaPosted = true;
+  log('Saved party metadata (party.txt).');
+}
+
+  async function uploadChunk(blob, mimeType, index) {
+    const url = `/api/upload?sessionId=${encodeURIComponent(sessionId)}&chunkIndex=${encodeURIComponent(String(index))}`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': blob.type || mimeType || 'application/octet-stream' },
+      body: blob
+    });
+
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) {
+      throw new Error(json?.error || `${res.status} Upload failed`);
+    }
+    return json;
+  }
+
+  // ================================
+  // START BUTTON HANDLER
+  // ================================
+  startBtn.addEventListener('click', async () => {
+    try {
+      const mins = Number(chunkMinutesEl.value);
+      if (!Number.isFinite(mins) || mins < 1) throw new Error('Chunk length must be 1+ minutes.');
+      const chunkMs = mins * 60 * 1000;
+
+      sessionId = String(Date.now());
+      chunkIndex = 0;
+      metaPosted = false;
+
+      // Create session folder + status.json immediately
+      log('Initializing session on server…');
+      const startRes = await fetch('/api/session/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId })
+      });
+      const startJson = await startRes.json().catch(() => ({}));
+      if (!startRes.ok || !startJson.ok) {
+        throw new Error(startJson?.error || `Session start failed (HTTP ${startRes.status})`);
+      }
+      log('Session initialized.');
+
+      sessionIdEl.textContent = sessionId;
+      chunkCounterEl.textContent = String(chunkIndex);
+
+      latestChunkLinkEl.style.display = 'none';
+      latestChunkLinkEl.href = '#';
+
+      if (!tokenEl.value.trim()) {
+        log('ℹ️ No shared secret entered — ignored in local server mode.');
+      }
+
+      log('Requesting microphone permission…');
+      setStatus('idle');
+
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const mimeType = pickMimeType();
+      recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const effectiveMimeType = recorder.mimeType || mimeType || 'audio/webm';
+
+      recorder.onstart = () => {
+        if (!tokenEl.value.trim()) setStatus('recording-unsecured');
+        else setStatus('recording');
+        log(`Recording started. mimeType=${effectiveMimeType}`);
+        startCountdown(chunkMs);
+      };
+
+      recorder.ondataavailable = async (evt) => {
+        if (!evt.data || evt.data.size === 0) return;
+
+        const index = chunkIndex;
+        const blob = evt.data;
+
+        log(`Chunk ${index} ready (${Math.round(blob.size/1024)} KB). Uploading…`);
+
+        try {
+          
+          await postMetaOnce();
+
+          const result = await uploadChunk(blob, effectiveMimeType, index);
+          log(`Chunk ${index} uploaded OK.`);
+
+          if (result?.url) {
+            latestChunkLinkEl.href = result.url;
+            latestChunkLinkEl.style.display = 'inline';
+          } else if (result?.filename) {
+            latestChunkLinkEl.href = `/uploads/${sessionId}/${result.filename}`;
+            latestChunkLinkEl.style.display = 'inline';
+          }
+
+          chunkIndex += 1;
+          chunkCounterEl.textContent = String(chunkIndex);
+          startCountdown(chunkMs);
+        } catch (e) {
+          log(`UPLOAD ERROR on chunk ${index}: ${e.message}`);
+        }
+      };
+
+      recorder.onerror = (e) => log(`Recorder error: ${e?.error?.message || e.message || e}`);
+
+      recorder.onstop = () => {
+        stopCountdown();
+        if (stream) stream.getTracks().forEach((t) => t.stop());
+        stream = null;
+        recorder = null;
+
+        setStatus('stopped');
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        log('Stopped.');
+      };
+
+      recorder.start(chunkMs);
+
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+
+    } catch (err) {
+      log(`ERROR: ${err.message}`);
+      setStatus('idle');
+      stopCountdown();
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      stream = null;
+      recorder = null;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+  });
+
+  // ================================
+  // STOP BUTTON HANDLER
+  // ================================
+  stopBtn.addEventListener('click', () => {
+    log('Stopping…');
+    stopBtn.disabled = true;
+
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
+    } else {
+      stopCountdown();
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      stream = null;
+      recorder = null;
+      setStatus('stopped');
+      startBtn.disabled = false;
+      log('Stopped.');
+    }
+  });
+
+  setStatus('idle');
+})();
+</script>
+
+<script>
+// ================================
+// LIVE STATUS POLLER MODULE
+// Polls /uploads/<sessionId>/status.json and displays it
+// ================================
+(() => {
+  const statusLineEl = document.getElementById("status-line");
+  const statusJsonEl = document.getElementById("status-json");
+  const sessionIdEl = document.getElementById("sessionId");
+
+  function getActiveSessionId() {
+    const v = (sessionIdEl?.textContent || "").trim();
+    if (!/^\d{10,}$/.test(v)) return null;
+    return v;
+  }
+
+  async function refresh() {
+    try {
+      const sid = getActiveSessionId();
+      if (!sid) {
+        statusLineEl.textContent = "not started…";
+        statusJsonEl.textContent = "";
+        return;
+      }
+
+      const url = `/uploads/${encodeURIComponent(sid)}/status.json?t=${Date.now()}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+
+      const data = await res.json();
+      const chunkCount = Array.isArray(data.chunks) ? data.chunks.length : 0;
+
+      statusLineEl.textContent =
+        `chunks=${chunkCount} • latest=${data.latestChunkIndex} • updated=${data.updatedAt}`;
+      statusJsonEl.textContent = JSON.stringify(data, null, 2);
+    } catch (err) {
+      statusLineEl.textContent = "waiting for status.json…";
+      // keep last JSON visible
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 2000);
+})();
+</script>
+
+</body>
+</html>

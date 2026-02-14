@@ -1,0 +1,11 @@
+{
+  "sessionId": "1770441123973",
+  "state": "watching",
+  "chunkCount": 2,
+  "lastChunk": "chunk_0001.webm",
+  "updatedAt": "2026-02-06T21:33:36-08:00",
+  "chunks": [
+    "chunk_0000.webm",
+    "chunk_0001.webm"
+  ]
+}
