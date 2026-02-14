@@ -14,6 +14,7 @@
     .dot-rec  { background: #dc3545; }
     .dot-warn { background: #f0ad4e; }
     .dot-stop { background: #6c757d; }
+    .dot-pause { background: #ffc107; }
 
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .log {
@@ -27,13 +28,16 @@
       font-size: 0.9rem;
     }
     .big-btn { min-width: 170px; }
+    .tall-pane {
+      max-height: 68vh;
+    }
   </style>
 </head>
 
 <body class="bg-light">
-  <div class="container py-4">
+  <div class="container-fluid py-3">
     <div class="row justify-content-center">
-      <div class="col-lg-8">
+      <div class="col-12 col-xxl-10">
 
         <div class="card shadow-sm">
           <div class="card-body p-4">
@@ -50,63 +54,183 @@
               </div>
             </div>
 
-            <hr class="my-4">
+            <hr class="my-3">
 
-            <div class="d-flex align-items-center mb-3">
-              <span id="statusDot" class="status-dot dot-idle"></span>
-              <div>
-                <div><strong>Status:</strong> <span id="statusText">Idle</span></div>
-                <div class="text-muted small">
-                  Chunk: <span class="mono" id="chunkCounter">0</span> · Next upload in: <span class="mono" id="countdown">—</span>
+            <ul class="nav nav-tabs" id="sessionTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="tab-recording" data-bs-toggle="tab" data-bs-target="#pane-recording" type="button" role="tab">Recording</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-transcript" data-bs-toggle="tab" data-bs-target="#pane-transcript" type="button" role="tab">Transcript</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-notes" data-bs-toggle="tab" data-bs-target="#pane-notes" type="button" role="tab">DM Notes</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-test" data-bs-toggle="tab" data-bs-target="#pane-test" type="button" role="tab">Test</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-sessions" data-bs-toggle="tab" data-bs-target="#pane-sessions" type="button" role="tab">Sessions</button>
+              </li>
+            </ul>
+
+            <div class="tab-content border border-top-0 rounded-bottom p-3 bg-white">
+              <div class="tab-pane fade show active" id="pane-recording" role="tabpanel">
+                <div class="d-flex align-items-center mb-3">
+                  <span id="statusDot" class="status-dot dot-idle"></span>
+                  <div>
+                    <div><strong>Status:</strong> <span id="statusText">Idle</span></div>
+                    <div class="text-muted small">
+                      Chunk: <span class="mono" id="chunkCounter">0</span> · Next upload in: <span class="mono" id="countdown">—</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <div class="d-flex flex-wrap gap-2 mb-4">
-              <button id="startBtn" class="btn btn-danger btn-lg big-btn">Start</button>
-              <button id="stopBtn" class="btn btn-secondary btn-lg big-btn" disabled>Stop</button>
+              <div class="d-flex flex-wrap gap-2 mb-4">
+                <button id="startBtn" class="btn btn-danger btn-lg big-btn">Start</button>
+                <button id="pauseBtn" class="btn btn-outline-warning btn-lg big-btn" disabled>Pause</button>
+                <button id="resumeBtn" class="btn btn-outline-success btn-lg big-btn" disabled>Resume</button>
+                <button id="stopBtn" class="btn btn-secondary btn-lg big-btn" disabled>Stop</button>
 
-              <div class="mt-2">
-                <a id="latestChunkLink" href="#" target="_blank" class="small" style="display:none;">
-                  ▶︎ Play latest uploaded chunk
-                </a>
-              </div>
+                  <div class="mt-2">
+                    <a id="latestChunkLink" href="#" target="_blank" class="small" style="display:none;">
+                      ▶︎ Play latest uploaded chunk
+                    </a>
+                  </div>
 
-              <div class="ms-auto d-flex flex-wrap gap-2">
-                <div>
-                  <label class="form-label small mb-1">Chunk length (minutes)</label>
-                  <input id="chunkMinutes" type="number" class="form-control" value="2" min="1" max="30" style="width:120px;">
-                </div>
-                <div>
+                  <div class="ms-auto d-flex flex-wrap gap-2">
+                    <div>
+                      <label class="form-label small mb-1">Microphone</label>
+                      <div class="d-flex gap-2">
+                        <select id="micSelect" class="form-select" style="min-width:220px;"></select>
+                        <button id="refreshMics" class="btn btn-outline-secondary btn-sm" type="button">Refresh</button>
+                      </div>
+                      <div class="mt-2">
+                        <div class="small text-muted mb-1">Input level</div>
+                        <div class="progress" style="height:8px;">
+                          <div id="micLevelBar" class="progress-bar" role="progressbar" style="width:0%" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="form-label small mb-1">Chunk length (minutes)</label>
+                      <input id="chunkMinutes" type="number" class="form-control" value="2" min="1" max="30" style="width:120px;">
+                    </div>
+                    <div>
                   <label class="form-label small mb-1">Shared secret (optional)</label>
                   <input id="token" type="password" class="form-control" placeholder="(optional)" style="width:220px;">
                 </div>
-              </div>
-            </div>
-
-            <div class="row g-2 mt-3">
-              <div class="col-12">
-                <label class="form-label" for="partyMeta">Party (player • character • class)</label>
-                <textarea id="partyMeta" class="form-control" rows="4"
-                  placeholder="Jon — Pippin — Bard
-Jeanne — ..."></textarea>
-                <div class="form-text">
-                  (Metadata saving is temporarily disabled until we add <code>/api/meta</code>.)
+                <div class="form-check mt-4">
+                  <input class="form-check-input" type="checkbox" value="" id="showPlayback" checked>
+                  <label class="form-check-label small" for="showPlayback">
+                    Show playback link
+                  </label>
                 </div>
               </div>
             </div>
 
-            <hr>
+                <div class="row g-2 mt-3">
+                  <div class="col-12">
+                    <label class="form-label" for="partyMeta">Party (player • character • class)</label>
+                    <textarea id="partyMeta" class="form-control" rows="4"
+                      placeholder="Jon — Pippin — Bard
+Jeanne — ..."></textarea>
+                    <div class="form-text">
+                      (Metadata saving is temporarily disabled until we add <code>/api/meta</code>.)
+                    </div>
+                  </div>
+                </div>
 
-            <section id="live-status" style="margin-top:16px;">
-              <h3>Live session status</h3>
-              <div id="status-line" style="font-family: monospace; margin-bottom: 8px;">
-                loading…
+                <hr>
+
+                <div class="small text-muted mb-2">Live status</div>
+                <div id="status-line" style="font-family: monospace; margin-bottom: 8px;">
+                  loading…
+                </div>
+                <pre id="status-json"
+                  style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:240px; overflow:auto;">
+                </pre>
               </div>
-              <pre id="status-json"
-                style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:300px; overflow:auto;">
-              </pre>
-            </section>
+
+              <div class="tab-pane fade" id="pane-transcript" role="tabpanel">
+                <div class="small text-muted mb-2">Live transcript (updates per chunk)</div>
+                <div id="transcript-meta" class="small text-muted mb-2"></div>
+                <pre id="transcript-text"
+                  class="tall-pane"
+                  style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;">
+                </pre>
+              </div>
+
+              <div class="tab-pane fade" id="pane-notes" role="tabpanel">
+                <div class="small text-muted mb-2">DM notes will appear here (next step).</div>
+                <div id="notes-meta" class="small text-muted mb-2"></div>
+                <pre id="notes-text"
+                  class="tall-pane"
+                  style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;">
+                </pre>
+              </div>
+
+              <div class="tab-pane fade" id="pane-test" role="tabpanel">
+                <div class="small text-muted mb-2">Paste a transcript to test notes generation without recording.</div>
+                <div class="row g-2">
+                  <div class="col-12">
+                    <label class="form-label small mb-1">Transcript input</label>
+                    <textarea id="test-transcript" class="form-control" rows="6"
+                      placeholder="Paste transcript here..."></textarea>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label class="form-label small mb-1">Chunk window</label>
+                    <input id="test-window" type="number" class="form-control" value="2" min="1" max="20">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label small mb-1">Party data (optional)</label>
+                    <textarea id="test-party" class="form-control" rows="3"
+                      placeholder="Jon — Pippin — Bard"></textarea>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label small mb-1">Prompt override (optional)</label>
+                    <textarea id="test-prompt" class="form-control" rows="4"
+                      placeholder="Leave blank to use the default prompt..."></textarea>
+                  </div>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                  <button id="test-use-latest" class="btn btn-outline-secondary btn-sm">Use latest transcript</button>
+                  <button id="test-run" class="btn btn-primary btn-sm">Generate notes</button>
+                </div>
+                <pre id="test-output"
+                  style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:320px; overflow:auto; white-space: pre-wrap; margin-top:12px;">
+                </pre>
+              </div>
+
+              <div class="tab-pane fade" id="pane-sessions" role="tabpanel">
+                <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                  <div class="small text-muted">Browse past sessions</div>
+                  <button id="sessions-refresh" class="btn btn-outline-secondary btn-sm">Refresh</button>
+                </div>
+                <div class="row g-2">
+                  <div class="col-12 col-md-4">
+                    <label class="form-label small mb-1">Sessions</label>
+                    <select id="sessions-select" class="form-select"></select>
+                  </div>
+                  <div class="col-12 col-md-8">
+                    <label class="form-label small mb-1">Session info</label>
+                    <div id="sessions-info" class="small text-muted"></div>
+                  </div>
+                </div>
+                <div class="row g-2 mt-2">
+                  <div class="col-12 col-md-6">
+                    <div class="small text-muted mb-1">Transcript</div>
+                    <pre id="sessions-transcript" class="tall-pane"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;"></pre>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="small text-muted mb-1">DM Notes</div>
+                    <pre id="sessions-notes" class="tall-pane"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;"></pre>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <details>
               <summary class="mb-2">Technical log</summary>
@@ -129,6 +253,8 @@ Jeanne — ..."></textarea>
 // ================================
 (() => {
   const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resumeBtn = document.getElementById('resumeBtn');
   const stopBtn = document.getElementById('stopBtn');
 
   const statusDot = document.getElementById('statusDot');
@@ -143,6 +269,10 @@ Jeanne — ..."></textarea>
   const chunkMinutesEl = document.getElementById('chunkMinutes');
   const latestChunkLinkEl = document.getElementById('latestChunkLink');
   const partyMetaEl = document.getElementById('partyMeta');
+  const showPlaybackEl = document.getElementById('showPlayback');
+  const micSelectEl = document.getElementById('micSelect');
+  const refreshMicsBtn = document.getElementById('refreshMics');
+  const micLevelBarEl = document.getElementById('micLevelBar');
 
   let stream = null;
   let recorder = null;
@@ -151,6 +281,15 @@ Jeanne — ..."></textarea>
 
   let nextCutAt = null;
   let countdownTimer = null;
+  let chunkTimer = null;
+  let stopRequested = false;
+  let paused = false;
+  let chunkMs = 0;
+  let baseMimeType = '';
+  let selectedDeviceId = null;
+  let meterCtx = null;
+  let meterAnalyser = null;
+  let meterRaf = null;
 
   let metaPosted = false; // still here for later
   // NOTE: We are not running a poller in this module; live status has its own module below.
@@ -161,7 +300,7 @@ Jeanne — ..."></textarea>
   }
 
   function setStatus(state) {
-    statusDot.classList.remove('dot-idle', 'dot-rec', 'dot-stop', 'dot-warn');
+    statusDot.classList.remove('dot-idle', 'dot-rec', 'dot-stop', 'dot-warn', 'dot-pause');
     statusText.classList.remove('text-warning');
 
     if (state === 'recording') {
@@ -171,6 +310,9 @@ Jeanne — ..."></textarea>
       statusDot.classList.add('dot-warn');
       statusText.textContent = 'Recording (no token)';
       statusText.classList.add('text-warning');
+    } else if (state === 'paused') {
+      statusDot.classList.add('dot-pause');
+      statusText.textContent = 'Paused';
     } else if (state === 'stopped') {
       statusDot.classList.add('dot-stop');
       statusText.textContent = 'Stopped';
@@ -207,13 +349,168 @@ Jeanne — ..."></textarea>
     const candidates = [
       'audio/webm;codecs=opus',
       'audio/webm',
-      'audio/ogg;codecs=opus',
-      'audio/mp4'
+      'audio/ogg;codecs=opus'
     ];
     for (const c of candidates) {
       if (window.MediaRecorder && MediaRecorder.isTypeSupported(c)) return c;
     }
     return '';
+  }
+
+  async function loadMics() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const mics = devices.filter((d) => d.kind === 'audioinput');
+
+    if (!micSelectEl) return;
+    micSelectEl.innerHTML = '';
+
+    if (mics.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No microphones found';
+      micSelectEl.appendChild(opt);
+      return;
+    }
+
+    const saved = localStorage.getItem('dnd-audio-mic-id') || '';
+    mics.forEach((d, idx) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || `Microphone ${idx + 1}`;
+      micSelectEl.appendChild(opt);
+    });
+
+    if (saved) {
+      const match = Array.from(micSelectEl.options).find((o) => o.value === saved);
+      if (match) micSelectEl.value = saved;
+    }
+    selectedDeviceId = micSelectEl.value || null;
+  }
+
+  function bindMicEvents() {
+    if (micSelectEl) {
+      micSelectEl.addEventListener('change', () => {
+        selectedDeviceId = micSelectEl.value || null;
+        if (selectedDeviceId) localStorage.setItem('dnd-audio-mic-id', selectedDeviceId);
+      });
+    }
+    if (refreshMicsBtn) {
+      refreshMicsBtn.addEventListener('click', async () => {
+        await loadMics();
+        log('Microphone list refreshed.');
+      });
+    }
+  }
+
+  function startMeter(s) {
+    stopMeter();
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!s || !AudioCtx) return;
+    meterCtx = new AudioCtx();
+    const source = meterCtx.createMediaStreamSource(s);
+    meterAnalyser = meterCtx.createAnalyser();
+    meterAnalyser.fftSize = 1024;
+    source.connect(meterAnalyser);
+
+    const data = new Uint8Array(meterAnalyser.fftSize);
+    const tick = () => {
+      if (!meterAnalyser) return;
+      meterAnalyser.getByteTimeDomainData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) {
+        const v = (data[i] - 128) / 128;
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / data.length);
+      const pct = Math.min(100, Math.max(0, Math.round(rms * 200)));
+      if (micLevelBarEl) {
+        micLevelBarEl.style.width = `${pct}%`;
+        micLevelBarEl.setAttribute('aria-valuenow', String(pct));
+      }
+      meterRaf = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
+  async function stopMeter() {
+    if (meterRaf) cancelAnimationFrame(meterRaf);
+    meterRaf = null;
+    if (micLevelBarEl) {
+      micLevelBarEl.style.width = '0%';
+      micLevelBarEl.setAttribute('aria-valuenow', '0');
+    }
+    if (meterCtx) {
+      try { await meterCtx.close(); } catch (_) {}
+    }
+    meterCtx = null;
+    meterAnalyser = null;
+  }
+
+  // Convert recorded chunk to WAV for maximum transcription compatibility
+  async function blobToWav(blob) {
+    const arrayBuffer = await blob.arrayBuffer();
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) throw new Error('AudioContext not supported in this browser.');
+
+    const audioCtx = new AudioCtx();
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    const wavBuffer = encodeWav(audioBuffer);
+    await audioCtx.close();
+    return new Blob([wavBuffer], { type: 'audio/wav' });
+  }
+
+  function encodeWav(audioBuffer) {
+    const numChannels = audioBuffer.numberOfChannels;
+    const sampleRate = audioBuffer.sampleRate;
+    const numFrames = audioBuffer.length;
+    const bytesPerSample = 2; // 16-bit PCM
+    const blockAlign = numChannels * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = numFrames * blockAlign;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    // RIFF header
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(view, 8, 'WAVE');
+
+    // fmt chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); // PCM chunk size
+    view.setUint16(20, 1, true);  // PCM format
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true); // bits per sample
+
+    // data chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    // Interleave channels
+    let offset = 44;
+    const channelData = [];
+    for (let c = 0; c < numChannels; c++) {
+      channelData.push(audioBuffer.getChannelData(c));
+    }
+    for (let i = 0; i < numFrames; i++) {
+      for (let c = 0; c < numChannels; c++) {
+        let sample = Math.max(-1, Math.min(1, channelData[c][i]));
+        sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+        view.setInt16(offset, sample, true);
+        offset += 2;
+      }
+    }
+    return buffer;
+  }
+
+  function writeString(view, offset, str) {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
   }
 
   // Placeholder for later (disabled in ondataavailable for now)
@@ -261,17 +558,127 @@ async function postMetaOnce() {
   }
 
   // ================================
+  function stopChunkTimer() {
+    if (chunkTimer) clearTimeout(chunkTimer);
+    chunkTimer = null;
+  }
+
+  function startRecorderCycle() {
+    if (!stream) return;
+    if (paused) return;
+
+    const mimeType = baseMimeType || pickMimeType();
+    recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    const effectiveMimeType = recorder.mimeType || mimeType || 'audio/webm';
+
+    recorder.onstart = () => {
+      if (!tokenEl.value.trim()) setStatus('recording-unsecured');
+      else setStatus('recording');
+      log(`Recording started. mimeType=${effectiveMimeType}`);
+      startCountdown(chunkMs);
+    };
+
+    recorder.ondataavailable = async (evt) => {
+      if (!evt.data || evt.data.size === 0) return;
+
+      const index = chunkIndex;
+      const originalBlob = evt.data;
+
+      log(`Chunk ${index} ready (${Math.round(originalBlob.size/1024)} KB). Converting to WAV…`);
+
+      try {
+        await postMetaOnce();
+
+        let uploadBlob = originalBlob;
+        let uploadType = originalBlob.type || effectiveMimeType || 'application/octet-stream';
+
+        const typeHint = uploadType.toLowerCase();
+        const canConvertToWav = typeHint.includes('webm') || typeHint.includes('ogg');
+
+        if (canConvertToWav) {
+          try {
+            const wavBlob = await blobToWav(originalBlob);
+            uploadBlob = wavBlob;
+            uploadType = 'audio/wav';
+            log(`Chunk ${index} converted (${Math.round(wavBlob.size/1024)} KB). Uploading…`);
+          } catch (convErr) {
+            log(`WAV conversion failed for chunk ${index} (${convErr?.message || convErr}). Uploading original…`);
+          }
+        } else {
+          log(`Skipping WAV conversion for chunk ${index} (${uploadType}). Uploading original…`);
+        }
+
+        const result = await uploadChunk(uploadBlob, uploadType, index);
+        log(`Chunk ${index} uploaded OK.`);
+
+          const showPlayback = showPlaybackEl ? showPlaybackEl.checked : true;
+          if (showPlayback) {
+            if (result?.url) {
+              latestChunkLinkEl.href = result.url;
+              latestChunkLinkEl.style.display = 'inline';
+            } else if (result?.filename) {
+              latestChunkLinkEl.href = `/uploads/${sessionId}/${result.filename}`;
+              latestChunkLinkEl.style.display = 'inline';
+            }
+          } else {
+            latestChunkLinkEl.style.display = 'none';
+          }
+
+        chunkIndex += 1;
+        chunkCounterEl.textContent = String(chunkIndex);
+      } catch (e) {
+        log(`UPLOAD ERROR on chunk ${index}: ${e.message}`);
+      }
+    };
+
+    recorder.onerror = (e) => log(`Recorder error: ${e?.error?.message || e.message || e}`);
+
+    recorder.onstop = () => {
+      stopChunkTimer();
+      stopCountdown();
+
+      if (stopRequested) {
+        if (stream) stream.getTracks().forEach((t) => t.stop());
+        stream = null;
+        recorder = null;
+        stopMeter();
+        setStatus('stopped');
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        pauseBtn.disabled = true;
+        resumeBtn.disabled = true;
+        log('Stopped.');
+        return;
+      }
+
+      // Start next chunk after a short delay
+      setTimeout(() => {
+        if (!stopRequested && !paused) startRecorderCycle();
+      }, 150);
+    };
+
+    recorder.start();
+    stopChunkTimer();
+    chunkTimer = setTimeout(() => {
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.stop();
+      }
+    }, chunkMs);
+  }
+
   // START BUTTON HANDLER
   // ================================
   startBtn.addEventListener('click', async () => {
     try {
       const mins = Number(chunkMinutesEl.value);
       if (!Number.isFinite(mins) || mins < 1) throw new Error('Chunk length must be 1+ minutes.');
-      const chunkMs = mins * 60 * 1000;
+      chunkMs = mins * 60 * 1000;
 
       sessionId = String(Date.now());
       chunkIndex = 0;
       metaPosted = false;
+      stopRequested = false;
+      paused = false;
 
       // Create session folder + status.json immediately
       log('Initializing session on server…');
@@ -299,79 +706,66 @@ async function postMetaOnce() {
       log('Requesting microphone permission…');
       setStatus('idle');
 
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      const mimeType = pickMimeType();
-      recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      const effectiveMimeType = recorder.mimeType || mimeType || 'audio/webm';
-
-      recorder.onstart = () => {
-        if (!tokenEl.value.trim()) setStatus('recording-unsecured');
-        else setStatus('recording');
-        log(`Recording started. mimeType=${effectiveMimeType}`);
-        startCountdown(chunkMs);
-      };
-
-      recorder.ondataavailable = async (evt) => {
-        if (!evt.data || evt.data.size === 0) return;
-
-        const index = chunkIndex;
-        const blob = evt.data;
-
-        log(`Chunk ${index} ready (${Math.round(blob.size/1024)} KB). Uploading…`);
-
-        try {
-          
-          await postMetaOnce();
-
-          const result = await uploadChunk(blob, effectiveMimeType, index);
-          log(`Chunk ${index} uploaded OK.`);
-
-          if (result?.url) {
-            latestChunkLinkEl.href = result.url;
-            latestChunkLinkEl.style.display = 'inline';
-          } else if (result?.filename) {
-            latestChunkLinkEl.href = `/uploads/${sessionId}/${result.filename}`;
-            latestChunkLinkEl.style.display = 'inline';
-          }
-
-          chunkIndex += 1;
-          chunkCounterEl.textContent = String(chunkIndex);
-          startCountdown(chunkMs);
-        } catch (e) {
-          log(`UPLOAD ERROR on chunk ${index}: ${e.message}`);
-        }
-      };
-
-      recorder.onerror = (e) => log(`Recorder error: ${e?.error?.message || e.message || e}`);
-
-      recorder.onstop = () => {
-        stopCountdown();
-        if (stream) stream.getTracks().forEach((t) => t.stop());
-        stream = null;
-        recorder = null;
-
-        setStatus('stopped');
-        startBtn.disabled = false;
-        stopBtn.disabled = true;
-        log('Stopped.');
-      };
-
-      recorder.start(chunkMs);
+      const audioConstraints = selectedDeviceId
+        ? { deviceId: { exact: selectedDeviceId } }
+        : true;
+      stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      startMeter(stream);
+      baseMimeType = pickMimeType();
+      startRecorderCycle();
 
       startBtn.disabled = true;
+      pauseBtn.disabled = false;
+      resumeBtn.disabled = true;
       stopBtn.disabled = false;
 
     } catch (err) {
       log(`ERROR: ${err.message}`);
       setStatus('idle');
       stopCountdown();
+      stopChunkTimer();
       if (stream) stream.getTracks().forEach(t => t.stop());
       stream = null;
       recorder = null;
+      stopMeter();
       startBtn.disabled = false;
+      pauseBtn.disabled = true;
+      resumeBtn.disabled = true;
       stopBtn.disabled = true;
     }
+  });
+
+  // ================================
+  // PAUSE BUTTON HANDLER
+  // ================================
+  pauseBtn.addEventListener('click', () => {
+    if (paused) return;
+    log('Pausing…');
+    paused = true;
+    pauseBtn.disabled = true;
+    resumeBtn.disabled = false;
+    stopChunkTimer();
+    stopCountdown();
+    setStatus('paused');
+
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
+    } else {
+      log('Paused.');
+    }
+  });
+
+  // ================================
+  // RESUME BUTTON HANDLER
+  // ================================
+  resumeBtn.addEventListener('click', () => {
+    if (!paused) return;
+    log('Resuming…');
+    paused = false;
+    resumeBtn.disabled = true;
+    pauseBtn.disabled = false;
+    if (stream) startRecorderCycle();
+    setStatus('recording');
   });
 
   // ================================
@@ -380,21 +774,37 @@ async function postMetaOnce() {
   stopBtn.addEventListener('click', () => {
     log('Stopping…');
     stopBtn.disabled = true;
+    stopRequested = true;
+    paused = false;
 
     if (recorder && recorder.state !== 'inactive') {
       recorder.stop();
     } else {
+      stopChunkTimer();
       stopCountdown();
       if (stream) stream.getTracks().forEach((t) => t.stop());
       stream = null;
       recorder = null;
+      stopMeter();
       setStatus('stopped');
       startBtn.disabled = false;
+      pauseBtn.disabled = true;
+      resumeBtn.disabled = true;
       log('Stopped.');
     }
   });
 
   setStatus('idle');
+  bindMicEvents();
+  // Prime device labels
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((s) => {
+      s.getTracks().forEach((t) => t.stop());
+      loadMics();
+    }).catch(() => {});
+  } else {
+    loadMics();
+  }
 })();
 </script>
 
@@ -406,6 +816,10 @@ async function postMetaOnce() {
 (() => {
   const statusLineEl = document.getElementById("status-line");
   const statusJsonEl = document.getElementById("status-json");
+  const transcriptTextEl = document.getElementById("transcript-text");
+  const transcriptMetaEl = document.getElementById("transcript-meta");
+  const notesTextEl = document.getElementById("notes-text");
+  const notesMetaEl = document.getElementById("notes-meta");
   const sessionIdEl = document.getElementById("sessionId");
 
   function getActiveSessionId() {
@@ -420,6 +834,10 @@ async function postMetaOnce() {
       if (!sid) {
         statusLineEl.textContent = "not started…";
         statusJsonEl.textContent = "";
+        if (transcriptTextEl) transcriptTextEl.textContent = "";
+        if (transcriptMetaEl) transcriptMetaEl.textContent = "";
+        if (notesTextEl) notesTextEl.textContent = "";
+        if (notesMetaEl) notesMetaEl.textContent = "";
         return;
       }
 
@@ -433,6 +851,60 @@ async function postMetaOnce() {
       statusLineEl.textContent =
         `chunks=${chunkCount} • latest=${data.latestChunkIndex} • updated=${data.updatedAt}`;
       statusJsonEl.textContent = JSON.stringify(data, null, 2);
+
+      // Transcript (best-effort)
+      if (transcriptTextEl) {
+        try {
+          const tUrl = `/uploads/${encodeURIComponent(sid)}/transcript.txt?t=${Date.now()}`;
+          const tRes = await fetch(tUrl, { cache: "no-store" });
+          if (tRes.ok) {
+            const tText = await tRes.text();
+            transcriptTextEl.textContent = tText || "(waiting for first transcript…)";
+            if (transcriptMetaEl) {
+              const latest = data?.transcriptLatest ? data.transcriptLatest.slice(0, 80) : "";
+              const ts = data?.transcriptUpdatedAt
+                ? new Date(data.transcriptUpdatedAt * 1000).toLocaleTimeString()
+                : "";
+              transcriptMetaEl.textContent = latest
+                ? `Last update ${ts} • Latest: "${latest}${latest.length >= 80 ? '…' : ''}"`
+                : `Last update ${ts}`;
+            }
+          } else {
+            transcriptTextEl.textContent = "(waiting for first transcript…)";
+            if (transcriptMetaEl) transcriptMetaEl.textContent = "";
+          }
+        } catch (_) {
+          transcriptTextEl.textContent = "(waiting for first transcript…)";
+          if (transcriptMetaEl) transcriptMetaEl.textContent = "";
+        }
+      }
+
+      // Notes (best-effort)
+      if (notesTextEl) {
+        try {
+          const nUrl = `/uploads/${encodeURIComponent(sid)}/notes.txt?t=${Date.now()}`;
+          const nRes = await fetch(nUrl, { cache: "no-store" });
+          if (nRes.ok) {
+            const nText = await nRes.text();
+            notesTextEl.textContent = nText || "(waiting for first notes…)";
+            if (notesMetaEl) {
+              const latestNote = data?.notesLatest ? data.notesLatest.slice(0, 80) : "";
+              const nts = data?.notesUpdatedAt
+                ? new Date(data.notesUpdatedAt * 1000).toLocaleTimeString()
+                : "";
+              notesMetaEl.textContent = latestNote
+                ? `Last update ${nts} • Latest: "${latestNote}${latestNote.length >= 80 ? '…' : ''}"`
+                : `Last update ${nts}`;
+            }
+          } else {
+            notesTextEl.textContent = "(waiting for first notes…)";
+            if (notesMetaEl) notesMetaEl.textContent = "";
+          }
+        } catch (_) {
+          notesTextEl.textContent = "(waiting for first notes…)";
+          if (notesMetaEl) notesMetaEl.textContent = "";
+        }
+      }
     } catch (err) {
       statusLineEl.textContent = "waiting for status.json…";
       // keep last JSON visible
@@ -443,6 +915,152 @@ async function postMetaOnce() {
   setInterval(refresh, 2000);
 })();
 </script>
+
+<script>
+// ================================
+// TEST NOTES MODULE
+// ================================
+(() => {
+  const testTranscriptEl = document.getElementById("test-transcript");
+  const testWindowEl = document.getElementById("test-window");
+  const testPartyEl = document.getElementById("test-party");
+  const testPromptEl = document.getElementById("test-prompt");
+  const testOutputEl = document.getElementById("test-output");
+  const testUseLatestBtn = document.getElementById("test-use-latest");
+  const testRunBtn = document.getElementById("test-run");
+  const sessionIdEl = document.getElementById("sessionId");
+
+  function getActiveSessionId() {
+    const v = (sessionIdEl?.textContent || "").trim();
+    if (!/^\d{10,}$/.test(v)) return null;
+    return v;
+  }
+
+  if (testUseLatestBtn) {
+    testUseLatestBtn.addEventListener("click", async () => {
+      const sid = getActiveSessionId();
+      if (!sid) {
+        if (testOutputEl) testOutputEl.textContent = "Start a session first so we can load transcript.txt.";
+        return;
+      }
+      try {
+        const tUrl = `/uploads/${encodeURIComponent(sid)}/transcript.txt?t=${Date.now()}`;
+        const res = await fetch(tUrl, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        if (testTranscriptEl) testTranscriptEl.value = text;
+        if (testOutputEl) testOutputEl.textContent = "Loaded latest transcript.txt";
+      } catch (e) {
+        if (testOutputEl) testOutputEl.textContent = `Failed to load transcript: ${e.message}`;
+      }
+    });
+  }
+
+  if (testRunBtn) {
+    testRunBtn.addEventListener("click", async () => {
+      try {
+        if (testOutputEl) testOutputEl.textContent = "Generating notes...";
+        const res = await fetch("/api/notes/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transcript: testTranscriptEl?.value || "",
+            window: Number(testWindowEl?.value || 2),
+            party: testPartyEl?.value || "",
+            prompt: testPromptEl?.value || ""
+          })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) {
+          throw new Error(json?.error || `HTTP ${res.status}`);
+        }
+        if (testOutputEl) testOutputEl.textContent = JSON.stringify(json.notes, null, 2);
+      } catch (e) {
+        if (testOutputEl) testOutputEl.textContent = `Error: ${e.message}`;
+      }
+    });
+  }
+})();
+</script>
+
+<script>
+// ================================
+// SESSIONS BROWSER MODULE
+// ================================
+(() => {
+  const sessionsSelectEl = document.getElementById("sessions-select");
+  const sessionsInfoEl = document.getElementById("sessions-info");
+  const sessionsTranscriptEl = document.getElementById("sessions-transcript");
+  const sessionsNotesEl = document.getElementById("sessions-notes");
+  const sessionsRefreshEl = document.getElementById("sessions-refresh");
+
+  async function loadSessions() {
+    try {
+      if (sessionsSelectEl) sessionsSelectEl.innerHTML = '';
+      if (sessionsInfoEl) sessionsInfoEl.textContent = 'Loading...';
+      const res = await fetch('/api/sessions/list?limit=100');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      const sessions = json.sessions || [];
+      if (!sessionsSelectEl) return;
+      if (sessions.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'No sessions found';
+        sessionsSelectEl.appendChild(opt);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = '';
+        return;
+      }
+      sessions.forEach((s) => {
+        const opt = document.createElement('option');
+        opt.value = s.sessionId;
+        const ts = new Date((s.updatedAt || 0) * 1000).toLocaleString();
+        opt.textContent = `${s.sessionId} • ${ts} • chunks=${s.chunkCount}`;
+        sessionsSelectEl.appendChild(opt);
+      });
+      if (sessionsSelectEl.options.length > 0) {
+        sessionsSelectEl.selectedIndex = 0;
+        await loadSessionDetail(sessionsSelectEl.value);
+      }
+    } catch (e) {
+      if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
+    }
+  }
+
+  async function loadSessionDetail(sessionId) {
+    if (!sessionId) return;
+    try {
+      if (sessionsInfoEl) sessionsInfoEl.textContent = `Loading ${sessionId}...`;
+      const res = await fetch(`/api/sessions/get?sessionId=${encodeURIComponent(sessionId)}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+
+      if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId}`;
+      if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = json.transcript || '(no transcript)';
+      if (sessionsNotesEl) sessionsNotesEl.textContent = json.notes || '(no notes)';
+    } catch (e) {
+      if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
+    }
+  }
+
+  if (sessionsSelectEl) {
+    sessionsSelectEl.addEventListener('change', () => {
+      loadSessionDetail(sessionsSelectEl.value);
+    });
+  }
+  if (sessionsRefreshEl) {
+    sessionsRefreshEl.addEventListener('click', () => {
+      loadSessions();
+    });
+  }
+
+  // Initial load
+  loadSessions();
+})();
+</script>
+
+<!-- Bootstrap JS (required for tabs) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>

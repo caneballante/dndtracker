@@ -12,7 +12,7 @@ SERVER_PID=$!
 # Give the server a moment to start
 sleep 1
 
-# Open the app in the default browser
-open "http://127.0.0.1:8000/"
+# Open the app in Google Chrome
+open -a "Google Chrome" "http://127.0.0.1:8000/"
 
 echo "Server started (PID $SERVER_PID). Logs: $APP_DIR/server.log"

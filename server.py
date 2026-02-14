@@ -15,6 +15,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 OPENAI_API_KEY = None
+NOTES_LOCK = threading.Lock()
+NOTES_MODEL_DEFAULT = "gpt-4o-mini"
+NOTES_WINDOW_DEFAULT = 5
 
 SESSION_ID_RE = re.compile(r"^[0-9]{8,20}$")  # timestamp-ish
 
@@ -78,6 +81,51 @@ def init_session(session_id: str) -> str:
 
     return session_dir
 
+def list_sessions(limit: int = 50):
+    ensure_dir(UPLOADS_DIR)
+    sessions = []
+    for name in os.listdir(UPLOADS_DIR):
+        session_dir = os.path.join(UPLOADS_DIR, name)
+        if not os.path.isdir(session_dir):
+            continue
+        if not SESSION_ID_RE.match(name):
+            continue
+        status_path = os.path.join(session_dir, "status.json")
+        status = read_json(status_path, default={})
+        mtime = int(os.path.getmtime(session_dir))
+        sessions.append({
+            "sessionId": name,
+            "updatedAt": status.get("updatedAt") or mtime,
+            "createdAt": status.get("createdAt") or mtime,
+            "chunkCount": len(status.get("chunks") or []),
+            "statusUrl": f"/uploads/{name}/status.json",
+        })
+    sessions.sort(key=lambda s: s.get("updatedAt", 0), reverse=True)
+    return sessions[:limit]
+
+def read_session_text(session_id: str):
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    transcript_path = os.path.join(session_dir, "transcript.txt")
+    notes_path = os.path.join(session_dir, "notes.txt")
+    summary_path = os.path.join(session_dir, "notes_summary.txt")
+    data = {"transcript": "", "notes": "", "summary": ""}
+    try:
+        with open(transcript_path, "r", encoding="utf-8") as f:
+            data["transcript"] = f.read()
+    except FileNotFoundError:
+        pass
+    try:
+        with open(notes_path, "r", encoding="utf-8") as f:
+            data["notes"] = f.read()
+    except FileNotFoundError:
+        pass
+    try:
+        with open(summary_path, "r", encoding="utf-8") as f:
+            data["summary"] = f.read()
+    except FileNotFoundError:
+        pass
+    return data
+
 def update_status_for_chunk(session_id: str, chunk_index: int, filename: str, nbytes: int):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
     status_path = os.path.join(session_dir, "status.json")
@@ -112,7 +160,21 @@ def _mime_for_filename(filename: str) -> str:
         return "audio/ogg"
     if ext == ".mp4":
         return "audio/mp4"
+    if ext == ".wav":
+        return "audio/wav"
     return "application/octet-stream"
+
+def _ext_from_content_type(content_type: str) -> str:
+    ct = (content_type or "").lower()
+    if "audio/wav" in ct or "audio/x-wav" in ct:
+        return "wav"
+    if "audio/webm" in ct:
+        return "webm"
+    if "audio/ogg" in ct:
+        return "ogg"
+    if "audio/mp4" in ct:
+        return "mp4"
+    return "bin"
 
 def _openai_api_key() -> str:
     global OPENAI_API_KEY
@@ -121,6 +183,19 @@ def _openai_api_key() -> str:
     load_env_file(ENV_PATH)
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
     return OPENAI_API_KEY
+
+def _notes_model() -> str:
+    load_env_file(ENV_PATH)
+    return (os.environ.get("NOTES_MODEL") or NOTES_MODEL_DEFAULT).strip()
+
+def _notes_window() -> int:
+    load_env_file(ENV_PATH)
+    raw = (os.environ.get("NOTES_WINDOW_CHUNKS") or "").strip()
+    try:
+        v = int(raw)
+        return max(1, min(20, v))
+    except Exception:
+        return NOTES_WINDOW_DEFAULT
 
 def _append_transcript(session_id: str, chunk_index: int, text: str):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
@@ -154,6 +229,65 @@ def _set_transcript_error(session_id: str, chunk_index: int, message: str):
         "updatedAt": int(time.time()),
     }
     write_json_atomic(status_path, status)
+
+def _read_party_meta(session_id: str) -> str:
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    party_path = os.path.join(session_dir, "party.txt")
+    try:
+        with open(party_path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return ""
+
+def _read_notes_summary(session_id: str) -> str:
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    summary_path = os.path.join(session_dir, "notes_summary.txt")
+    try:
+        with open(summary_path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return ""
+
+def _write_notes_summary(session_id: str, summary: str):
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    ensure_dir(session_dir)
+    summary_path = os.path.join(session_dir, "notes_summary.txt")
+    with open(summary_path, "w", encoding="utf-8") as f:
+        f.write(summary.strip() + "\n")
+
+def _load_recent_transcripts(session_id: str, count: int):
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    jsonl_path = os.path.join(session_dir, "transcripts.jsonl")
+    if not os.path.isfile(jsonl_path):
+        return []
+    lines = []
+    try:
+        with open(jsonl_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    lines.append(obj)
+                except json.JSONDecodeError:
+                    continue
+    except Exception:
+        return []
+    return lines[-count:]
+
+def _extract_json_object(text: str):
+    if not text:
+        return None
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return None
+    snippet = text[start:end+1]
+    try:
+        return json.loads(snippet)
+    except json.JSONDecodeError:
+        return None
 
 def transcribe_with_openai(path: str, model: str = "gpt-4o-mini-transcribe") -> str:
     api_key = _openai_api_key()
@@ -214,10 +348,235 @@ def transcribe_with_openai(path: str, model: str = "gpt-4o-mini-transcribe") -> 
         raise RuntimeError("Empty transcription response.")
     return text
 
+def _default_notes_system_prompt() -> str:
+    return (
+        "You are a D&D session note-taker. Produce strict JSON with keys:\n"
+        "timeline (array of strings, chronological new events only),\n"
+        "state (object with keys: location, npcs, loot, spells, hp, conditions, quests),\n"
+        "summary (string, 3-6 sentences, rolling summary of the session so far).\n"
+        "Use only facts in the transcript and party data. Do not invent details.\n"
+        "If a field has no info, use empty string or empty array.\n"
+    )
+
+def generate_notes_with_openai(session_id: str, chunk_index: int):
+    api_key = _openai_api_key()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY not set. Add it to .env or your environment.")
+
+    party = _read_party_meta(session_id)
+    summary = _read_notes_summary(session_id)
+    window = _notes_window()
+    recent = _load_recent_transcripts(session_id, window)
+
+    transcript_block = "\n".join(
+        [f"[{obj.get('chunkIndex', '?')}] {obj.get('text', '').strip()}" for obj in recent]
+    ).strip()
+
+    system_prompt = _default_notes_system_prompt()
+
+    user_prompt = (
+        "Party data (if any):\n"
+        f"{party if party else '(none)'}\n\n"
+        "Rolling summary so far:\n"
+        f"{summary if summary else '(none)'}\n\n"
+        f"Recent transcript window (last {window} chunks):\n"
+        f"{transcript_block if transcript_block else '(none)'}\n"
+    )
+
+    payload = {
+        "model": _notes_model(),
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0.2,
+    }
+
+    body = json.dumps(payload).encode("utf-8")
+    req = Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+    )
+
+    try:
+        with urlopen(req, timeout=120) as resp:
+            raw = resp.read().decode("utf-8")
+    except HTTPError as e:
+        detail = e.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(f"OpenAI API error: HTTP {e.code} {detail}")
+    except URLError as e:
+        raise RuntimeError(f"OpenAI API connection error: {e}")
+
+    data = json.loads(raw)
+    content = (
+        data.get("choices", [{}])[0]
+        .get("message", {})
+        .get("content", "")
+        .strip()
+    )
+    obj = _extract_json_object(content)
+    if not obj:
+        raise RuntimeError("Notes response was not valid JSON.")
+    return obj
+
+def _parse_chunked_transcript(transcript_text: str):
+    chunks = []
+    current_idx = None
+    current_lines = []
+    for raw in (transcript_text or "").splitlines():
+        line = raw.strip()
+        m = re.match(r"^\[(\d{1,6})\]\s*(.*)$", line)
+        if m:
+            # flush previous
+            if current_idx is not None:
+                chunks.append((current_idx, "\n".join(current_lines).strip()))
+            current_idx = int(m.group(1))
+            first_line = m.group(2).strip()
+            current_lines = [first_line] if first_line else []
+        else:
+            if current_idx is None:
+                # treat as preamble chunk -1
+                current_idx = -1
+                current_lines = []
+            current_lines.append(line)
+    if current_idx is not None:
+        chunks.append((current_idx, "\n".join(current_lines).strip()))
+    # normalize: remove empty chunks
+    chunks = [(idx, txt) for idx, txt in chunks if txt.strip()]
+    return chunks
+
+def generate_notes_from_text(transcript_text: str, party: str = "", summary: str = "", system_prompt: str = "", window: int = 2):
+    api_key = _openai_api_key()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY not set. Add it to .env or your environment.")
+
+    transcript_text = (transcript_text or "").strip()
+    if not transcript_text:
+        raise RuntimeError("No transcript text provided.")
+
+    chunks = _parse_chunked_transcript(transcript_text)
+    if chunks:
+        window = max(1, min(20, int(window)))
+        use_chunks = chunks[-window:]
+        transcript_block = "\n".join([f"[{idx:04d}] {txt}" for idx, txt in use_chunks]).strip()
+    else:
+        transcript_block = transcript_text
+
+    system_prompt = (system_prompt or "").strip() or _default_notes_system_prompt()
+
+    user_prompt = (
+        "Party data (if any):\n"
+        f"{party.strip() if party else '(none)'}\n\n"
+        "Rolling summary so far:\n"
+        f"{summary.strip() if summary else '(none)'}\n\n"
+        "Transcript input (most recent chunk window):\n"
+        f"{transcript_block}\n"
+    )
+
+    payload = {
+        "model": _notes_model(),
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0.2,
+    }
+
+    body = json.dumps(payload).encode("utf-8")
+    req = Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+    )
+
+    try:
+        with urlopen(req, timeout=120) as resp:
+            raw = resp.read().decode("utf-8")
+    except HTTPError as e:
+        detail = e.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(f"OpenAI API error: HTTP {e.code} {detail}")
+    except URLError as e:
+        raise RuntimeError(f"OpenAI API connection error: {e}")
+
+    data = json.loads(raw)
+    content = (
+        data.get("choices", [{}])[0]
+        .get("message", {})
+        .get("content", "")
+        .strip()
+    )
+    obj = _extract_json_object(content)
+    if not obj:
+        raise RuntimeError("Notes response was not valid JSON.")
+    return obj
+
+def _append_notes(session_id: str, chunk_index: int, notes_obj: dict):
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    ensure_dir(session_dir)
+
+    timeline = notes_obj.get("timeline") or []
+    if isinstance(timeline, str):
+        timeline = [timeline]
+    summary = (notes_obj.get("summary") or "").strip()
+
+    notes_path = os.path.join(session_dir, "notes.txt")
+    jsonl_path = os.path.join(session_dir, "notes.jsonl")
+
+    with open(notes_path, "a", encoding="utf-8") as f:
+        if timeline:
+            for item in timeline:
+                line = str(item).strip()
+                if line:
+                    f.write(f"[{chunk_index:04d}] {line}\n")
+        else:
+            f.write(f"[{chunk_index:04d}] (no new events)\n")
+
+    with open(jsonl_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps({
+            "chunkIndex": chunk_index,
+            "notes": notes_obj,
+            "createdAt": int(time.time()),
+        }) + "\n")
+
+    if summary:
+        _write_notes_summary(session_id, summary)
+
+    status_path = os.path.join(session_dir, "status.json")
+    status = read_json(status_path, default={})
+    status["notesLatest"] = timeline[-1] if timeline else ""
+    status["notesUpdatedAt"] = int(time.time())
+    write_json_atomic(status_path, status)
+
+def _set_notes_error(session_id: str, chunk_index: int, message: str):
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    status_path = os.path.join(session_dir, "status.json")
+    status = read_json(status_path, default={})
+    status["notesError"] = {
+        "chunkIndex": chunk_index,
+        "message": message,
+        "updatedAt": int(time.time()),
+    }
+    write_json_atomic(status_path, status)
+
 def transcribe_async(session_id: str, chunk_index: int, path: str):
     try:
         text = transcribe_with_openai(path)
         _append_transcript(session_id, chunk_index, text)
+        try:
+            with NOTES_LOCK:
+                notes_obj = generate_notes_with_openai(session_id, chunk_index)
+                _append_notes(session_id, chunk_index, notes_obj)
+        except Exception as e:
+            _set_notes_error(session_id, chunk_index, str(e))
     except Exception as e:
         _set_transcript_error(session_id, chunk_index, str(e))
 
@@ -250,6 +609,27 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_response(302)
             self.send_header("Location", "/dnd-audio.html")
             self.end_headers()
+            return
+
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/sessions/list":
+            try:
+                qs = parse_qs(parsed.query)
+                limit = int((qs.get("limit") or ["50"])[0])
+                limit = max(1, min(200, limit))
+                self._send_json(200, {"ok": True, "sessions": list_sessions(limit)})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/sessions/get":
+            try:
+                qs = parse_qs(parsed.query)
+                session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                data = read_session_text(session_id)
+                self._send_json(200, {"ok": True, "sessionId": session_id, **data})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
             return
 
         return super().do_GET()
@@ -286,7 +666,9 @@ class Handler(SimpleHTTPRequestHandler):
                 if not blob:
                     raise ValueError("Empty body; expected audio bytes in POST body.")
 
-                filename = f"chunk_{chunk_index:04d}.webm"
+                content_type = self.headers.get("Content-Type") or ""
+                ext = _ext_from_content_type(content_type)
+                filename = f"chunk_{chunk_index:04d}.{ext}"
                 out_path = os.path.join(session_dir, filename)
                 with open(out_path, "wb") as f:
                     f.write(blob)
@@ -341,6 +723,33 @@ class Handler(SimpleHTTPRequestHandler):
                     "ok": True,
                     "sessionId": session_id,
                     "saved": "party.txt"
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/notes/test":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                transcript_text = (data.get("transcript") or "").strip()
+                party = (data.get("party") or "").strip()
+                summary = (data.get("summary") or "").strip()
+                system_prompt = (data.get("prompt") or "").strip()
+                window = data.get("window") or 2
+
+                notes_obj = generate_notes_from_text(
+                    transcript_text=transcript_text,
+                    party=party,
+                    summary=summary,
+                    system_prompt=system_prompt,
+                    window=window,
+                )
+
+                self._send_json(200, {
+                    "ok": True,
+                    "notes": notes_obj,
+                    "window": window,
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
