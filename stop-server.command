@@ -5,12 +5,12 @@ set -euo pipefail
 APP_DIR="/Users/jonbridgman/Documents/dnd-local"
 cd "$APP_DIR"
 
-# Find and stop any server.py process running from this app dir
-PIDS=$(pgrep -f "python3 .*server.py" || true)
+# Stop anything listening on localhost:8000 (the app server)
+PIDS=$(lsof -t -iTCP:8000 -sTCP:LISTEN 2>/dev/null || true)
 if [[ -z "$PIDS" ]]; then
-  echo "No server.py process found."
+  echo "No process found listening on port 8000."
   exit 0
 fi
 
-echo "Stopping server.py processes: $PIDS"
+echo "Stopping processes on port 8000: $PIDS"
 kill $PIDS
