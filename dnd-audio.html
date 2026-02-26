@@ -104,6 +104,7 @@
                       <div class="d-flex gap-2">
                         <select id="micSelect" class="form-select" style="min-width:220px;"></select>
                         <button id="refreshMics" class="btn btn-outline-secondary btn-sm" type="button">Refresh</button>
+                        <button id="resetAudioBtn" class="btn btn-outline-danger btn-sm" type="button">Reset Audio</button>
                       </div>
                       <div class="mt-2">
                         <div class="small text-muted mb-1">Input level</div>
@@ -135,6 +136,12 @@
                     <textarea id="partyMeta" class="form-control" rows="4"
                       placeholder="Jon — Pippin — Bard
 Jeanne — ..."></textarea>
+                    <div class="d-flex gap-2 mt-2">
+                      <button id="partySaveBtn" type="button" class="btn btn-outline-secondary btn-sm">Save Party</button>
+                      <button id="partyLoadBtn" type="button" class="btn btn-outline-secondary btn-sm">Load Party</button>
+                      <button id="partyClearBtn" type="button" class="btn btn-outline-danger btn-sm">Clear Saved</button>
+                    </div>
+                    <div id="partyMetaStatus" class="small text-muted mt-1"></div>
                     <div class="form-text">
                       (Metadata saving is temporarily disabled until we add <code>/api/meta</code>.)
                     </div>
@@ -153,7 +160,7 @@ Jeanne — ..."></textarea>
               </div>
 
               <div class="tab-pane fade" id="pane-transcript" role="tabpanel">
-                <div class="small text-muted mb-2">Live transcript (updates per chunk)</div>
+                <div class="small text-muted mb-2">Live transcript (cleaned for readability, updates per chunk)</div>
                 <div id="transcript-meta" class="small text-muted mb-2"></div>
                 <pre id="transcript-text"
                   class="tall-pane"
@@ -162,8 +169,11 @@ Jeanne — ..."></textarea>
               </div>
 
               <div class="tab-pane fade" id="pane-notes" role="tabpanel">
-                <div class="small text-muted mb-2">DM notes will appear here (next step).</div>
+                <div class="small text-muted mb-2">DM notes timeline + tracked state (loot, spells, hp, quests)</div>
                 <div id="notes-meta" class="small text-muted mb-2"></div>
+                <div id="notes-summary" class="small mb-2"></div>
+                <pre id="notes-state"
+                  style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:180px; overflow:auto; white-space: pre-wrap;"></pre>
                 <pre id="notes-text"
                   class="tall-pane"
                   style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;">
@@ -206,6 +216,7 @@ Jeanne — ..."></textarea>
                 <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
                   <div class="small text-muted">Browse past sessions</div>
                   <button id="sessions-refresh" class="btn btn-outline-secondary btn-sm">Refresh</button>
+                  <button id="sessions-generate-summary" class="btn btn-primary btn-sm">Generate Game Summary</button>
                 </div>
                 <div class="row g-2">
                   <div class="col-12 col-md-4">
@@ -218,6 +229,11 @@ Jeanne — ..."></textarea>
                   </div>
                 </div>
                 <div class="row g-2 mt-2">
+                  <div class="col-12">
+                    <div class="small text-muted mb-1">Game Summary</div>
+                    <pre id="sessions-game-summary"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:220px; overflow:auto; white-space: pre-wrap;"></pre>
+                  </div>
                   <div class="col-12 col-md-6">
                     <div class="small text-muted mb-1">Transcript</div>
                     <pre id="sessions-transcript" class="tall-pane"
@@ -225,6 +241,9 @@ Jeanne — ..."></textarea>
                   </div>
                   <div class="col-12 col-md-6">
                     <div class="small text-muted mb-1">DM Notes</div>
+                    <div id="sessions-notes-summary" class="small mb-1"></div>
+                    <pre id="sessions-notes-state"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:180px; overflow:auto; white-space: pre-wrap;"></pre>
                     <pre id="sessions-notes" class="tall-pane"
                       style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;"></pre>
                   </div>
@@ -269,9 +288,14 @@ Jeanne — ..."></textarea>
   const chunkMinutesEl = document.getElementById('chunkMinutes');
   const latestChunkLinkEl = document.getElementById('latestChunkLink');
   const partyMetaEl = document.getElementById('partyMeta');
+  const partySaveBtn = document.getElementById('partySaveBtn');
+  const partyLoadBtn = document.getElementById('partyLoadBtn');
+  const partyClearBtn = document.getElementById('partyClearBtn');
+  const partyMetaStatusEl = document.getElementById('partyMetaStatus');
   const showPlaybackEl = document.getElementById('showPlayback');
   const micSelectEl = document.getElementById('micSelect');
   const refreshMicsBtn = document.getElementById('refreshMics');
+  const resetAudioBtn = document.getElementById('resetAudioBtn');
   const micLevelBarEl = document.getElementById('micLevelBar');
 
   let stream = null;
@@ -291,12 +315,80 @@ Jeanne — ..."></textarea>
   let meterAnalyser = null;
   let meterRaf = null;
 
+  const PARTY_META_STORAGE_KEY = 'dnd-audio-party-meta-v1';
+  const PARTY_META_SAVED_AT_KEY = 'dnd-audio-party-meta-saved-at-v1';
+  const DEFAULT_MIC_OPTION_VALUE = '__browser_default__';
+
   let metaPosted = false; // still here for later
   // NOTE: We are not running a poller in this module; live status has its own module below.
 
   function log(msg) {
     const now = new Date().toLocaleTimeString();
     logEl.textContent = `[${now}] ${msg}\n` + logEl.textContent;
+  }
+
+  function setPartyMetaStatus(msg) {
+    if (partyMetaStatusEl) partyMetaStatusEl.textContent = msg || '';
+  }
+
+  function savePartyMetaLocal() {
+    if (!partyMetaEl) return;
+    const value = partyMetaEl.value || '';
+    localStorage.setItem(PARTY_META_STORAGE_KEY, value);
+    localStorage.setItem(PARTY_META_SAVED_AT_KEY, String(Date.now()));
+    const ts = new Date().toLocaleString();
+    setPartyMetaStatus(`Saved locally (${ts})`);
+    log('Saved party metadata locally (browser storage).');
+  }
+
+  function loadPartyMetaLocal() {
+    if (!partyMetaEl) return;
+    const value = localStorage.getItem(PARTY_META_STORAGE_KEY);
+    const savedAt = localStorage.getItem(PARTY_META_SAVED_AT_KEY);
+    if (value == null) {
+      setPartyMetaStatus('No saved party data found in this browser.');
+      return;
+    }
+    partyMetaEl.value = value;
+    if (savedAt) {
+      const ts = new Date(Number(savedAt)).toLocaleString();
+      setPartyMetaStatus(`Loaded locally saved party (${ts})`);
+    } else {
+      setPartyMetaStatus('Loaded locally saved party.');
+    }
+    log('Loaded party metadata from browser storage.');
+  }
+
+  function clearPartyMetaLocal() {
+    localStorage.removeItem(PARTY_META_STORAGE_KEY);
+    localStorage.removeItem(PARTY_META_SAVED_AT_KEY);
+    setPartyMetaStatus('Cleared saved party data from this browser.');
+    log('Cleared locally saved party metadata.');
+  }
+
+  function bindPartyMetaEvents() {
+    if (partySaveBtn) {
+      partySaveBtn.addEventListener('click', savePartyMetaLocal);
+    }
+    if (partyLoadBtn) {
+      partyLoadBtn.addEventListener('click', loadPartyMetaLocal);
+    }
+    if (partyClearBtn) {
+      partyClearBtn.addEventListener('click', clearPartyMetaLocal);
+    }
+
+    const existing = localStorage.getItem(PARTY_META_STORAGE_KEY);
+    const savedAt = localStorage.getItem(PARTY_META_SAVED_AT_KEY);
+    if (existing != null && partyMetaEl && !partyMetaEl.value.trim()) {
+      partyMetaEl.value = existing;
+      if (savedAt) {
+        setPartyMetaStatus(`Auto-loaded saved party (${new Date(Number(savedAt)).toLocaleString()})`);
+      } else {
+        setPartyMetaStatus('Auto-loaded saved party.');
+      }
+    } else if (existing != null && savedAt) {
+      setPartyMetaStatus(`Saved party available (${new Date(Number(savedAt)).toLocaleString()})`);
+    }
   }
 
   function setStatus(state) {
@@ -365,11 +457,14 @@ Jeanne — ..."></textarea>
     if (!micSelectEl) return;
     micSelectEl.innerHTML = '';
 
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = DEFAULT_MIC_OPTION_VALUE;
+    defaultOpt.textContent = 'Browser default (recommended fallback)';
+    micSelectEl.appendChild(defaultOpt);
+
     if (mics.length === 0) {
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = 'No microphones found';
-      micSelectEl.appendChild(opt);
+      micSelectEl.value = DEFAULT_MIC_OPTION_VALUE;
+      selectedDeviceId = null;
       return;
     }
 
@@ -385,20 +480,49 @@ Jeanne — ..."></textarea>
       const match = Array.from(micSelectEl.options).find((o) => o.value === saved);
       if (match) micSelectEl.value = saved;
     }
-    selectedDeviceId = micSelectEl.value || null;
+    selectedDeviceId = (micSelectEl.value && micSelectEl.value !== DEFAULT_MIC_OPTION_VALUE)
+      ? micSelectEl.value
+      : null;
   }
 
   function bindMicEvents() {
     if (micSelectEl) {
       micSelectEl.addEventListener('change', () => {
-        selectedDeviceId = micSelectEl.value || null;
-        if (selectedDeviceId) localStorage.setItem('dnd-audio-mic-id', selectedDeviceId);
+        selectedDeviceId = (micSelectEl.value && micSelectEl.value !== DEFAULT_MIC_OPTION_VALUE)
+          ? micSelectEl.value
+          : null;
+        localStorage.setItem('dnd-audio-mic-id', micSelectEl.value || DEFAULT_MIC_OPTION_VALUE);
       });
     }
     if (refreshMicsBtn) {
       refreshMicsBtn.addEventListener('click', async () => {
         await loadMics();
         log('Microphone list refreshed.');
+      });
+    }
+    if (resetAudioBtn) {
+      resetAudioBtn.addEventListener('click', async () => {
+        try {
+          // Clear saved explicit mic selection and force browser default.
+          localStorage.removeItem('dnd-audio-mic-id');
+          selectedDeviceId = null;
+          if (micSelectEl) micSelectEl.value = DEFAULT_MIC_OPTION_VALUE;
+
+          // Reset any active meter state.
+          await stopMeter();
+
+          // Re-prime permissions/device labels and rebuild the list.
+          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+            s.getTracks().forEach((t) => t.stop());
+          }
+          await loadMics();
+          if (micSelectEl) micSelectEl.value = DEFAULT_MIC_OPTION_VALUE;
+          selectedDeviceId = null;
+          log('Audio devices reset. Using browser default microphone.');
+        } catch (e) {
+          log(`Audio reset failed: ${e?.message || e}`);
+        }
       });
     }
   }
@@ -710,6 +834,10 @@ async function postMetaOnce() {
         ? { deviceId: { exact: selectedDeviceId } }
         : true;
       stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      const activeTrack = stream.getAudioTracks ? stream.getAudioTracks()[0] : null;
+      if (activeTrack) {
+        log(`Using mic input: ${activeTrack.label || '(unknown device)'}`);
+      }
       startMeter(stream);
       baseMimeType = pickMimeType();
       startRecorderCycle();
@@ -796,6 +924,7 @@ async function postMetaOnce() {
 
   setStatus('idle');
   bindMicEvents();
+  bindPartyMetaEvents();
   // Prime device labels
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     navigator.mediaDevices.getUserMedia({ audio: true }).then((s) => {
@@ -820,7 +949,22 @@ async function postMetaOnce() {
   const transcriptMetaEl = document.getElementById("transcript-meta");
   const notesTextEl = document.getElementById("notes-text");
   const notesMetaEl = document.getElementById("notes-meta");
+  const notesSummaryEl = document.getElementById("notes-summary");
+  const notesStateEl = document.getElementById("notes-state");
   const sessionIdEl = document.getElementById("sessionId");
+
+  function formatNotesState(state) {
+    if (!state || typeof state !== "object") return "(no tracked state yet)";
+    const lines = [];
+    const location = String(state.location || "").trim();
+    lines.push(`Location: ${location || "(unknown)"}`);
+    ["npcs", "loot", "spells", "hp", "conditions", "quests"].forEach((key) => {
+      const val = Array.isArray(state[key]) ? state[key] : [];
+      const label = key.toUpperCase();
+      lines.push(`${label}: ${val.length ? val.join(" | ") : "(none)"}`);
+    });
+    return lines.join("\n");
+  }
 
   function getActiveSessionId() {
     const v = (sessionIdEl?.textContent || "").trim();
@@ -838,6 +982,8 @@ async function postMetaOnce() {
         if (transcriptMetaEl) transcriptMetaEl.textContent = "";
         if (notesTextEl) notesTextEl.textContent = "";
         if (notesMetaEl) notesMetaEl.textContent = "";
+        if (notesSummaryEl) notesSummaryEl.textContent = "";
+        if (notesStateEl) notesStateEl.textContent = "";
         return;
       }
 
@@ -852,58 +998,51 @@ async function postMetaOnce() {
         `chunks=${chunkCount} • latest=${data.latestChunkIndex} • updated=${data.updatedAt}`;
       statusJsonEl.textContent = JSON.stringify(data, null, 2);
 
-      // Transcript (best-effort)
-      if (transcriptTextEl) {
-        try {
-          const tUrl = `/uploads/${encodeURIComponent(sid)}/transcript.txt?t=${Date.now()}`;
-          const tRes = await fetch(tUrl, { cache: "no-store" });
-          if (tRes.ok) {
-            const tText = await tRes.text();
-            transcriptTextEl.textContent = tText || "(waiting for first transcript…)";
-            if (transcriptMetaEl) {
-              const latest = data?.transcriptLatest ? data.transcriptLatest.slice(0, 80) : "";
-              const ts = data?.transcriptUpdatedAt
-                ? new Date(data.transcriptUpdatedAt * 1000).toLocaleTimeString()
-                : "";
-              transcriptMetaEl.textContent = latest
-                ? `Last update ${ts} • Latest: "${latest}${latest.length >= 80 ? '…' : ''}"`
-                : `Last update ${ts}`;
-            }
-          } else {
-            transcriptTextEl.textContent = "(waiting for first transcript…)";
-            if (transcriptMetaEl) transcriptMetaEl.textContent = "";
+      // Transcript + notes view model from session API
+      try {
+        const sessionRes = await fetch(`/api/sessions/get?sessionId=${encodeURIComponent(sid)}&_t=${Date.now()}`, { cache: "no-store" });
+        const sessionJson = await sessionRes.json().catch(() => ({}));
+        if (sessionRes.ok && sessionJson.ok) {
+          if (transcriptTextEl) {
+            transcriptTextEl.textContent =
+              sessionJson.cleanTranscript || sessionJson.transcript || "(waiting for first transcript...)";
           }
-        } catch (_) {
-          transcriptTextEl.textContent = "(waiting for first transcript…)";
-          if (transcriptMetaEl) transcriptMetaEl.textContent = "";
+          if (notesTextEl) {
+            notesTextEl.textContent = sessionJson.notes || "(waiting for first notes...)";
+          }
+          if (notesSummaryEl) {
+            notesSummaryEl.textContent = sessionJson.summary ? `Summary: ${sessionJson.summary.trim()}` : "";
+          }
+          if (notesStateEl) {
+            notesStateEl.textContent = formatNotesState(sessionJson.notesState);
+          }
+        } else {
+          if (transcriptTextEl) transcriptTextEl.textContent = "(waiting for first transcript...)";
+          if (notesTextEl) notesTextEl.textContent = "(waiting for first notes...)";
         }
+      } catch (_) {
+        if (transcriptTextEl) transcriptTextEl.textContent = "(waiting for first transcript...)";
+        if (notesTextEl) notesTextEl.textContent = "(waiting for first notes...)";
       }
 
-      // Notes (best-effort)
-      if (notesTextEl) {
-        try {
-          const nUrl = `/uploads/${encodeURIComponent(sid)}/notes.txt?t=${Date.now()}`;
-          const nRes = await fetch(nUrl, { cache: "no-store" });
-          if (nRes.ok) {
-            const nText = await nRes.text();
-            notesTextEl.textContent = nText || "(waiting for first notes…)";
-            if (notesMetaEl) {
-              const latestNote = data?.notesLatest ? data.notesLatest.slice(0, 80) : "";
-              const nts = data?.notesUpdatedAt
-                ? new Date(data.notesUpdatedAt * 1000).toLocaleTimeString()
-                : "";
-              notesMetaEl.textContent = latestNote
-                ? `Last update ${nts} • Latest: "${latestNote}${latestNote.length >= 80 ? '…' : ''}"`
-                : `Last update ${nts}`;
-            }
-          } else {
-            notesTextEl.textContent = "(waiting for first notes…)";
-            if (notesMetaEl) notesMetaEl.textContent = "";
-          }
-        } catch (_) {
-          notesTextEl.textContent = "(waiting for first notes…)";
-          if (notesMetaEl) notesMetaEl.textContent = "";
-        }
+      if (transcriptMetaEl) {
+        const latest = data?.transcriptLatest ? data.transcriptLatest.slice(0, 80) : "";
+        const ts = data?.transcriptUpdatedAt
+          ? new Date(data.transcriptUpdatedAt * 1000).toLocaleTimeString()
+          : "";
+        transcriptMetaEl.textContent = latest
+          ? `Last update ${ts} • Latest raw chunk: "${latest}${latest.length >= 80 ? '…' : ''}"`
+          : `Last update ${ts}`;
+      }
+
+      if (notesMetaEl) {
+        const latestNote = data?.notesLatest ? data.notesLatest.slice(0, 80) : "";
+        const nts = data?.notesUpdatedAt
+          ? new Date(data.notesUpdatedAt * 1000).toLocaleTimeString()
+          : "";
+        notesMetaEl.textContent = latestNote
+          ? `Last update ${nts} • Latest timeline item: "${latestNote}${latestNote.length >= 80 ? '…' : ''}"`
+          : `Last update ${nts}`;
       }
     } catch (err) {
       statusLineEl.textContent = "waiting for status.json…";
@@ -992,7 +1131,22 @@ async function postMetaOnce() {
   const sessionsInfoEl = document.getElementById("sessions-info");
   const sessionsTranscriptEl = document.getElementById("sessions-transcript");
   const sessionsNotesEl = document.getElementById("sessions-notes");
+  const sessionsNotesSummaryEl = document.getElementById("sessions-notes-summary");
+  const sessionsNotesStateEl = document.getElementById("sessions-notes-state");
   const sessionsRefreshEl = document.getElementById("sessions-refresh");
+  const sessionsGenerateSummaryEl = document.getElementById("sessions-generate-summary");
+  const sessionsGameSummaryEl = document.getElementById("sessions-game-summary");
+
+  function formatState(state) {
+    if (!state || typeof state !== "object") return "(no tracked state yet)";
+    const out = [];
+    out.push(`Location: ${state.location || "(unknown)"}`);
+    ["npcs", "loot", "spells", "hp", "conditions", "quests"].forEach((k) => {
+      const items = Array.isArray(state[k]) ? state[k] : [];
+      out.push(`${k.toUpperCase()}: ${items.length ? items.join(" | ") : "(none)"}`);
+    });
+    return out.join("\n");
+  }
 
   async function loadSessions() {
     try {
@@ -1036,8 +1190,15 @@ async function postMetaOnce() {
       if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
 
       if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId}`;
-      if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = json.transcript || '(no transcript)';
+      if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = json.gameSummary || '(no game summary yet)';
+      if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = json.cleanTranscript || json.transcript || '(no transcript)';
       if (sessionsNotesEl) sessionsNotesEl.textContent = json.notes || '(no notes)';
+      if (sessionsNotesSummaryEl) {
+        sessionsNotesSummaryEl.textContent = json.summary ? `Summary: ${String(json.summary).trim()}` : '';
+      }
+      if (sessionsNotesStateEl) {
+        sessionsNotesStateEl.textContent = formatState(json.notesState);
+      }
     } catch (e) {
       if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
     }
@@ -1051,6 +1212,31 @@ async function postMetaOnce() {
   if (sessionsRefreshEl) {
     sessionsRefreshEl.addEventListener('click', () => {
       loadSessions();
+    });
+  }
+  if (sessionsGenerateSummaryEl) {
+    sessionsGenerateSummaryEl.addEventListener('click', async () => {
+      const sessionId = sessionsSelectEl?.value || '';
+      if (!sessionId) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = 'Select a session first.';
+        return;
+      }
+      try {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Generating game summary for ${sessionId}...`;
+        if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = 'Generating summary...';
+        const res = await fetch('/api/summary/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = json.gameSummary || '(empty summary)';
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (game summary updated)`;
+      } catch (e) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
+        if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = `Error: ${e.message}`;
+      }
     });
   }
 

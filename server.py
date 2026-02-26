@@ -18,6 +18,7 @@ OPENAI_API_KEY = None
 NOTES_LOCK = threading.Lock()
 NOTES_MODEL_DEFAULT = "gpt-4o-mini"
 NOTES_WINDOW_DEFAULT = 5
+SUMMARY_MODEL_DEFAULT = "gpt-4o-mini"
 
 SESSION_ID_RE = re.compile(r"^[0-9]{8,20}$")  # timestamp-ish
 
@@ -35,6 +36,13 @@ def read_json(path: str, default):
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
+        return default
+
+def read_text(path: str, default: str = "") -> str:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
         return default
 
 def write_json_atomic(path: str, data):
@@ -106,25 +114,20 @@ def list_sessions(limit: int = 50):
 def read_session_text(session_id: str):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
     transcript_path = os.path.join(session_dir, "transcript.txt")
+    clean_transcript_path = os.path.join(session_dir, "clean_transcript.txt")
     notes_path = os.path.join(session_dir, "notes.txt")
     summary_path = os.path.join(session_dir, "notes_summary.txt")
-    data = {"transcript": "", "notes": "", "summary": ""}
-    try:
-        with open(transcript_path, "r", encoding="utf-8") as f:
-            data["transcript"] = f.read()
-    except FileNotFoundError:
-        pass
-    try:
-        with open(notes_path, "r", encoding="utf-8") as f:
-            data["notes"] = f.read()
-    except FileNotFoundError:
-        pass
-    try:
-        with open(summary_path, "r", encoding="utf-8") as f:
-            data["summary"] = f.read()
-    except FileNotFoundError:
-        pass
-    return data
+    game_summary_path = os.path.join(session_dir, "game_summary.txt")
+    structured = _latest_notes_structured(session_id)
+    return {
+        "transcript": read_text(transcript_path, ""),
+        "cleanTranscript": read_text(clean_transcript_path, ""),
+        "notes": read_text(notes_path, ""),
+        "summary": read_text(summary_path, ""),
+        "gameSummary": read_text(game_summary_path, ""),
+        "notesState": structured.get("state") or {},
+        "notesLatestStructured": structured.get("latest"),
+    }
 
 def update_status_for_chunk(session_id: str, chunk_index: int, filename: str, nbytes: int):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
@@ -188,6 +191,10 @@ def _notes_model() -> str:
     load_env_file(ENV_PATH)
     return (os.environ.get("NOTES_MODEL") or NOTES_MODEL_DEFAULT).strip()
 
+def _summary_model() -> str:
+    load_env_file(ENV_PATH)
+    return (os.environ.get("SUMMARY_MODEL") or SUMMARY_MODEL_DEFAULT).strip()
+
 def _notes_window() -> int:
     load_env_file(ENV_PATH)
     raw = (os.environ.get("NOTES_WINDOW_CHUNKS") or "").strip()
@@ -197,19 +204,83 @@ def _notes_window() -> int:
     except Exception:
         return NOTES_WINDOW_DEFAULT
 
+def _clean_transcript_text(text: str) -> str:
+    s = (text or "").strip()
+    if not s:
+        return ""
+
+    # Normalize whitespace first.
+    s = re.sub(r"\s+", " ", s)
+    s = re.sub(r"\s+([,.;:!?])", r"\1", s)
+
+    # Remove common ASR duplicated-word artifacts: "the the", "I I", "we we"
+    # (case-insensitive, repeated immediate token only).
+    s = re.sub(r"\b([A-Za-z']+)\s+\1\b", r"\1", s, flags=re.IGNORECASE)
+
+    # Collapse filler runs while preserving a single instance.
+    s = re.sub(r"\b(um|uh|erm)\b(?:\s*,?\s*\b(?:um|uh|erm)\b)+", r"\1", s, flags=re.IGNORECASE)
+
+    # Encourage sentence boundaries for common narration/dialogue transitions.
+    s = re.sub(r"\s+(and then|then|so then|meanwhile)\s+", r". \1 ", s, flags=re.IGNORECASE)
+
+    # Split into scan-friendly lines on punctuation and some discourse markers.
+    s = re.sub(r"([.!?])\s+(?=[A-Z0-9\"'])", r"\1\n", s)
+    s = re.sub(r"(:)\s+(?=[A-Z0-9\"'])", r"\1\n", s)
+
+    lines = []
+    for raw_line in s.splitlines():
+        line = raw_line.strip(" -")
+        if not line:
+            continue
+        # Capitalize the first character when safe to do so.
+        if line and line[0].isalpha():
+            line = line[0].upper() + line[1:]
+        # Hard-wrap very long lines for in-session scanning.
+        if len(line) > 180:
+            while len(line) > 180:
+                cut = line.rfind(" ", 0, 180)
+                if cut <= 0:
+                    break
+                lines.append(line[:cut].strip())
+                line = line[cut + 1 :].strip()
+            if line:
+                lines.append(line)
+        else:
+            lines.append(line)
+
+    # Group short lines into small paragraphs to reduce visual noise.
+    paragraphs = []
+    current = []
+    for line in lines:
+        current.append(line)
+        if len(current) >= 3 or line.endswith(("?", "!")):
+            paragraphs.append("\n".join(current))
+            current = []
+    if current:
+        paragraphs.append("\n".join(current))
+
+    return "\n\n".join(paragraphs).strip()
+
 def _append_transcript(session_id: str, chunk_index: int, text: str):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
     ensure_dir(session_dir)
     transcript_path = os.path.join(session_dir, "transcript.txt")
+    clean_transcript_path = os.path.join(session_dir, "clean_transcript.txt")
     jsonl_path = os.path.join(session_dir, "transcripts.jsonl")
 
-    line = f"[{chunk_index:04d}] {text.strip()}\n"
+    raw_text = (text or "").strip()
+    clean_text = _clean_transcript_text(raw_text)
+    line = f"[{chunk_index:04d}] {raw_text}\n"
+    clean_line = f"[{chunk_index:04d}] {clean_text}\n"
     with open(transcript_path, "a", encoding="utf-8") as f:
         f.write(line)
+    with open(clean_transcript_path, "a", encoding="utf-8") as f:
+        f.write(clean_line)
     with open(jsonl_path, "a", encoding="utf-8") as f:
         f.write(json.dumps({
             "chunkIndex": chunk_index,
             "text": text,
+            "cleanText": clean_text,
             "createdAt": int(time.time()),
         }) + "\n")
 
@@ -247,6 +318,67 @@ def _read_notes_summary(session_id: str) -> str:
             return f.read().strip()
     except FileNotFoundError:
         return ""
+
+def _load_notes_entries(session_id: str):
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    jsonl_path = os.path.join(session_dir, "notes.jsonl")
+    if not os.path.isfile(jsonl_path):
+        return []
+    entries = []
+    try:
+        with open(jsonl_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entries.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+    except Exception:
+        return []
+    return entries
+
+def _merge_notes_state(entries):
+    merged = {
+        "location": "",
+        "npcs": [],
+        "loot": [],
+        "spells": [],
+        "hp": [],
+        "conditions": [],
+        "quests": [],
+    }
+    for entry in entries:
+        notes = entry.get("notes") or {}
+        state = notes.get("state") or {}
+        if not isinstance(state, dict):
+            continue
+        loc = str(state.get("location") or "").strip()
+        if loc:
+            merged["location"] = loc
+        for key in ["npcs", "loot", "spells", "hp", "conditions", "quests"]:
+            val = state.get(key)
+            if isinstance(val, str):
+                val = [val] if val.strip() else []
+            if not isinstance(val, list):
+                continue
+            for item in val:
+                item_str = str(item).strip()
+                if item_str and item_str not in merged[key]:
+                    merged[key].append(item_str)
+    return merged
+
+def _latest_notes_structured(session_id: str):
+    entries = _load_notes_entries(session_id)
+    latest = None
+    if entries:
+        latest = (entries[-1].get("notes") or None)
+    return {
+        "latest": latest,
+        "state": _merge_notes_state(entries),
+        "summary": _read_notes_summary(session_id),
+    }
 
 def _write_notes_summary(session_id: str, summary: str):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
@@ -288,6 +420,51 @@ def _extract_json_object(text: str):
         return json.loads(snippet)
     except json.JSONDecodeError:
         return None
+
+def _chat_complete_text(system_prompt: str, user_prompt: str, model: str) -> str:
+    api_key = _openai_api_key()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY not set. Add it to .env or your environment.")
+
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0.2,
+    }
+
+    body = json.dumps(payload).encode("utf-8")
+    req = Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+    )
+
+    try:
+        with urlopen(req, timeout=180) as resp:
+            raw = resp.read().decode("utf-8")
+    except HTTPError as e:
+        detail = e.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(f"OpenAI API error: HTTP {e.code} {detail}")
+    except URLError as e:
+        raise RuntimeError(f"OpenAI API connection error: {e}")
+
+    data = json.loads(raw)
+    content = (
+        data.get("choices", [{}])[0]
+        .get("message", {})
+        .get("content", "")
+        .strip()
+    )
+    if not content:
+        raise RuntimeError("Empty chat completion response.")
+    return content
 
 def transcribe_with_openai(path: str, model: str = "gpt-4o-mini-transcribe") -> str:
     api_key = _openai_api_key()
@@ -357,6 +534,58 @@ def _default_notes_system_prompt() -> str:
         "Use only facts in the transcript and party data. Do not invent details.\n"
         "If a field has no info, use empty string or empty array.\n"
     )
+
+def _default_game_summary_system_prompt() -> str:
+    return (
+        "You are a D&D campaign recapper. Produce a readable game summary in plain text Markdown.\n"
+        "Prioritize chronological events, major discoveries, NPC interactions, combat outcomes, loot, and open hooks.\n"
+        "Do not invent facts. If names are unclear, use neutral descriptions.\n"
+        "Format with short sections: Summary, Timeline, Key NPCs, Loot/Treasure, Outstanding Hooks.\n"
+    )
+
+def generate_game_summary_from_text(transcript_text: str, party: str = "", notes_text: str = "", notes_summary: str = "") -> str:
+    transcript_text = (transcript_text or "").strip()
+    if not transcript_text:
+        raise RuntimeError("No transcript text available for summary generation.")
+
+    system_prompt = _default_game_summary_system_prompt()
+    user_prompt = (
+        "Party roster (if any):\n"
+        f"{party.strip() if party else '(none)'}\n\n"
+        "Existing DM notes timeline (if any):\n"
+        f"{notes_text.strip() if notes_text else '(none)'}\n\n"
+        "Existing rolling notes summary (if any):\n"
+        f"{notes_summary.strip() if notes_summary else '(none)'}\n\n"
+        "Transcript for the full game session:\n"
+        f"{transcript_text}\n"
+    )
+    return _chat_complete_text(system_prompt, user_prompt, _summary_model())
+
+def generate_game_summary_for_session(session_id: str) -> str:
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    clean_transcript = read_text(os.path.join(session_dir, "clean_transcript.txt"), "").strip()
+    raw_transcript = read_text(os.path.join(session_dir, "transcript.txt"), "").strip()
+    transcript_text = clean_transcript or raw_transcript
+    notes_text = read_text(os.path.join(session_dir, "notes.txt"), "")
+    notes_summary = read_text(os.path.join(session_dir, "notes_summary.txt"), "")
+    party = _read_party_meta(session_id)
+
+    summary = generate_game_summary_from_text(
+        transcript_text=transcript_text,
+        party=party,
+        notes_text=notes_text,
+        notes_summary=notes_summary,
+    )
+
+    out_path = os.path.join(session_dir, "game_summary.txt")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(summary.strip() + "\n")
+
+    status_path = os.path.join(session_dir, "status.json")
+    status = read_json(status_path, default={})
+    status["gameSummaryUpdatedAt"] = int(time.time())
+    write_json_atomic(status_path, status)
+    return summary
 
 def generate_notes_with_openai(session_id: str, chunk_index: int):
     api_key = _openai_api_key()
@@ -750,6 +979,21 @@ class Handler(SimpleHTTPRequestHandler):
                     "ok": True,
                     "notes": notes_obj,
                     "window": window,
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/summary/generate":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                summary = generate_game_summary_for_session(session_id)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "gameSummary": summary,
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
