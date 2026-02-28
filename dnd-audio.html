@@ -51,6 +51,8 @@
               <div class="text-end">
                 <div class="small text-muted">Session ID</div>
                 <div class="mono" id="sessionId">(not started)</div>
+                <div class="small text-muted mt-2">Session Name</div>
+                <input id="sessionNameInput" type="text" class="form-control form-control-sm" placeholder="Optional (e.g. Avernus - Session 12)" style="min-width:260px;">
               </div>
             </div>
 
@@ -132,10 +134,30 @@
 
                 <div class="row g-2 mt-3">
                   <div class="col-12">
-                    <label class="form-label" for="partyMeta">Party (player • character • class)</label>
-                    <textarea id="partyMeta" class="form-control" rows="4"
-                      placeholder="Jon — Pippin — Bard
-Jeanne — ..."></textarea>
+                    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                      <label class="form-label mb-0">Roster</label>
+                      <button id="partyAddMemberBtn" type="button" class="btn btn-outline-primary btn-sm">Add Party Member</button>
+                      <button id="partyAddDmBtn" type="button" class="btn btn-outline-primary btn-sm">Add DM</button>
+                    </div>
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle" id="partyRosterTable">
+                        <thead>
+                          <tr>
+                            <th style="min-width:90px;">Role</th>
+                            <th style="min-width:130px;">Player</th>
+                            <th style="min-width:130px;">Character</th>
+                            <th style="min-width:110px;">Class</th>
+                            <th style="min-width:110px;">Race</th>
+                            <th style="min-width:150px;">Aliases</th>
+                            <th style="width:1%;"></th>
+                          </tr>
+                        </thead>
+                        <tbody id="partyRosterBody"></tbody>
+                      </table>
+                    </div>
+                    <label class="form-label small mt-2" for="partyMeta">Generated roster text (sent to notes/summaries)</label>
+                    <textarea id="partyMeta" class="form-control" rows="5"
+                      placeholder="Roster text is generated automatically. You can still edit it manually if needed."></textarea>
                     <div class="d-flex gap-2 mt-2">
                       <button id="partySaveBtn" type="button" class="btn btn-outline-secondary btn-sm">Save Party</button>
                       <button id="partyLoadBtn" type="button" class="btn btn-outline-secondary btn-sm">Load Party</button>
@@ -143,7 +165,7 @@ Jeanne — ..."></textarea>
                     </div>
                     <div id="partyMetaStatus" class="small text-muted mt-1"></div>
                     <div class="form-text">
-                      (Metadata saving is temporarily disabled until we add <code>/api/meta</code>.)
+                      Roster rows improve name matching in notes and summaries. The generated text is what gets sent with the session.
                     </div>
                   </div>
                 </div>
@@ -181,8 +203,15 @@ Jeanne — ..."></textarea>
               </div>
 
               <div class="tab-pane fade" id="pane-test" role="tabpanel">
-                <div class="small text-muted mb-2">Paste a transcript to test notes generation without recording.</div>
+                <div class="small text-muted mb-2">Post-session notes test harness (session-based).</div>
                 <div class="row g-2">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label small mb-1">Source session</label>
+                    <div class="d-flex gap-2">
+                      <select id="test-session-select" class="form-select"></select>
+                      <button id="test-load-session" class="btn btn-outline-secondary btn-sm">Load Session</button>
+                    </div>
+                  </div>
                   <div class="col-12">
                     <label class="form-label small mb-1">Transcript input</label>
                     <textarea id="test-transcript" class="form-control" rows="6"
@@ -192,56 +221,135 @@ Jeanne — ..."></textarea>
                     <label class="form-label small mb-1">Chunk window</label>
                     <input id="test-window" type="number" class="form-control" value="2" min="1" max="20">
                   </div>
+                  <div class="col-12 col-md-4">
+                    <label class="form-label small mb-1">From chunk (optional)</label>
+                    <input id="test-chunk-from" type="number" class="form-control" placeholder="e.g. 12">
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label class="form-label small mb-1">To chunk (optional)</label>
+                    <input id="test-chunk-to" type="number" class="form-control" placeholder="e.g. 28">
+                  </div>
+                  <div class="col-12">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="test-use-context" checked>
+                      <label class="form-check-label small" for="test-use-context">Use prior context (summary + rolling context)</label>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label small mb-1">Last session game summary (context)</label>
+                    <textarea id="test-last-summary" class="form-control" rows="3"
+                      placeholder="Optional context from previous session summary..."></textarea>
+                  </div>
                   <div class="col-12">
                     <label class="form-label small mb-1">Party data (optional)</label>
                     <textarea id="test-party" class="form-control" rows="3"
                       placeholder="Jon — Pippin — Bard"></textarea>
                   </div>
                   <div class="col-12">
-                    <label class="form-label small mb-1">Prompt override (optional)</label>
+                    <label class="form-label small mb-1">Prompt override (preloaded with default)</label>
                     <textarea id="test-prompt" class="form-control" rows="4"
-                      placeholder="Leave blank to use the default prompt..."></textarea>
+                      placeholder=""></textarea>
                   </div>
                 </div>
                 <div class="d-flex gap-2 mt-3">
-                  <button id="test-use-latest" class="btn btn-outline-secondary btn-sm">Use latest transcript</button>
                   <button id="test-run" class="btn btn-primary btn-sm">Generate notes</button>
                 </div>
-                <pre id="test-output"
-                  style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:320px; overflow:auto; white-space: pre-wrap; margin-top:12px;">
-                </pre>
+                <div id="test-status" class="small text-muted mt-2"></div>
+                <div class="row g-2 mt-2">
+                  <div class="col-12">
+                    <div class="small text-muted mb-1">Summary</div>
+                    <pre id="test-output-summary"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:160px; overflow:auto; white-space: pre-wrap;"></pre>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="small text-muted mb-1">Tracked State</div>
+                    <pre id="test-output-state"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:220px; overflow:auto; white-space: pre-wrap;"></pre>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="small text-muted mb-1">Timeline (rendered)</div>
+                    <pre id="test-output-timeline"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:220px; overflow:auto; white-space: pre-wrap;"></pre>
+                  </div>
+                  <div class="col-12">
+                    <div class="small text-muted mb-1">Compiled Notes Preview (notes.txt style)</div>
+                    <pre id="test-output-compiled"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:220px; overflow:auto; white-space: pre-wrap;"></pre>
+                  </div>
+                  <div class="col-12">
+                    <div class="small text-muted mb-1">Raw Response JSON</div>
+                    <pre id="test-output-raw"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:280px; overflow:auto; white-space: pre-wrap;"></pre>
+                  </div>
+                </div>
               </div>
 
               <div class="tab-pane fade" id="pane-sessions" role="tabpanel">
                 <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
                   <div class="small text-muted">Browse past sessions</div>
+                  <label class="small text-muted mb-0" for="sessions-window-input">Notes context window</label>
+                  <input id="sessions-window-input" type="number" class="form-control form-control-sm" value="2" min="1" max="20" style="width:90px;">
                   <button id="sessions-refresh" class="btn btn-outline-secondary btn-sm">Refresh</button>
+                  <button id="sessions-clean-transcript" class="btn btn-outline-secondary btn-sm">Rebuild Clean Transcript</button>
+                  <button id="sessions-reprocess" class="btn btn-outline-primary btn-sm">Rebuild Notes + Summary</button>
                   <button id="sessions-generate-summary" class="btn btn-primary btn-sm">Generate Game Summary</button>
+                  <button id="sessions-generate-narrative" class="btn btn-primary btn-sm">Generate Narrative</button>
                 </div>
                 <div class="row g-2">
                   <div class="col-12 col-md-4">
                     <label class="form-label small mb-1">Sessions</label>
                     <select id="sessions-select" class="form-select"></select>
                   </div>
-                  <div class="col-12 col-md-8">
+                  <div class="col-12 col-md-5">
+                    <label class="form-label small mb-1">Session name</label>
+                    <div class="d-flex gap-2">
+                      <input id="sessions-name-input" type="text" class="form-control" placeholder="Name this session">
+                      <button id="sessions-save-name" class="btn btn-outline-secondary btn-sm">Save Name</button>
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-3">
                     <label class="form-label small mb-1">Session info</label>
                     <div id="sessions-info" class="small text-muted"></div>
                   </div>
                 </div>
                 <div class="row g-2 mt-2">
                   <div class="col-12">
-                    <div class="small text-muted mb-1">Game Summary</div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <div class="small text-muted">Game Summary</div>
+                      <button id="copy-sessions-game-summary" class="btn btn-outline-secondary btn-sm">Copy</button>
+                    </div>
                     <pre id="sessions-game-summary"
                       style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:220px; overflow:auto; white-space: pre-wrap;"></pre>
                   </div>
+                  <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <div class="small text-muted">Narrative (Humorous High Fantasy, ~600 words)</div>
+                      <button id="copy-sessions-game-narrative" class="btn btn-outline-secondary btn-sm">Copy</button>
+                    </div>
+                    <pre id="sessions-game-narrative"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:260px; overflow:auto; white-space: pre-wrap;"></pre>
+                  </div>
                   <div class="col-12 col-md-6">
-                    <div class="small text-muted mb-1">Transcript</div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <div class="small text-muted">Transcript</div>
+                      <button id="copy-sessions-transcript" class="btn btn-outline-secondary btn-sm">Copy</button>
+                    </div>
                     <pre id="sessions-transcript" class="tall-pane"
                       style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;"></pre>
                   </div>
                   <div class="col-12 col-md-6">
-                    <div class="small text-muted mb-1">DM Notes</div>
-                    <div id="sessions-notes-summary" class="small mb-1"></div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <div class="small text-muted">DM Notes</div>
+                      <button id="copy-sessions-notes" class="btn btn-outline-secondary btn-sm">Copy</button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <div id="sessions-notes-summary" class="small mb-1"></div>
+                      <button id="copy-sessions-notes-summary" class="btn btn-outline-secondary btn-sm">Copy Summary</button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <div class="small text-muted">Tracked State</div>
+                      <button id="copy-sessions-notes-state" class="btn btn-outline-secondary btn-sm">Copy State</button>
+                    </div>
                     <pre id="sessions-notes-state"
                       style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:180px; overflow:auto; white-space: pre-wrap;"></pre>
                     <pre id="sessions-notes" class="tall-pane"
@@ -281,6 +389,7 @@ Jeanne — ..."></textarea>
 
   const logEl = document.getElementById('log');
   const sessionIdEl = document.getElementById('sessionId');
+  const sessionNameInputEl = document.getElementById('sessionNameInput');
   const chunkCounterEl = document.getElementById('chunkCounter');
   const countdownEl = document.getElementById('countdown');
 
@@ -288,6 +397,9 @@ Jeanne — ..."></textarea>
   const chunkMinutesEl = document.getElementById('chunkMinutes');
   const latestChunkLinkEl = document.getElementById('latestChunkLink');
   const partyMetaEl = document.getElementById('partyMeta');
+  const partyRosterBodyEl = document.getElementById('partyRosterBody');
+  const partyAddMemberBtn = document.getElementById('partyAddMemberBtn');
+  const partyAddDmBtn = document.getElementById('partyAddDmBtn');
   const partySaveBtn = document.getElementById('partySaveBtn');
   const partyLoadBtn = document.getElementById('partyLoadBtn');
   const partyClearBtn = document.getElementById('partyClearBtn');
@@ -317,7 +429,9 @@ Jeanne — ..."></textarea>
 
   const PARTY_META_STORAGE_KEY = 'dnd-audio-party-meta-v1';
   const PARTY_META_SAVED_AT_KEY = 'dnd-audio-party-meta-saved-at-v1';
+  const PARTY_ROSTER_STORAGE_KEY = 'dnd-audio-party-roster-v1';
   const DEFAULT_MIC_OPTION_VALUE = '__browser_default__';
+  let partyRoster = [];
 
   let metaPosted = false; // still here for later
   // NOTE: We are not running a poller in this module; live status has its own module below.
@@ -331,9 +445,145 @@ Jeanne — ..."></textarea>
     if (partyMetaStatusEl) partyMetaStatusEl.textContent = msg || '';
   }
 
+  function defaultRosterRow(role = 'Player') {
+    if (role === 'DM') {
+      return {
+        role: 'DM',
+        playerName: '',
+        characterName: 'DM',
+        className: '',
+        race: '',
+        aliases: 'DM, GM, Dungeon Master'
+      };
+    }
+    return {
+      role: 'Player',
+      playerName: '',
+      characterName: '',
+      className: '',
+      race: '',
+      aliases: ''
+    };
+  }
+
+  function escapeHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function rosterToPartyMetaText(rows) {
+    const lines = (rows || [])
+      .map((r) => ({
+        role: String(r.role || 'Player').trim(),
+        playerName: String(r.playerName || '').trim(),
+        characterName: String(r.characterName || '').trim(),
+        className: String(r.className || '').trim(),
+        race: String(r.race || '').trim(),
+        aliases: String(r.aliases || '').trim()
+      }))
+      .filter((r) => r.playerName || r.characterName || r.role === 'DM');
+
+    if (!lines.length) return '';
+
+    return lines.map((r) => {
+      const parts = [
+        `role=${r.role || 'Player'}`,
+        `player=${r.playerName || '(unknown)'}`,
+        `character=${r.characterName || (r.role === 'DM' ? 'DM' : '')}`,
+      ];
+      if (r.className) parts.push(`class=${r.className}`);
+      if (r.race) parts.push(`race=${r.race}`);
+      if (r.aliases) parts.push(`aliases=${r.aliases}`);
+      return parts.join(' | ');
+    }).join('\n');
+  }
+
+  function syncPartyMetaFromRoster() {
+    if (!partyMetaEl) return;
+    partyMetaEl.value = rosterToPartyMetaText(partyRoster);
+  }
+
+  function renderPartyRoster() {
+    if (!partyRosterBodyEl) return;
+    partyRosterBodyEl.innerHTML = '';
+    if (!Array.isArray(partyRoster)) partyRoster = [];
+
+    partyRoster.forEach((row, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <select class="form-select form-select-sm" data-roster-field="role" data-roster-index="${index}">
+            <option value="Player" ${row.role === 'DM' ? '' : 'selected'}>Player</option>
+            <option value="DM" ${row.role === 'DM' ? 'selected' : ''}>DM</option>
+          </select>
+        </td>
+        <td><input class="form-control form-control-sm" data-roster-field="playerName" data-roster-index="${index}" value="${escapeHtml(row.playerName)}"></td>
+        <td><input class="form-control form-control-sm" data-roster-field="characterName" data-roster-index="${index}" value="${escapeHtml(row.characterName)}"></td>
+        <td><input class="form-control form-control-sm" data-roster-field="className" data-roster-index="${index}" value="${escapeHtml(row.className)}"></td>
+        <td><input class="form-control form-control-sm" data-roster-field="race" data-roster-index="${index}" value="${escapeHtml(row.race)}"></td>
+        <td><input class="form-control form-control-sm" data-roster-field="aliases" data-roster-index="${index}" value="${escapeHtml(row.aliases)}"></td>
+        <td><button type="button" class="btn btn-outline-danger btn-sm" data-roster-remove="${index}">Remove</button></td>
+      `;
+      partyRosterBodyEl.appendChild(tr);
+    });
+
+    syncPartyMetaFromRoster();
+  }
+
+  function addPartyRosterRow(role = 'Player') {
+    partyRoster.push(defaultRosterRow(role));
+    renderPartyRoster();
+  }
+
+  function bindPartyRosterEvents() {
+    if (partyAddMemberBtn) {
+      partyAddMemberBtn.addEventListener('click', () => addPartyRosterRow('Player'));
+    }
+    if (partyAddDmBtn) {
+      partyAddDmBtn.addEventListener('click', () => addPartyRosterRow('DM'));
+    }
+    if (partyRosterBodyEl) {
+      partyRosterBodyEl.addEventListener('input', (evt) => {
+        const target = evt.target;
+        if (!(target instanceof HTMLElement)) return;
+        const field = target.getAttribute('data-roster-field');
+        const idx = Number(target.getAttribute('data-roster-index'));
+        if (!field || !Number.isInteger(idx) || !partyRoster[idx]) return;
+        partyRoster[idx][field] = target.value;
+        syncPartyMetaFromRoster();
+      });
+      partyRosterBodyEl.addEventListener('change', (evt) => {
+        const target = evt.target;
+        if (!(target instanceof HTMLElement)) return;
+        const field = target.getAttribute('data-roster-field');
+        const idx = Number(target.getAttribute('data-roster-index'));
+        if (field === 'role' && Number.isInteger(idx) && partyRoster[idx]) {
+          if (target.value === 'DM' && !partyRoster[idx].characterName) partyRoster[idx].characterName = 'DM';
+          if (target.value === 'DM' && !partyRoster[idx].aliases) partyRoster[idx].aliases = 'DM, GM, Dungeon Master';
+          renderPartyRoster();
+          return;
+        }
+      });
+      partyRosterBodyEl.addEventListener('click', (evt) => {
+        const target = evt.target;
+        if (!(target instanceof HTMLElement)) return;
+        const rawIdx = target.getAttribute('data-roster-remove');
+        if (rawIdx == null) return;
+        const idx = Number(rawIdx);
+        if (!Number.isInteger(idx)) return;
+        partyRoster.splice(idx, 1);
+        renderPartyRoster();
+      });
+    }
+  }
+
   function savePartyMetaLocal() {
     if (!partyMetaEl) return;
     const value = partyMetaEl.value || '';
+    localStorage.setItem(PARTY_ROSTER_STORAGE_KEY, JSON.stringify(partyRoster || []));
     localStorage.setItem(PARTY_META_STORAGE_KEY, value);
     localStorage.setItem(PARTY_META_SAVED_AT_KEY, String(Date.now()));
     const ts = new Date().toLocaleString();
@@ -343,8 +593,25 @@ Jeanne — ..."></textarea>
 
   function loadPartyMetaLocal() {
     if (!partyMetaEl) return;
+    const rosterRaw = localStorage.getItem(PARTY_ROSTER_STORAGE_KEY);
     const value = localStorage.getItem(PARTY_META_STORAGE_KEY);
     const savedAt = localStorage.getItem(PARTY_META_SAVED_AT_KEY);
+    if (rosterRaw) {
+      try {
+        const parsed = JSON.parse(rosterRaw);
+        if (Array.isArray(parsed)) {
+          partyRoster = parsed.map((r) => ({
+            role: String(r.role || 'Player'),
+            playerName: String(r.playerName || ''),
+            characterName: String(r.characterName || ''),
+            className: String(r.className || ''),
+            race: String(r.race || ''),
+            aliases: String(r.aliases || ''),
+          }));
+          renderPartyRoster();
+        }
+      } catch (_) {}
+    }
     if (value == null) {
       setPartyMetaStatus('No saved party data found in this browser.');
       return;
@@ -360,6 +627,9 @@ Jeanne — ..."></textarea>
   }
 
   function clearPartyMetaLocal() {
+    partyRoster = [];
+    renderPartyRoster();
+    localStorage.removeItem(PARTY_ROSTER_STORAGE_KEY);
     localStorage.removeItem(PARTY_META_STORAGE_KEY);
     localStorage.removeItem(PARTY_META_SAVED_AT_KEY);
     setPartyMetaStatus('Cleared saved party data from this browser.');
@@ -376,6 +646,34 @@ Jeanne — ..."></textarea>
     if (partyClearBtn) {
       partyClearBtn.addEventListener('click', clearPartyMetaLocal);
     }
+
+    bindPartyRosterEvents();
+
+    let rosterLoaded = false;
+    const rosterRaw = localStorage.getItem(PARTY_ROSTER_STORAGE_KEY);
+    if (rosterRaw) {
+      try {
+        const parsed = JSON.parse(rosterRaw);
+        if (Array.isArray(parsed)) {
+          partyRoster = parsed.map((r) => ({
+            role: String(r.role || 'Player'),
+            playerName: String(r.playerName || ''),
+            characterName: String(r.characterName || ''),
+            className: String(r.className || ''),
+            race: String(r.race || ''),
+            aliases: String(r.aliases || ''),
+          }));
+          rosterLoaded = true;
+        }
+      } catch (_) {}
+    }
+    if (!rosterLoaded && partyRoster.length === 0) {
+      partyRoster = [
+        defaultRosterRow('DM'),
+        defaultRosterRow('Player')
+      ];
+    }
+    renderPartyRoster();
 
     const existing = localStorage.getItem(PARTY_META_STORAGE_KEY);
     const savedAt = localStorage.getItem(PARTY_META_SAVED_AT_KEY);
@@ -806,10 +1104,11 @@ async function postMetaOnce() {
 
       // Create session folder + status.json immediately
       log('Initializing session on server…');
+      const requestedSessionName = (sessionNameInputEl?.value || '').trim();
       const startRes = await fetch('/api/session/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId })
+        body: JSON.stringify({ sessionId, sessionName: requestedSessionName })
       });
       const startJson = await startRes.json().catch(() => ({}));
       if (!startRes.ok || !startJson.ok) {
@@ -818,6 +1117,9 @@ async function postMetaOnce() {
       log('Session initialized.');
 
       sessionIdEl.textContent = sessionId;
+      if (sessionNameInputEl && startJson?.sessionName) {
+        sessionNameInputEl.value = startJson.sessionName;
+      }
       chunkCounterEl.textContent = String(chunkIndex);
 
       latestChunkLinkEl.style.display = 'none';
@@ -1060,65 +1362,169 @@ async function postMetaOnce() {
 // TEST NOTES MODULE
 // ================================
 (() => {
+  const testSessionSelectEl = document.getElementById("test-session-select");
+  const testLoadSessionBtn = document.getElementById("test-load-session");
   const testTranscriptEl = document.getElementById("test-transcript");
   const testWindowEl = document.getElementById("test-window");
+  const testChunkFromEl = document.getElementById("test-chunk-from");
+  const testChunkToEl = document.getElementById("test-chunk-to");
+  const testUseContextEl = document.getElementById("test-use-context");
+  const testLastSummaryEl = document.getElementById("test-last-summary");
   const testPartyEl = document.getElementById("test-party");
   const testPromptEl = document.getElementById("test-prompt");
-  const testOutputEl = document.getElementById("test-output");
-  const testUseLatestBtn = document.getElementById("test-use-latest");
+  const testStatusEl = document.getElementById("test-status");
+  const testOutputSummaryEl = document.getElementById("test-output-summary");
+  const testOutputStateEl = document.getElementById("test-output-state");
+  const testOutputTimelineEl = document.getElementById("test-output-timeline");
+  const testOutputCompiledEl = document.getElementById("test-output-compiled");
+  const testOutputRawEl = document.getElementById("test-output-raw");
   const testRunBtn = document.getElementById("test-run");
-  const sessionIdEl = document.getElementById("sessionId");
 
-  function getActiveSessionId() {
-    const v = (sessionIdEl?.textContent || "").trim();
-    if (!/^\d{10,}$/.test(v)) return null;
-    return v;
+  function setTestStatus(msg) {
+    if (testStatusEl) testStatusEl.textContent = msg || "";
   }
 
-  if (testUseLatestBtn) {
-    testUseLatestBtn.addEventListener("click", async () => {
-      const sid = getActiveSessionId();
-      if (!sid) {
-        if (testOutputEl) testOutputEl.textContent = "Start a session first so we can load transcript.txt.";
-        return;
-      }
-      try {
-        const tUrl = `/uploads/${encodeURIComponent(sid)}/transcript.txt?t=${Date.now()}`;
-        const res = await fetch(tUrl, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
-        if (testTranscriptEl) testTranscriptEl.value = text;
-        if (testOutputEl) testOutputEl.textContent = "Loaded latest transcript.txt";
-      } catch (e) {
-        if (testOutputEl) testOutputEl.textContent = `Failed to load transcript: ${e.message}`;
+  function formatState(state) {
+    if (!state || typeof state !== "object") return "(no state)";
+    const out = [];
+    out.push(`Location: ${state.location || "(unknown)"}`);
+    ["npcs", "loot", "spells", "hp", "conditions", "quests"].forEach((k) => {
+      const items = Array.isArray(state[k]) ? state[k] : [];
+      out.push(`${k.toUpperCase()}: ${items.length ? items.join(" | ") : "(none)"}`);
+    });
+    return out.join("\n");
+  }
+
+  function renderTestOutput(json) {
+    if (testOutputRawEl) testOutputRawEl.textContent = JSON.stringify(json, null, 2);
+    if (testOutputSummaryEl) testOutputSummaryEl.textContent = json.finalSummary || "(no summary)";
+    if (testOutputStateEl) testOutputStateEl.textContent = formatState(json.aggregateState);
+    if (testOutputCompiledEl) testOutputCompiledEl.textContent = json.compiledNotesPreview || "(no compiled notes)";
+
+    const lines = [];
+    const runs = Array.isArray(json.runs) ? json.runs : [];
+    runs.forEach((run) => {
+      const idx = run.chunkIndex == null ? "single" : String(run.chunkIndex).padStart(4, "0");
+      const timeline = (run.notes && run.notes.timeline) || [];
+      const items = Array.isArray(timeline) ? timeline : [timeline];
+      if (!items.length || !String(items[0] || "").trim()) {
+        lines.push(`[${idx}] (no new events)`);
+      } else {
+        items.forEach((it) => {
+          const t = String(it || "").trim();
+          if (t) lines.push(`[${idx}] ${t}`);
+        });
       }
     });
+    if (testOutputTimelineEl) testOutputTimelineEl.textContent = lines.join("\n") || "(no timeline)";
+  }
+
+  async function loadTestSessions() {
+    try {
+      if (!testSessionSelectEl) return;
+      testSessionSelectEl.innerHTML = "";
+      const res = await fetch("/api/sessions/list?limit=200");
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      const sessions = json.sessions || [];
+      if (!sessions.length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "No sessions found";
+        testSessionSelectEl.appendChild(opt);
+        return;
+      }
+      sessions.forEach((s) => {
+        const opt = document.createElement("option");
+        opt.value = s.sessionId;
+        const label = (s.sessionName && String(s.sessionName).trim()) ? String(s.sessionName).trim() : s.sessionId;
+        opt.textContent = `${label} (${s.sessionId})`;
+        testSessionSelectEl.appendChild(opt);
+      });
+    } catch (e) {
+      setTestStatus(`Failed to load sessions: ${e.message}`);
+    }
+  }
+
+  async function loadTestSessionData() {
+    const sid = testSessionSelectEl?.value || "";
+    if (!sid) {
+      setTestStatus("Select a session first.");
+      return;
+    }
+    try {
+      setTestStatus(`Loading session ${sid} into test harness...`);
+      const res = await fetch(`/api/sessions/get?sessionId=${encodeURIComponent(sid)}&_t=${Date.now()}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+
+      if (testTranscriptEl) testTranscriptEl.value = json.transcript || "";
+      if (testPartyEl) testPartyEl.value = json.party || "";
+      // Keep this empty by default: this field is for prior-session context,
+      // not the currently loaded session's summary.
+      if (testLastSummaryEl) testLastSummaryEl.value = "";
+      if (testChunkFromEl) testChunkFromEl.value = "";
+      if (testChunkToEl) testChunkToEl.value = "";
+      setTestStatus(`Loaded session ${sid}.`);
+    } catch (e) {
+      setTestStatus(`Failed to load session: ${e.message}`);
+    }
+  }
+
+  async function loadDefaultPrompt() {
+    try {
+      const res = await fetch("/api/notes/default-prompt");
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      if (testPromptEl && !String(testPromptEl.value || "").trim()) {
+        testPromptEl.value = json.prompt || "";
+      }
+    } catch (e) {
+      setTestStatus(`Failed to load default prompt: ${e.message}`);
+    }
+  }
+
+  if (testLoadSessionBtn) {
+    testLoadSessionBtn.addEventListener("click", loadTestSessionData);
   }
 
   if (testRunBtn) {
     testRunBtn.addEventListener("click", async () => {
       try {
-        if (testOutputEl) testOutputEl.textContent = "Generating notes...";
+        setTestStatus("Generating notes test output...");
+        const chunkFromRaw = (testChunkFromEl?.value || "").trim();
+        const chunkToRaw = (testChunkToEl?.value || "").trim();
+        const payload = {
+          transcript: testTranscriptEl?.value || "",
+          window: Number(testWindowEl?.value || 2),
+          chunkFrom: chunkFromRaw === "" ? null : Number(chunkFromRaw),
+          chunkTo: chunkToRaw === "" ? null : Number(chunkToRaw),
+          useContext: Boolean(testUseContextEl?.checked),
+          summary: testLastSummaryEl?.value || "",
+          party: testPartyEl?.value || "",
+          prompt: testPromptEl?.value || "",
+        };
+
         const res = await fetch("/api/notes/test", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            transcript: testTranscriptEl?.value || "",
-            window: Number(testWindowEl?.value || 2),
-            party: testPartyEl?.value || "",
-            prompt: testPromptEl?.value || ""
-          })
+          body: JSON.stringify(payload)
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok || !json.ok) {
           throw new Error(json?.error || `HTTP ${res.status}`);
         }
-        if (testOutputEl) testOutputEl.textContent = JSON.stringify(json.notes, null, 2);
+        renderTestOutput(json);
+        const runs = Array.isArray(json.runs) ? json.runs.length : 0;
+        setTestStatus(`Generated ${runs} notes call(s). Mode=${json.mode}, window=${json.window}.`);
       } catch (e) {
-        if (testOutputEl) testOutputEl.textContent = `Error: ${e.message}`;
+        setTestStatus(`Error: ${e.message}`);
       }
     });
   }
+
+  loadTestSessions();
+  loadDefaultPrompt();
 })();
 </script>
 
@@ -1128,14 +1534,28 @@ async function postMetaOnce() {
 // ================================
 (() => {
   const sessionsSelectEl = document.getElementById("sessions-select");
+  const sessionsWindowInputEl = document.getElementById("sessions-window-input");
+  const sessionsNameInputEl = document.getElementById("sessions-name-input");
+  const sessionsSaveNameEl = document.getElementById("sessions-save-name");
   const sessionsInfoEl = document.getElementById("sessions-info");
   const sessionsTranscriptEl = document.getElementById("sessions-transcript");
   const sessionsNotesEl = document.getElementById("sessions-notes");
   const sessionsNotesSummaryEl = document.getElementById("sessions-notes-summary");
   const sessionsNotesStateEl = document.getElementById("sessions-notes-state");
   const sessionsRefreshEl = document.getElementById("sessions-refresh");
+  const sessionsCleanTranscriptEl = document.getElementById("sessions-clean-transcript");
+  const sessionsReprocessEl = document.getElementById("sessions-reprocess");
   const sessionsGenerateSummaryEl = document.getElementById("sessions-generate-summary");
+  const sessionsGenerateNarrativeEl = document.getElementById("sessions-generate-narrative");
   const sessionsGameSummaryEl = document.getElementById("sessions-game-summary");
+  const sessionsGameNarrativeEl = document.getElementById("sessions-game-narrative");
+  const copySessionsGameSummaryEl = document.getElementById("copy-sessions-game-summary");
+  const copySessionsGameNarrativeEl = document.getElementById("copy-sessions-game-narrative");
+  const copySessionsTranscriptEl = document.getElementById("copy-sessions-transcript");
+  const copySessionsNotesEl = document.getElementById("copy-sessions-notes");
+  const copySessionsNotesSummaryEl = document.getElementById("copy-sessions-notes-summary");
+  const copySessionsNotesStateEl = document.getElementById("copy-sessions-notes-state");
+  let reprocessPollTimer = null;
 
   function formatState(state) {
     if (!state || typeof state !== "object") return "(no tracked state yet)";
@@ -1146,6 +1566,20 @@ async function postMetaOnce() {
       out.push(`${k.toUpperCase()}: ${items.length ? items.join(" | ") : "(none)"}`);
     });
     return out.join("\n");
+  }
+
+  async function copyTextToClipboard(text, label) {
+    const value = String(text || '');
+    if (!value.trim()) {
+      if (sessionsInfoEl) sessionsInfoEl.textContent = `Nothing to copy for ${label}.`;
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(value);
+      if (sessionsInfoEl) sessionsInfoEl.textContent = `Copied ${label}.`;
+    } catch (e) {
+      if (sessionsInfoEl) sessionsInfoEl.textContent = `Copy failed for ${label}: ${e.message}`;
+    }
   }
 
   async function loadSessions() {
@@ -1169,7 +1603,8 @@ async function postMetaOnce() {
         const opt = document.createElement('option');
         opt.value = s.sessionId;
         const ts = new Date((s.updatedAt || 0) * 1000).toLocaleString();
-        opt.textContent = `${s.sessionId} • ${ts} • chunks=${s.chunkCount}`;
+        const label = (s.sessionName && String(s.sessionName).trim()) ? String(s.sessionName).trim() : s.sessionId;
+        opt.textContent = `${label} • ${ts} • chunks=${s.chunkCount}`;
         sessionsSelectEl.appendChild(opt);
       });
       if (sessionsSelectEl.options.length > 0) {
@@ -1190,7 +1625,9 @@ async function postMetaOnce() {
       if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
 
       if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId}`;
+      if (sessionsNameInputEl) sessionsNameInputEl.value = json.sessionName || '';
       if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = json.gameSummary || '(no game summary yet)';
+      if (sessionsGameNarrativeEl) sessionsGameNarrativeEl.textContent = json.gameNarrative || '(no narrative yet)';
       if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = json.cleanTranscript || json.transcript || '(no transcript)';
       if (sessionsNotesEl) sessionsNotesEl.textContent = json.notes || '(no notes)';
       if (sessionsNotesSummaryEl) {
@@ -1199,9 +1636,56 @@ async function postMetaOnce() {
       if (sessionsNotesStateEl) {
         sessionsNotesStateEl.textContent = formatState(json.notesState);
       }
+      const rep = json.reprocessStatus || {};
+      if (rep.running && sessionsInfoEl) {
+        const processed = Number(rep.processed || 0);
+        const total = Number(rep.total || 0);
+        const phase = rep.phase || 'notes';
+        const window = Number(rep.window || 0);
+        const w = window > 0 ? `, window=${window}` : '';
+        sessionsInfoEl.textContent = `Session ${sessionId} (rebuild running: ${phase} ${processed}/${total || '?'}${w})`;
+      } else if (rep.phase === 'error' && sessionsInfoEl) {
+        sessionsInfoEl.textContent = `Session ${sessionId} (rebuild error: ${rep.error || 'unknown error'})`;
+      }
     } catch (e) {
       if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
     }
+  }
+
+  function stopReprocessPolling() {
+    if (reprocessPollTimer) clearInterval(reprocessPollTimer);
+    reprocessPollTimer = null;
+  }
+
+  function startReprocessPolling(sessionId) {
+    stopReprocessPolling();
+    reprocessPollTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/sessions/get?sessionId=${encodeURIComponent(sessionId)}&_t=${Date.now()}`);
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) return;
+        const rep = json.reprocessStatus || {};
+        const processed = Number(rep.processed || 0);
+        const total = Number(rep.total || 0);
+        const phase = rep.phase || 'notes';
+        const window = Number(rep.window || 0);
+        const w = window > 0 ? `, window=${window}` : '';
+        if (sessionsInfoEl && rep.running) {
+          sessionsInfoEl.textContent = `Session ${sessionId} (rebuild running: ${phase} ${processed}/${total || '?'}${w})`;
+        }
+        if (!rep.running) {
+          stopReprocessPolling();
+          await loadSessionDetail(sessionId);
+          if (sessionsInfoEl) {
+            if (rep.phase === 'error') {
+              sessionsInfoEl.textContent = `Session ${sessionId} (rebuild error: ${rep.error || 'unknown error'})`;
+            } else {
+              sessionsInfoEl.textContent = `Session ${sessionId} (rebuild complete: ${processed}/${total || processed})`;
+            }
+          }
+        }
+      } catch (_) {}
+    }, 2500);
   }
 
   if (sessionsSelectEl) {
@@ -1237,6 +1721,149 @@ async function postMetaOnce() {
         if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
         if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = `Error: ${e.message}`;
       }
+    });
+  }
+  if (sessionsGenerateNarrativeEl) {
+    sessionsGenerateNarrativeEl.addEventListener('click', async () => {
+      const sessionId = sessionsSelectEl?.value || '';
+      if (!sessionId) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = 'Select a session first.';
+        return;
+      }
+      try {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Generating narrative for ${sessionId}...`;
+        if (sessionsGameNarrativeEl) sessionsGameNarrativeEl.textContent = 'Generating narrative...';
+        const res = await fetch('/api/narrative/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        if (sessionsGameNarrativeEl) sessionsGameNarrativeEl.textContent = json.gameNarrative || '(empty narrative)';
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (narrative updated)`;
+      } catch (e) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
+        if (sessionsGameNarrativeEl) sessionsGameNarrativeEl.textContent = `Error: ${e.message}`;
+      }
+    });
+  }
+  if (sessionsCleanTranscriptEl) {
+    sessionsCleanTranscriptEl.addEventListener('click', async () => {
+      const sessionId = sessionsSelectEl?.value || '';
+      if (!sessionId) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = 'Select a session first.';
+        return;
+      }
+      try {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Rebuilding clean transcript for ${sessionId}...`;
+        if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = 'Rebuilding clean transcript...';
+        const partyOverride = document.getElementById('partyMeta')?.value || '';
+        const res = await fetch('/api/session/clean-transcript', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, party: partyOverride })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (clean transcript rebuilt: ${json.rebuiltChunks || 0} chunks)`;
+        await loadSessionDetail(sessionId);
+      } catch (e) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
+        if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = `Error: ${e.message}`;
+      }
+    });
+  }
+  if (sessionsReprocessEl) {
+    sessionsReprocessEl.addEventListener('click', async () => {
+      const sessionId = sessionsSelectEl?.value || '';
+      if (!sessionId) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = 'Select a session first.';
+        return;
+      }
+      try {
+        const windowOverride = Math.max(1, Math.min(20, Number(sessionsWindowInputEl?.value || 2)));
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Starting rebuild for ${sessionId} (window=${windowOverride})...`;
+        if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = 'Rebuilding notes and summary...';
+        const partyOverride = document.getElementById('partyMeta')?.value || '';
+        const res = await fetch('/api/session/reprocess/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            party: partyOverride,
+            regenerateSummary: true,
+            windowOverride
+          })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (rebuild started, window=${windowOverride})`;
+        startReprocessPolling(sessionId);
+      } catch (e) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
+        if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = `Error: ${e.message}`;
+      }
+    });
+  }
+  if (sessionsSaveNameEl) {
+    sessionsSaveNameEl.addEventListener('click', async () => {
+      const sessionId = sessionsSelectEl?.value || '';
+      if (!sessionId) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = 'Select a session first.';
+        return;
+      }
+      try {
+        const sessionName = sessionsNameInputEl?.value || '';
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Saving name for ${sessionId}...`;
+        const res = await fetch('/api/session/name', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, sessionName })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (name saved)`;
+        await loadSessions();
+        if (sessionsSelectEl) {
+          const match = Array.from(sessionsSelectEl.options).find((o) => o.value === sessionId);
+          if (match) sessionsSelectEl.value = sessionId;
+        }
+        await loadSessionDetail(sessionId);
+      } catch (e) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
+      }
+    });
+  }
+
+  if (copySessionsGameSummaryEl) {
+    copySessionsGameSummaryEl.addEventListener('click', () => {
+      copyTextToClipboard(sessionsGameSummaryEl?.textContent || '', 'game summary');
+    });
+  }
+  if (copySessionsGameNarrativeEl) {
+    copySessionsGameNarrativeEl.addEventListener('click', () => {
+      copyTextToClipboard(sessionsGameNarrativeEl?.textContent || '', 'game narrative');
+    });
+  }
+  if (copySessionsTranscriptEl) {
+    copySessionsTranscriptEl.addEventListener('click', () => {
+      copyTextToClipboard(sessionsTranscriptEl?.textContent || '', 'transcript');
+    });
+  }
+  if (copySessionsNotesEl) {
+    copySessionsNotesEl.addEventListener('click', () => {
+      copyTextToClipboard(sessionsNotesEl?.textContent || '', 'DM notes');
+    });
+  }
+  if (copySessionsNotesSummaryEl) {
+    copySessionsNotesSummaryEl.addEventListener('click', () => {
+      copyTextToClipboard(sessionsNotesSummaryEl?.textContent || '', 'notes summary');
+    });
+  }
+  if (copySessionsNotesStateEl) {
+    copySessionsNotesStateEl.addEventListener('click', () => {
+      copyTextToClipboard(sessionsNotesStateEl?.textContent || '', 'tracked state');
     });
   }
 

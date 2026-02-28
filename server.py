@@ -16,11 +16,15 @@ UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 OPENAI_API_KEY = None
 NOTES_LOCK = threading.Lock()
+REPROCESS_LOCK = threading.Lock()
 NOTES_MODEL_DEFAULT = "gpt-4o-mini"
 NOTES_WINDOW_DEFAULT = 5
 SUMMARY_MODEL_DEFAULT = "gpt-4o-mini"
+CLEAN_TRANSCRIPT_MODEL_DEFAULT = "gpt-4o-mini"
+NARRATIVE_MODEL_DEFAULT = "gpt-4o-mini"
 
 SESSION_ID_RE = re.compile(r"^[0-9]{8,20}$")  # timestamp-ish
+SESSION_NAME_MAX_LEN = 120
 
 def safe_session_id(s: str) -> str:
     s = (s or "").strip()
@@ -30,6 +34,10 @@ def safe_session_id(s: str) -> str:
 
 def ensure_dir(p: str):
     os.makedirs(p, exist_ok=True)
+
+def sanitize_session_name(name: str) -> str:
+    s = re.sub(r"\s+", " ", str(name or "").strip())
+    return s[:SESSION_NAME_MAX_LEN]
 
 def read_json(path: str, default):
     try:
@@ -79,6 +87,7 @@ def init_session(session_id: str) -> str:
     if status is None:
         status = {
             "sessionId": session_id,
+            "sessionName": "",
             "createdAt": int(time.time()),
             "updatedAt": int(time.time()),
             "chunks": [],
@@ -103,6 +112,7 @@ def list_sessions(limit: int = 50):
         mtime = int(os.path.getmtime(session_dir))
         sessions.append({
             "sessionId": name,
+            "sessionName": str(status.get("sessionName") or ""),
             "updatedAt": status.get("updatedAt") or mtime,
             "createdAt": status.get("createdAt") or mtime,
             "chunkCount": len(status.get("chunks") or []),
@@ -118,13 +128,20 @@ def read_session_text(session_id: str):
     notes_path = os.path.join(session_dir, "notes.txt")
     summary_path = os.path.join(session_dir, "notes_summary.txt")
     game_summary_path = os.path.join(session_dir, "game_summary.txt")
+    game_narrative_path = os.path.join(session_dir, "game_narrative.txt")
+    party_path = os.path.join(session_dir, "party.txt")
     structured = _latest_notes_structured(session_id)
+    status = read_json(os.path.join(session_dir, "status.json"), default={})
     return {
         "transcript": read_text(transcript_path, ""),
         "cleanTranscript": read_text(clean_transcript_path, ""),
         "notes": read_text(notes_path, ""),
+        "party": read_text(party_path, ""),
         "summary": read_text(summary_path, ""),
         "gameSummary": read_text(game_summary_path, ""),
+        "gameNarrative": read_text(game_narrative_path, ""),
+        "sessionName": str(status.get("sessionName") or ""),
+        "reprocessStatus": status.get("reprocessStatus") or {},
         "notesState": structured.get("state") or {},
         "notesLatestStructured": structured.get("latest"),
     }
@@ -135,6 +152,7 @@ def update_status_for_chunk(session_id: str, chunk_index: int, filename: str, nb
 
     status = read_json(status_path, default={
         "sessionId": session_id,
+        "sessionName": "",
         "createdAt": int(time.time()),
         "updatedAt": int(time.time()),
         "chunks": [],
@@ -194,6 +212,14 @@ def _notes_model() -> str:
 def _summary_model() -> str:
     load_env_file(ENV_PATH)
     return (os.environ.get("SUMMARY_MODEL") or SUMMARY_MODEL_DEFAULT).strip()
+
+def _clean_transcript_model() -> str:
+    load_env_file(ENV_PATH)
+    return (os.environ.get("CLEAN_TRANSCRIPT_MODEL") or CLEAN_TRANSCRIPT_MODEL_DEFAULT).strip()
+
+def _narrative_model() -> str:
+    load_env_file(ENV_PATH)
+    return (os.environ.get("NARRATIVE_MODEL") or NARRATIVE_MODEL_DEFAULT).strip()
 
 def _notes_window() -> int:
     load_env_file(ENV_PATH)
@@ -408,6 +434,28 @@ def _load_recent_transcripts(session_id: str, count: int):
         return []
     return lines[-count:]
 
+def _load_all_transcripts(session_id: str):
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    jsonl_path = os.path.join(session_dir, "transcripts.jsonl")
+    if not os.path.isfile(jsonl_path):
+        return []
+    lines = []
+    try:
+        with open(jsonl_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                lines.append(obj)
+    except Exception:
+        return []
+    lines.sort(key=lambda o: int(o.get("chunkIndex", -1)))
+    return lines
+
 def _extract_json_object(text: str):
     if not text:
         return None
@@ -532,6 +580,9 @@ def _default_notes_system_prompt() -> str:
         "state (object with keys: location, npcs, loot, spells, hp, conditions, quests),\n"
         "summary (string, 3-6 sentences, rolling summary of the session so far).\n"
         "Use only facts in the transcript and party data. Do not invent details.\n"
+        "Use the party roster to normalize names in the transcript. Match likely variants, mis-hearings, and shortened names to the roster when the context supports it.\n"
+        "Prefer character names in timeline and summary. If helpful, include the player name once in parentheses on first mention.\n"
+        "If a speaker/action cannot be confidently matched to the roster, keep the transcript wording or use a neutral label instead of guessing.\n"
         "If a field has no info, use empty string or empty array.\n"
     )
 
@@ -539,9 +590,53 @@ def _default_game_summary_system_prompt() -> str:
     return (
         "You are a D&D campaign recapper. Produce a readable game summary in plain text Markdown.\n"
         "Prioritize chronological events, major discoveries, NPC interactions, combat outcomes, loot, and open hooks.\n"
-        "Do not invent facts. If names are unclear, use neutral descriptions.\n"
+        "Do not invent facts. Use the party roster to normalize transcript names to the correct character names whenever context supports it.\n"
+        "Prefer character names consistently. If a name is unclear and cannot be matched confidently, use a neutral description.\n"
         "Format with short sections: Summary, Timeline, Key NPCs, Loot/Treasure, Outstanding Hooks.\n"
     )
+
+def _default_game_narrative_system_prompt() -> str:
+    return (
+        "You are a fantasy chronicler retelling a D&D session as a humorous high-fantasy narrative.\n"
+        "Write approximately 600 words in plain text Markdown (no code fences).\n"
+        "Accuracy is the top priority. Build the narrative from the DM notes timeline first, then use the transcript to add detail.\n"
+        "Preserve chronological order of events. Do not reorder scenes for dramatic effect.\n"
+        "Use vivid but clear prose, with light humor only where it does not distort the facts.\n"
+        "Prefer character names from the party roster when possible.\n"
+        "Do not invent major events, loot, outcomes, dialogue, or motivations not supported by the provided material.\n"
+        "If a detail is unclear, omit it or describe it cautiously rather than guessing.\n"
+        "You may include a few short direct quotes from the transcript, but treat them as unattributed unless the speaker can be identified confidently.\n"
+        "Keep it readable and coherent for players recapping the session.\n"
+    )
+
+def _default_clean_transcript_system_prompt() -> str:
+    return (
+        "You are editing an auto-transcribed D&D session transcript for readability.\n"
+        "Return plain text only for a single transcript chunk (no JSON, no markdown fences).\n"
+        "Preserve facts and sequence. Do not invent content.\n"
+        "Use the provided party roster to normalize likely mis-heard player/character names when context supports it.\n"
+        "Prefer character names consistently. If uncertain, keep the original wording.\n"
+        "Improve punctuation, sentence breaks, and paragraphing for readability.\n"
+        "Do not summarize; this is still a transcript chunk.\n"
+    )
+
+def clean_transcript_chunk_with_openai(chunk_text: str, party: str = "", chunk_index: int = -1) -> str:
+    chunk_text = (chunk_text or "").strip()
+    if not chunk_text:
+        return ""
+    user_prompt = (
+        f"Chunk index: {chunk_index}\n\n"
+        "Party roster (if any):\n"
+        f"{party.strip() if party else '(none)'}\n\n"
+        "Transcript chunk to clean:\n"
+        f"{chunk_text}\n"
+    )
+    out = _chat_complete_text(
+        _default_clean_transcript_system_prompt(),
+        user_prompt,
+        _clean_transcript_model(),
+    )
+    return out.strip()
 
 def generate_game_summary_from_text(transcript_text: str, party: str = "", notes_text: str = "", notes_summary: str = "") -> str:
     transcript_text = (transcript_text or "").strip()
@@ -560,6 +655,24 @@ def generate_game_summary_from_text(transcript_text: str, party: str = "", notes
         f"{transcript_text}\n"
     )
     return _chat_complete_text(system_prompt, user_prompt, _summary_model())
+
+def generate_game_narrative_from_text(transcript_text: str, party: str = "", notes_text: str = "", notes_summary: str = "") -> str:
+    transcript_text = (transcript_text or "").strip()
+    if not transcript_text:
+        raise RuntimeError("No transcript text available for narrative generation.")
+
+    system_prompt = _default_game_narrative_system_prompt()
+    user_prompt = (
+        "Party roster (if any):\n"
+        f"{party.strip() if party else '(none)'}\n\n"
+        "DM notes timeline (if any):\n"
+        f"{notes_text.strip() if notes_text else '(none)'}\n\n"
+        "DM notes rolling summary (if any):\n"
+        f"{notes_summary.strip() if notes_summary else '(none)'}\n\n"
+        "Transcript for the full game session:\n"
+        f"{transcript_text}\n"
+    )
+    return _chat_complete_text(system_prompt, user_prompt, _narrative_model())
 
 def generate_game_summary_for_session(session_id: str) -> str:
     session_dir = os.path.join(UPLOADS_DIR, session_id)
@@ -587,22 +700,50 @@ def generate_game_summary_for_session(session_id: str) -> str:
     write_json_atomic(status_path, status)
     return summary
 
-def generate_notes_with_openai(session_id: str, chunk_index: int):
+def generate_game_narrative_for_session(session_id: str) -> str:
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    clean_transcript = read_text(os.path.join(session_dir, "clean_transcript.txt"), "").strip()
+    raw_transcript = read_text(os.path.join(session_dir, "transcript.txt"), "").strip()
+    transcript_text = clean_transcript or raw_transcript
+    notes_text = read_text(os.path.join(session_dir, "notes.txt"), "")
+    notes_summary = read_text(os.path.join(session_dir, "notes_summary.txt"), "")
+    party = _read_party_meta(session_id)
+
+    narrative = generate_game_narrative_from_text(
+        transcript_text=transcript_text,
+        party=party,
+        notes_text=notes_text,
+        notes_summary=notes_summary,
+    )
+
+    out_path = os.path.join(session_dir, "game_narrative.txt")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(narrative.strip() + "\n")
+
+    status_path = os.path.join(session_dir, "status.json")
+    status = read_json(status_path, default={})
+    status["gameNarrativeUpdatedAt"] = int(time.time())
+    write_json_atomic(status_path, status)
+    return narrative
+
+def _generate_notes_with_context(session_id: str, chunk_index: int, recent: list, summary_override: str = "", window_override: int = None):
     api_key = _openai_api_key()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY not set. Add it to .env or your environment.")
 
     party = _read_party_meta(session_id)
-    summary = _read_notes_summary(session_id)
+    summary = (summary_override or "").strip() or _read_notes_summary(session_id)
     window = _notes_window()
-    recent = _load_recent_transcripts(session_id, window)
-
+    if window_override is not None:
+        try:
+            window = max(1, min(20, int(window_override)))
+        except Exception:
+            window = _notes_window()
     transcript_block = "\n".join(
-        [f"[{obj.get('chunkIndex', '?')}] {obj.get('text', '').strip()}" for obj in recent]
+        [f"[{obj.get('chunkIndex', '?')}] {str(obj.get('text', '')).strip()}" for obj in (recent or [])]
     ).strip()
 
     system_prompt = _default_notes_system_prompt()
-
     user_prompt = (
         "Party data (if any):\n"
         f"{party if party else '(none)'}\n\n"
@@ -612,46 +753,16 @@ def generate_notes_with_openai(session_id: str, chunk_index: int):
         f"{transcript_block if transcript_block else '(none)'}\n"
     )
 
-    payload = {
-        "model": _notes_model(),
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "temperature": 0.2,
-    }
-
-    body = json.dumps(payload).encode("utf-8")
-    req = Request(
-        "https://api.openai.com/v1/chat/completions",
-        data=body,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-    )
-
-    try:
-        with urlopen(req, timeout=120) as resp:
-            raw = resp.read().decode("utf-8")
-    except HTTPError as e:
-        detail = e.read().decode("utf-8", errors="ignore")
-        raise RuntimeError(f"OpenAI API error: HTTP {e.code} {detail}")
-    except URLError as e:
-        raise RuntimeError(f"OpenAI API connection error: {e}")
-
-    data = json.loads(raw)
-    content = (
-        data.get("choices", [{}])[0]
-        .get("message", {})
-        .get("content", "")
-        .strip()
-    )
-    obj = _extract_json_object(content)
+    raw = _chat_complete_text(system_prompt, user_prompt, _notes_model())
+    obj = _extract_json_object(raw)
     if not obj:
         raise RuntimeError("Notes response was not valid JSON.")
     return obj
+
+def generate_notes_with_openai(session_id: str, chunk_index: int):
+    window = _notes_window()
+    recent = _load_recent_transcripts(session_id, window)
+    return _generate_notes_with_context(session_id, chunk_index, recent, window_override=window)
 
 def _parse_chunked_transcript(transcript_text: str):
     chunks = []
@@ -748,6 +859,120 @@ def generate_notes_from_text(transcript_text: str, party: str = "", summary: str
         raise RuntimeError("Notes response was not valid JSON.")
     return obj
 
+def _normalize_chunk_range(chunks, chunk_from, chunk_to):
+    if not chunks:
+        return []
+    by_idx = {int(idx): txt for idx, txt in chunks}
+    all_idxs = sorted(by_idx.keys())
+    start = all_idxs[0] if chunk_from is None else int(chunk_from)
+    end = all_idxs[-1] if chunk_to is None else int(chunk_to)
+    if start > end:
+        start, end = end, start
+    return [(idx, by_idx[idx]) for idx in all_idxs if start <= idx <= end]
+
+def _notes_test_payload(
+    transcript_text: str,
+    party: str = "",
+    prior_summary: str = "",
+    system_prompt: str = "",
+    window: int = 2,
+    chunk_from=None,
+    chunk_to=None,
+    use_context: bool = True,
+):
+    transcript_text = (transcript_text or "").strip()
+    if not transcript_text:
+        raise RuntimeError("No transcript text provided.")
+
+    prompt_used = (system_prompt or "").strip() or _default_notes_system_prompt()
+    chunks = _parse_chunked_transcript(transcript_text)
+    window = max(1, min(20, int(window)))
+    use_context = bool(use_context)
+
+    if not chunks:
+        notes_obj = generate_notes_from_text(
+            transcript_text=transcript_text,
+            party=party,
+            summary=prior_summary if use_context else "",
+            system_prompt=prompt_used,
+            window=window,
+        )
+        timeline = notes_obj.get("timeline") or []
+        if isinstance(timeline, str):
+            timeline = [timeline]
+        compiled = "\n".join([f"[single] {str(x).strip()}" for x in timeline if str(x).strip()])
+        return {
+            "mode": "single",
+            "promptUsed": prompt_used,
+            "window": window,
+            "useContext": use_context,
+            "runs": [{
+                "chunkIndex": None,
+                "windowChunkIndexes": [],
+                "notes": notes_obj,
+            }],
+            "compiledNotesPreview": compiled,
+            "finalSummary": str(notes_obj.get("summary") or "").strip(),
+            "aggregateState": _merge_notes_state([{"notes": notes_obj}]),
+        }
+
+    selected = _normalize_chunk_range(chunks, chunk_from, chunk_to)
+    if not selected:
+        raise RuntimeError("Chunk range selected no transcript chunks.")
+
+    runs = []
+    rolling_summary = (prior_summary or "").strip()
+    compiled_lines = []
+    processed = []
+    entries_for_merge = []
+
+    for idx, text in selected:
+        processed.append((idx, text))
+        recent = processed[-window:]
+        recent_text = "\n".join([f"[{i:04d}] {t}" for i, t in recent])
+        notes_obj = generate_notes_from_text(
+            transcript_text=recent_text,
+            party=party,
+            summary=rolling_summary if use_context else "",
+            system_prompt=prompt_used,
+            window=window,
+        )
+        timeline = notes_obj.get("timeline") or []
+        if isinstance(timeline, str):
+            timeline = [timeline]
+        timeline = [str(x).strip() for x in timeline if str(x).strip()]
+        if timeline:
+            for line in timeline:
+                compiled_lines.append(f"[{idx:04d}] {line}")
+        else:
+            compiled_lines.append(f"[{idx:04d}] (no new events)")
+
+        if use_context:
+            next_summary = str(notes_obj.get("summary") or "").strip()
+            if next_summary:
+                rolling_summary = next_summary
+
+        run_entry = {
+            "chunkIndex": idx,
+            "windowChunkIndexes": [int(i) for i, _ in recent],
+            "notes": notes_obj,
+        }
+        runs.append(run_entry)
+        entries_for_merge.append({"notes": notes_obj})
+
+    return {
+        "mode": "chunked",
+        "promptUsed": prompt_used,
+        "window": window,
+        "useContext": use_context,
+        "chunkFrom": selected[0][0],
+        "chunkTo": selected[-1][0],
+        "runs": runs,
+        "compiledNotesPreview": "\n".join(compiled_lines).strip(),
+        "finalSummary": rolling_summary,
+        "aggregateState": _merge_notes_state(entries_for_merge),
+    }
+
 def _append_notes(session_id: str, chunk_index: int, notes_obj: dict):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
     ensure_dir(session_dir)
@@ -795,6 +1020,181 @@ def _set_notes_error(session_id: str, chunk_index: int, message: str):
         "updatedAt": int(time.time()),
     }
     write_json_atomic(status_path, status)
+
+def rebuild_notes_for_session(session_id: str, party_override: str = "", regenerate_summary: bool = True, progress_cb=None, window_override: int = None):
+    session_dir = init_session(session_id)
+    transcripts = _load_all_transcripts(session_id)
+    if not transcripts:
+        raise RuntimeError("No transcripts.jsonl entries found for this session.")
+
+    if party_override.strip():
+        party_path = os.path.join(session_dir, "party.txt")
+        with open(party_path, "w", encoding="utf-8") as f:
+            f.write(party_override.strip() + "\n")
+
+    # Reset derived notes outputs so they can be rebuilt deterministically.
+    for name in ["notes.txt", "notes.jsonl", "notes_summary.txt", "game_summary.txt"]:
+        path = os.path.join(session_dir, name)
+        if os.path.exists(path):
+            os.remove(path)
+
+    # Clear status note fields/errors before rebuild.
+    status_path = os.path.join(session_dir, "status.json")
+    status = read_json(status_path, default={})
+    status.pop("notesError", None)
+    status.pop("gameSummaryUpdatedAt", None)
+    status["notesLatest"] = ""
+    status["notesUpdatedAt"] = int(time.time())
+    write_json_atomic(status_path, status)
+
+    rebuilt = 0
+    window = _notes_window()
+    if window_override is not None:
+        try:
+            window = max(1, min(20, int(window_override)))
+        except Exception:
+            window = _notes_window()
+    rolling_summary = ""
+    total = len([t for t in transcripts if int(t.get("chunkIndex", -1)) >= 0])
+    if progress_cb:
+        progress_cb({"phase": "notes", "running": True, "processed": 0, "total": total, "window": window})
+    with NOTES_LOCK:
+        processed = []
+        for item in transcripts:
+            chunk_index = int(item.get("chunkIndex", -1))
+            if chunk_index < 0:
+                continue
+            processed.append(item)
+            recent = processed[-window:]
+            notes_obj = _generate_notes_with_context(
+                session_id=session_id,
+                chunk_index=chunk_index,
+                recent=recent,
+                summary_override=rolling_summary,
+                window_override=window,
+            )
+            _append_notes(session_id, chunk_index, notes_obj)
+            rolling_summary = str(notes_obj.get("summary") or "").strip() or rolling_summary
+            rebuilt += 1
+            if progress_cb:
+                progress_cb({"phase": "notes", "running": True, "processed": rebuilt, "total": total, "window": window})
+
+    summary_text = ""
+    if regenerate_summary:
+        if progress_cb:
+            progress_cb({"phase": "summary", "running": True, "processed": rebuilt, "total": total})
+        summary_text = generate_game_summary_for_session(session_id)
+
+    if progress_cb:
+        progress_cb({"phase": "done", "running": False, "processed": rebuilt, "total": total})
+
+    return {
+        "rebuiltChunks": rebuilt,
+        "gameSummary": summary_text,
+    }
+
+def _set_reprocess_status(session_id: str, patch: dict):
+    session_dir = init_session(session_id)
+    status_path = os.path.join(session_dir, "status.json")
+    status = read_json(status_path, default={})
+    current = status.get("reprocessStatus") or {}
+    current.update(patch or {})
+    status["reprocessStatus"] = current
+    status["updatedAt"] = int(time.time())
+    write_json_atomic(status_path, status)
+
+def _run_reprocess_job(session_id: str, party_override: str, regenerate_summary: bool, window_override: int = None):
+    def progress(p):
+        payload = {
+            "running": bool(p.get("running", True)),
+            "phase": str(p.get("phase") or "notes"),
+            "processed": int(p.get("processed") or 0),
+            "total": int(p.get("total") or 0),
+            "error": "",
+            "updatedAt": int(time.time()),
+            "window": int(p.get("window") or 0),
+        }
+        _set_reprocess_status(session_id, payload)
+
+    try:
+        _set_reprocess_status(session_id, {
+            "running": True,
+            "phase": "starting",
+            "processed": 0,
+            "total": 0,
+            "error": "",
+            "startedAt": int(time.time()),
+            "updatedAt": int(time.time()),
+            "finishedAt": None,
+            "window": int(window_override or 0),
+        })
+        result = rebuild_notes_for_session(
+            session_id=session_id,
+            party_override=party_override,
+            regenerate_summary=regenerate_summary,
+            progress_cb=progress,
+            window_override=window_override,
+        )
+        _set_reprocess_status(session_id, {
+            "running": False,
+            "phase": "done",
+            "processed": int(result.get("rebuiltChunks") or 0),
+            "error": "",
+            "finishedAt": int(time.time()),
+            "updatedAt": int(time.time()),
+            "window": int(window_override or 0),
+        })
+    except Exception as e:
+        _set_reprocess_status(session_id, {
+            "running": False,
+            "phase": "error",
+            "error": str(e),
+            "finishedAt": int(time.time()),
+            "updatedAt": int(time.time()),
+        })
+
+def rebuild_clean_transcript_for_session(session_id: str, party_override: str = ""):
+    session_dir = init_session(session_id)
+    transcripts = _load_all_transcripts(session_id)
+    if not transcripts:
+        raise RuntimeError("No transcripts.jsonl entries found for this session.")
+
+    if party_override.strip():
+        party_path = os.path.join(session_dir, "party.txt")
+        with open(party_path, "w", encoding="utf-8") as f:
+            f.write(party_override.strip() + "\n")
+
+    party = _read_party_meta(session_id)
+    clean_transcript_path = os.path.join(session_dir, "clean_transcript.txt")
+
+    cleaned_count = 0
+    lines_out = []
+    for item in transcripts:
+        chunk_index = int(item.get("chunkIndex", -1))
+        if chunk_index < 0:
+            continue
+        raw_text = str(item.get("text") or "").strip()
+        if not raw_text:
+            continue
+        cleaned = clean_transcript_chunk_with_openai(raw_text, party=party, chunk_index=chunk_index)
+        lines_out.append(f"[{chunk_index:04d}] {cleaned}".rstrip())
+        cleaned_count += 1
+
+    with open(clean_transcript_path, "w", encoding="utf-8") as f:
+        if lines_out:
+            f.write("\n".join(lines_out).strip() + "\n")
+        else:
+            f.write("")
+
+    status_path = os.path.join(session_dir, "status.json")
+    status = read_json(status_path, default={})
+    status["cleanTranscriptUpdatedAt"] = int(time.time())
+    write_json_atomic(status_path, status)
+
+    return {
+        "rebuiltChunks": cleaned_count,
+        "cleanTranscript": read_text(clean_transcript_path, ""),
+    }
 
 def transcribe_async(session_id: str, chunk_index: int, path: str):
     try:
@@ -861,6 +1261,13 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
 
+        if parsed.path == "/api/notes/default-prompt":
+            try:
+                self._send_json(200, {"ok": True, "prompt": _default_notes_system_prompt()})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
         return super().do_GET()
 
     def do_POST(self):
@@ -871,10 +1278,18 @@ class Handler(SimpleHTTPRequestHandler):
                 body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
                 data = json.loads(body) if body else {}
                 session_id = safe_session_id(str(data.get("sessionId", "")))
+                session_name = sanitize_session_name(data.get("sessionName", ""))
                 session_dir = init_session(session_id)
+                if session_name:
+                    status_path = os.path.join(session_dir, "status.json")
+                    status = read_json(status_path, default={})
+                    status["sessionName"] = session_name
+                    status["updatedAt"] = int(time.time())
+                    write_json_atomic(status_path, status)
                 self._send_json(200, {
                     "ok": True,
                     "sessionId": session_id,
+                    "sessionName": session_name,
                     "sessionDir": os.path.relpath(session_dir, BASE_DIR),
                     "statusUrl": f"/uploads/{session_id}/status.json",
                 })
@@ -957,6 +1372,23 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
 
+        if parsed.path == "/api/session/name":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                session_name = sanitize_session_name(data.get("sessionName", ""))
+                session_dir = init_session(session_id)
+                status_path = os.path.join(session_dir, "status.json")
+                status = read_json(status_path, default={})
+                status["sessionName"] = session_name
+                status["updatedAt"] = int(time.time())
+                write_json_atomic(status_path, status)
+                self._send_json(200, {"ok": True, "sessionId": session_id, "sessionName": session_name})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
         if parsed.path == "/api/notes/test":
             try:
                 body = self._read_body().decode("utf-8")
@@ -966,19 +1398,24 @@ class Handler(SimpleHTTPRequestHandler):
                 summary = (data.get("summary") or "").strip()
                 system_prompt = (data.get("prompt") or "").strip()
                 window = data.get("window") or 2
+                chunk_from = data.get("chunkFrom")
+                chunk_to = data.get("chunkTo")
+                use_context = bool(data.get("useContext", True))
 
-                notes_obj = generate_notes_from_text(
+                payload = _notes_test_payload(
                     transcript_text=transcript_text,
                     party=party,
-                    summary=summary,
+                    prior_summary=summary,
                     system_prompt=system_prompt,
                     window=window,
+                    chunk_from=chunk_from,
+                    chunk_to=chunk_to,
+                    use_context=use_context,
                 )
 
                 self._send_json(200, {
                     "ok": True,
-                    "notes": notes_obj,
-                    "window": window,
+                    **payload,
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
@@ -994,6 +1431,90 @@ class Handler(SimpleHTTPRequestHandler):
                     "ok": True,
                     "sessionId": session_id,
                     "gameSummary": summary,
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/narrative/generate":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                narrative = generate_game_narrative_for_session(session_id)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "gameNarrative": narrative,
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/reprocess":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                party_override = str(data.get("party") or "")
+                regenerate_summary = bool(data.get("regenerateSummary", True))
+                result = rebuild_notes_for_session(
+                    session_id=session_id,
+                    party_override=party_override,
+                    regenerate_summary=regenerate_summary,
+                )
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    **result,
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/reprocess/start":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                party_override = str(data.get("party") or "")
+                regenerate_summary = bool(data.get("regenerateSummary", True))
+                window_override = data.get("windowOverride")
+                if window_override is not None:
+                    window_override = max(1, min(20, int(window_override)))
+
+                # Avoid concurrent rebuilds for the same session.
+                status = read_json(os.path.join(UPLOADS_DIR, session_id, "status.json"), default={})
+                rep = status.get("reprocessStatus") or {}
+                if rep.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Reprocess already running for this session."})
+                    return
+
+                t = threading.Thread(
+                    target=_run_reprocess_job,
+                    args=(session_id, party_override, regenerate_summary, window_override),
+                    daemon=True,
+                )
+                t.start()
+                self._send_json(200, {"ok": True, "sessionId": session_id, "started": True, "window": window_override})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/clean-transcript":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                party_override = str(data.get("party") or "")
+                result = rebuild_clean_transcript_for_session(
+                    session_id=session_id,
+                    party_override=party_override,
+                )
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    **result,
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
