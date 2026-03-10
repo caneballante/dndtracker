@@ -31,6 +31,33 @@
     .tall-pane {
       max-height: 68vh;
     }
+    .tracker-columns {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(320px, 1fr));
+      gap: 12px;
+    }
+    .tracker-column {
+      min-height: 52vh;
+      border: 1px solid #e9ecef;
+      border-radius: 10px;
+      padding: 10px;
+      background: #fcfcfd;
+      overflow: auto;
+    }
+    .tracker-card .hp-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    @media (max-width: 991px) {
+      .tracker-columns {
+        grid-template-columns: 1fr;
+      }
+      .tracker-column {
+        min-height: auto;
+        max-height: 45vh;
+      }
+    }
   </style>
 </head>
 
@@ -67,6 +94,12 @@
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="tab-notes" data-bs-toggle="tab" data-bs-target="#pane-notes" type="button" role="tab">DM Notes</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-tracker" data-bs-toggle="tab" data-bs-target="#pane-tracker" type="button" role="tab">Tracker</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-prep" data-bs-toggle="tab" data-bs-target="#pane-prep" type="button" role="tab">Prep</button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="tab-test" data-bs-toggle="tab" data-bs-target="#pane-test" type="button" role="tab">Test</button>
@@ -200,6 +233,67 @@
                   class="tall-pane"
                   style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;">
                 </pre>
+              </div>
+
+              <div class="tab-pane fade" id="pane-tracker" role="tabpanel">
+                <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
+                  <div>
+                    <div class="small text-muted">Combat tracker (authoritative HP/damage)</div>
+                    <div id="tracker-session-label" class="small"></div>
+                  </div>
+                  <div class="d-flex flex-wrap gap-2 align-items-end">
+                    <div>
+                      <label class="form-label small mb-1">Monster name</label>
+                      <input id="tracker-monster-name" type="text" class="form-control form-control-sm" placeholder="e.g. Orc 1">
+                    </div>
+                    <div>
+                      <label class="form-label small mb-1">Start HP</label>
+                      <input id="tracker-monster-hp" type="number" class="form-control form-control-sm" value="10" style="width:100px;">
+                    </div>
+                    <button id="tracker-add-monster" class="btn btn-outline-primary btn-sm">Add Monster</button>
+                  </div>
+                </div>
+                <div id="tracker-status" class="small text-muted mb-2"></div>
+                <div class="tracker-columns">
+                  <div>
+                    <div class="small text-muted mb-1">Party</div>
+                    <div id="tracker-party" class="tracker-column"></div>
+                  </div>
+                  <div>
+                    <div class="small text-muted mb-1">Monsters</div>
+                    <div id="tracker-monsters" class="tracker-column"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tab-pane fade" id="pane-prep" role="tabpanel">
+                <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
+                  <div>
+                    <div class="small text-muted">Session prep context (rooms, monsters, NPCs)</div>
+                    <div id="prep-session-label" class="small"></div>
+                  </div>
+                  <div class="d-flex gap-2 align-items-end">
+                    <div>
+                      <label class="form-label small mb-1">Import recorder JSON</label>
+                      <input id="prep-file-input" type="file" accept=".json,application/json" class="form-control form-control-sm">
+                    </div>
+                    <button id="prep-import-btn" class="btn btn-outline-primary btn-sm">Import</button>
+                    <button id="prep-load-btn" class="btn btn-outline-secondary btn-sm">Load</button>
+                    <button id="prep-save-btn" class="btn btn-primary btn-sm">Save</button>
+                  </div>
+                </div>
+                <div id="prep-status" class="small text-muted mb-2"></div>
+                <div class="row g-2">
+                  <div class="col-12 col-md-5">
+                    <div class="small text-muted mb-1">Prep summary</div>
+                    <pre id="prep-summary"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:320px; overflow:auto; white-space: pre-wrap;"></pre>
+                  </div>
+                  <div class="col-12 col-md-7">
+                    <div class="small text-muted mb-1">Prep JSON (editable)</div>
+                    <textarea id="prep-json" class="form-control mono" rows="16" placeholder="{ }"></textarea>
+                  </div>
+                </div>
               </div>
 
               <div class="tab-pane fade" id="pane-test" role="tabpanel">
@@ -1354,6 +1448,451 @@ async function postMetaOnce() {
 
   refresh();
   setInterval(refresh, 2000);
+})();
+</script>
+
+<script>
+// ================================
+// TRACKER MODULE
+// ================================
+(() => {
+  const tabTrackerEl = document.getElementById("tab-tracker");
+  const sessionIdEl = document.getElementById("sessionId");
+  const sessionsSelectEl = document.getElementById("sessions-select");
+  const trackerSessionLabelEl = document.getElementById("tracker-session-label");
+  const trackerStatusEl = document.getElementById("tracker-status");
+  const trackerPartyEl = document.getElementById("tracker-party");
+  const trackerMonstersEl = document.getElementById("tracker-monsters");
+  const trackerMonsterNameEl = document.getElementById("tracker-monster-name");
+  const trackerMonsterHpEl = document.getElementById("tracker-monster-hp");
+  const trackerAddMonsterBtn = document.getElementById("tracker-add-monster");
+
+  let trackerState = { party: [], monsters: [] };
+  let trackerSessionId = "";
+
+  function setTrackerStatus(msg) {
+    if (trackerStatusEl) trackerStatusEl.textContent = msg || "";
+  }
+
+  function activeSessionId() {
+    const live = String(sessionIdEl?.textContent || "").trim();
+    if (/^\d{8,20}$/.test(live)) return live;
+    const selected = String(sessionsSelectEl?.value || "").trim();
+    if (/^\d{8,20}$/.test(selected)) return selected;
+    return "";
+  }
+
+  function fmtLastAction(entity) {
+    const txt = String(entity?.lastAction || "").trim();
+    return txt ? `Last: ${txt}` : "Last: (none)";
+  }
+
+  function escapeAttr(v) {
+    return String(v || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function parseNum(v, fallback = 0) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function findEntity(entityType, entityId) {
+    const list = entityType === "monster" ? (trackerState.monsters || []) : (trackerState.party || []);
+    return list.find((x) => String(x.entityId) === String(entityId)) || null;
+  }
+
+  function applyLocal(entityType, entityId, action, payload = {}) {
+    const entity = findEntity(entityType, entityId);
+    if (!entity) return;
+    if (action === "damage") entity.hp = parseNum(entity.hp) - Math.abs(parseNum(payload.delta, 0));
+    if (action === "heal") entity.hp = parseNum(entity.hp) + Math.abs(parseNum(payload.delta, 0));
+    if (action === "hp_set") entity.hp = parseNum(payload.hp, parseNum(entity.hp));
+    if (action === "note") entity.note = String(payload.note || "");
+    if (action === "undo") entity.lastAction = "undo";
+    else entity.lastAction = action;
+  }
+
+  function cardHtml(entity) {
+    const id = String(entity.entityId || "");
+    const type = String(entity.entityType || "party");
+    const note = String(entity.note || "");
+    const hp = parseNum(entity.hp, 0);
+    const name = escapeAttr(String(entity.name || id));
+    return `
+      <div class="card tracker-card mb-2" data-entity-id="${id}" data-entity-type="${type}">
+        <div class="card-body p-2">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div><strong>${name}</strong></div>
+              <div class="small text-muted">${type}</div>
+            </div>
+            ${type === "monster" ? '<button class="btn btn-outline-danger btn-sm" data-action="remove-monster">Remove</button>' : ""}
+          </div>
+          <div class="mt-2">HP: <span class="hp-value">${hp}</span></div>
+          <div class="d-flex flex-wrap gap-1 mt-2">
+            <button class="btn btn-outline-danger btn-sm" data-action="quick-damage" data-delta="1">-1</button>
+            <button class="btn btn-outline-danger btn-sm" data-action="quick-damage" data-delta="5">-5</button>
+            <button class="btn btn-outline-danger btn-sm" data-action="quick-damage" data-delta="10">-10</button>
+            <button class="btn btn-outline-success btn-sm" data-action="quick-heal" data-delta="1">+1</button>
+            <button class="btn btn-outline-success btn-sm" data-action="quick-heal" data-delta="5">+5</button>
+            <button class="btn btn-outline-success btn-sm" data-action="quick-heal" data-delta="10">+10</button>
+          </div>
+          <div class="row g-1 mt-2">
+            <div class="col-4"><input class="form-control form-control-sm" type="number" data-input="damage" placeholder="Damage"></div>
+            <div class="col-2"><button class="btn btn-outline-danger btn-sm w-100" data-action="typed-damage">Apply</button></div>
+            <div class="col-4"><input class="form-control form-control-sm" type="number" data-input="heal" placeholder="Heal"></div>
+            <div class="col-2"><button class="btn btn-outline-success btn-sm w-100" data-action="typed-heal">Apply</button></div>
+          </div>
+          <div class="row g-1 mt-1">
+            <div class="col-8"><input class="form-control form-control-sm" type="number" data-input="sethp" placeholder="Set HP"></div>
+            <div class="col-4"><button class="btn btn-outline-secondary btn-sm w-100" data-action="set-hp">Set</button></div>
+          </div>
+          <div class="row g-1 mt-1">
+            <div class="col-9"><input class="form-control form-control-sm" type="text" data-input="note" placeholder="Note" value="${escapeAttr(note)}"></div>
+            <div class="col-3"><button class="btn btn-outline-secondary btn-sm w-100" data-action="save-note">Save</button></div>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mt-2">
+            <button class="btn btn-outline-dark btn-sm" data-action="undo">Undo last</button>
+            <span class="small text-muted">${fmtLastAction(entity)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderTracker() {
+    const sid = trackerSessionId;
+    if (trackerSessionLabelEl) {
+      trackerSessionLabelEl.textContent = sid ? `Session: ${sid}` : "No active session selected.";
+    }
+    if (!sid) {
+      if (trackerPartyEl) trackerPartyEl.innerHTML = '<div class="small text-muted">Start recording or select a session.</div>';
+      if (trackerMonstersEl) trackerMonstersEl.innerHTML = '<div class="small text-muted">Start recording or select a session.</div>';
+      if (trackerAddMonsterBtn) trackerAddMonsterBtn.disabled = true;
+      return;
+    }
+    if (trackerAddMonsterBtn) trackerAddMonsterBtn.disabled = false;
+    const party = Array.isArray(trackerState.party) ? trackerState.party : [];
+    const monsters = Array.isArray(trackerState.monsters) ? trackerState.monsters : [];
+    if (trackerPartyEl) trackerPartyEl.innerHTML = party.length ? party.map(cardHtml).join("") : '<div class="small text-muted">No party members loaded from roster.</div>';
+    if (trackerMonstersEl) trackerMonstersEl.innerHTML = monsters.length ? monsters.map(cardHtml).join("") : '<div class="small text-muted">No monsters yet.</div>';
+  }
+
+  async function fetchTrackingState() {
+    trackerSessionId = activeSessionId();
+    if (!trackerSessionId) {
+      trackerState = { party: [], monsters: [] };
+      renderTracker();
+      return;
+    }
+    try {
+      setTrackerStatus(`Loading tracker for ${trackerSessionId}...`);
+      const res = await fetch(`/api/tracking/state?sessionId=${encodeURIComponent(trackerSessionId)}&_t=${Date.now()}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      trackerState = json.trackingState || { party: [], monsters: [] };
+      renderTracker();
+      setTrackerStatus("");
+    } catch (e) {
+      setTrackerStatus(`Tracker load error: ${e.message}`);
+    }
+  }
+
+  async function postTracker(path, payload) {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+    return json;
+  }
+
+  async function sendEventWithOptimistic(entityType, entityId, eventType, payload = {}) {
+    const sid = trackerSessionId || activeSessionId();
+    if (!sid) {
+      setTrackerStatus("No active session.");
+      return;
+    }
+    const entity = findEntity(entityType, entityId);
+    if (!entity) return;
+    const prev = JSON.parse(JSON.stringify(trackerState));
+    applyLocal(entityType, entityId, eventType, payload);
+    renderTracker();
+    try {
+      const json = await postTracker("/api/tracking/event", {
+        sessionId: sid,
+        entityType,
+        entityId,
+        entityName: entity.name,
+        eventType,
+        ...payload,
+      });
+      trackerState = json.trackingState || trackerState;
+      renderTracker();
+      setTrackerStatus("");
+    } catch (e) {
+      trackerState = prev;
+      renderTracker();
+      setTrackerStatus(`Tracker update failed: ${e.message}`);
+    }
+  }
+
+  async function sendUndo(entityType, entityId) {
+    const sid = trackerSessionId || activeSessionId();
+    if (!sid) return;
+    const prev = JSON.parse(JSON.stringify(trackerState));
+    applyLocal(entityType, entityId, "undo", {});
+    renderTracker();
+    try {
+      const json = await postTracker("/api/tracking/undo", { sessionId: sid, entityId });
+      trackerState = json.trackingState || trackerState;
+      renderTracker();
+      setTrackerStatus("");
+    } catch (e) {
+      trackerState = prev;
+      renderTracker();
+      setTrackerStatus(`Undo failed: ${e.message}`);
+    }
+  }
+
+  async function addMonster() {
+    const sid = trackerSessionId || activeSessionId();
+    if (!sid) {
+      setTrackerStatus("No active session.");
+      return;
+    }
+    const name = String(trackerMonsterNameEl?.value || "").trim();
+    const hp = parseNum(trackerMonsterHpEl?.value, NaN);
+    if (!name) {
+      setTrackerStatus("Enter a monster name.");
+      return;
+    }
+    if (!Number.isFinite(hp)) {
+      setTrackerStatus("Enter a valid monster HP.");
+      return;
+    }
+    try {
+      const json = await postTracker("/api/tracking/monster/add", { sessionId: sid, name, hp: Math.trunc(hp) });
+      trackerState = json.trackingState || trackerState;
+      if (trackerMonsterNameEl) trackerMonsterNameEl.value = "";
+      renderTracker();
+      setTrackerStatus("");
+    } catch (e) {
+      setTrackerStatus(`Add monster failed: ${e.message}`);
+    }
+  }
+
+  async function removeMonster(entityId) {
+    const sid = trackerSessionId || activeSessionId();
+    if (!sid) return;
+    const prev = JSON.parse(JSON.stringify(trackerState));
+    trackerState.monsters = (trackerState.monsters || []).filter((m) => String(m.entityId) !== String(entityId));
+    renderTracker();
+    try {
+      const json = await postTracker("/api/tracking/monster/remove", { sessionId: sid, entityId });
+      trackerState = json.trackingState || trackerState;
+      renderTracker();
+      setTrackerStatus("");
+    } catch (e) {
+      trackerState = prev;
+      renderTracker();
+      setTrackerStatus(`Remove failed: ${e.message}`);
+    }
+  }
+
+  function handleCardAction(evt) {
+    const target = evt.target;
+    if (!(target instanceof HTMLElement)) return;
+    const action = target.getAttribute("data-action");
+    if (!action) return;
+    const card = target.closest("[data-entity-id]");
+    if (!card) return;
+    const entityId = card.getAttribute("data-entity-id") || "";
+    const entityType = card.getAttribute("data-entity-type") || "party";
+    if (!entityId) return;
+
+    if (action === "quick-damage") {
+      const delta = Math.abs(parseNum(target.getAttribute("data-delta"), 0));
+      if (delta > 0) sendEventWithOptimistic(entityType, entityId, "damage", { delta });
+      return;
+    }
+    if (action === "quick-heal") {
+      const delta = Math.abs(parseNum(target.getAttribute("data-delta"), 0));
+      if (delta > 0) sendEventWithOptimistic(entityType, entityId, "heal", { delta });
+      return;
+    }
+    if (action === "typed-damage") {
+      const inp = card.querySelector('[data-input="damage"]');
+      const delta = Math.abs(parseNum(inp?.value, 0));
+      if (!delta) return;
+      if (inp) inp.value = "";
+      sendEventWithOptimistic(entityType, entityId, "damage", { delta });
+      return;
+    }
+    if (action === "typed-heal") {
+      const inp = card.querySelector('[data-input="heal"]');
+      const delta = Math.abs(parseNum(inp?.value, 0));
+      if (!delta) return;
+      if (inp) inp.value = "";
+      sendEventWithOptimistic(entityType, entityId, "heal", { delta });
+      return;
+    }
+    if (action === "set-hp") {
+      const inp = card.querySelector('[data-input="sethp"]');
+      const hp = parseNum(inp?.value, NaN);
+      if (!Number.isFinite(hp)) return;
+      if (inp) inp.value = "";
+      sendEventWithOptimistic(entityType, entityId, "hp_set", { hp: Math.trunc(hp) });
+      return;
+    }
+    if (action === "save-note") {
+      const inp = card.querySelector('[data-input="note"]');
+      const note = String(inp?.value || "");
+      sendEventWithOptimistic(entityType, entityId, "note", { note });
+      return;
+    }
+    if (action === "undo") {
+      sendUndo(entityType, entityId);
+      return;
+    }
+    if (action === "remove-monster") {
+      removeMonster(entityId);
+    }
+  }
+
+  if (trackerPartyEl) trackerPartyEl.addEventListener("click", handleCardAction);
+  if (trackerMonstersEl) trackerMonstersEl.addEventListener("click", handleCardAction);
+  if (trackerAddMonsterBtn) trackerAddMonsterBtn.addEventListener("click", addMonster);
+  if (tabTrackerEl) {
+    tabTrackerEl.addEventListener("shown.bs.tab", fetchTrackingState);
+  }
+  if (sessionsSelectEl) {
+    sessionsSelectEl.addEventListener("change", () => {
+      if (tabTrackerEl?.classList.contains("active")) fetchTrackingState();
+    });
+  }
+  if (sessionIdEl) {
+    const obs = new MutationObserver(() => {
+      if (tabTrackerEl?.classList.contains("active")) fetchTrackingState();
+    });
+    obs.observe(sessionIdEl, { childList: true, subtree: true, characterData: true });
+  }
+})();
+</script>
+
+<script>
+// ================================
+// PREP CONTEXT MODULE
+// ================================
+(() => {
+  const tabPrepEl = document.getElementById("tab-prep");
+  const sessionIdEl = document.getElementById("sessionId");
+  const sessionsSelectEl = document.getElementById("sessions-select");
+  const prepSessionLabelEl = document.getElementById("prep-session-label");
+  const prepFileInputEl = document.getElementById("prep-file-input");
+  const prepImportBtn = document.getElementById("prep-import-btn");
+  const prepLoadBtn = document.getElementById("prep-load-btn");
+  const prepSaveBtn = document.getElementById("prep-save-btn");
+  const prepStatusEl = document.getElementById("prep-status");
+  const prepSummaryEl = document.getElementById("prep-summary");
+  const prepJsonEl = document.getElementById("prep-json");
+
+  function getActiveSessionId() {
+    const live = String(sessionIdEl?.textContent || "").trim();
+    if (/^\d{8,20}$/.test(live)) return live;
+    const selected = String(sessionsSelectEl?.value || "").trim();
+    if (/^\d{8,20}$/.test(selected)) return selected;
+    return "";
+  }
+
+  function setPrepStatus(msg) {
+    if (prepStatusEl) prepStatusEl.textContent = msg || "";
+  }
+
+  async function loadPrep() {
+    const sid = getActiveSessionId();
+    if (prepSessionLabelEl) prepSessionLabelEl.textContent = sid ? `Session: ${sid}` : "No active session selected.";
+    if (!sid) {
+      if (prepJsonEl) prepJsonEl.value = "";
+      if (prepSummaryEl) prepSummaryEl.textContent = "";
+      setPrepStatus("Start recording or select a session first.");
+      return;
+    }
+    try {
+      setPrepStatus(`Loading prep for ${sid}...`);
+      const res = await fetch(`/api/prep/get?sessionId=${encodeURIComponent(sid)}&_t=${Date.now()}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      if (prepJsonEl) prepJsonEl.value = JSON.stringify(json.prepContext || {}, null, 2);
+      if (prepSummaryEl) prepSummaryEl.textContent = json.prepContextText || "(no prep context saved)";
+      setPrepStatus("");
+    } catch (e) {
+      setPrepStatus(`Prep load failed: ${e.message}`);
+    }
+  }
+
+  async function savePrep(endpoint = "/api/prep/save") {
+    const sid = getActiveSessionId();
+    if (!sid) {
+      setPrepStatus("No active session.");
+      return;
+    }
+    try {
+      const raw = String(prepJsonEl?.value || "{}").trim() || "{}";
+      const prepContext = JSON.parse(raw);
+      if (typeof prepContext !== "object" || prepContext === null || Array.isArray(prepContext)) {
+        throw new Error("Prep JSON must be an object.");
+      }
+      setPrepStatus(`Saving prep to ${sid}...`);
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sid, prepContext }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      if (prepJsonEl) prepJsonEl.value = JSON.stringify(json.prepContext || {}, null, 2);
+      if (prepSummaryEl) prepSummaryEl.textContent = json.prepContextText || "(saved)";
+      setPrepStatus("Prep saved.");
+    } catch (e) {
+      setPrepStatus(`Prep save failed: ${e.message}`);
+    }
+  }
+
+  async function importFromFile() {
+    try {
+      const file = prepFileInputEl?.files?.[0];
+      if (!file) {
+        setPrepStatus("Choose a JSON file first.");
+        return;
+      }
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("Imported JSON must be an object.");
+      }
+      if (prepJsonEl) prepJsonEl.value = JSON.stringify(parsed, null, 2);
+      await savePrep("/api/prep/import");
+    } catch (e) {
+      setPrepStatus(`Import failed: ${e.message}`);
+    }
+  }
+
+  if (tabPrepEl) tabPrepEl.addEventListener("shown.bs.tab", loadPrep);
+  if (prepLoadBtn) prepLoadBtn.addEventListener("click", loadPrep);
+  if (prepSaveBtn) prepSaveBtn.addEventListener("click", () => savePrep("/api/prep/save"));
+  if (prepImportBtn) prepImportBtn.addEventListener("click", importFromFile);
+  if (sessionsSelectEl) {
+    sessionsSelectEl.addEventListener("change", () => {
+      if (tabPrepEl?.classList.contains("active")) loadPrep();
+    });
+  }
 })();
 </script>
 

@@ -17,6 +17,7 @@ ENV_PATH = os.path.join(BASE_DIR, ".env")
 OPENAI_API_KEY = None
 NOTES_LOCK = threading.Lock()
 REPROCESS_LOCK = threading.Lock()
+TRACKING_LOCK = threading.Lock()
 NOTES_MODEL_DEFAULT = "gpt-4o-mini"
 NOTES_WINDOW_DEFAULT = 5
 SUMMARY_MODEL_DEFAULT = "gpt-4o-mini"
@@ -132,6 +133,8 @@ def read_session_text(session_id: str):
     party_path = os.path.join(session_dir, "party.txt")
     structured = _latest_notes_structured(session_id)
     status = read_json(os.path.join(session_dir, "status.json"), default={})
+    tracking_state = status.get("trackingState") or _get_tracking_state(session_id)
+    prep_context = _read_prep_context(session_id)
     return {
         "transcript": read_text(transcript_path, ""),
         "cleanTranscript": read_text(clean_transcript_path, ""),
@@ -144,6 +147,9 @@ def read_session_text(session_id: str):
         "reprocessStatus": status.get("reprocessStatus") or {},
         "notesState": structured.get("state") or {},
         "notesLatestStructured": structured.get("latest"),
+        "trackingState": tracking_state,
+        "prepContext": prep_context,
+        "prepContextText": _prep_context_text(prep_context),
     }
 
 def update_status_for_chunk(session_id: str, chunk_index: int, filename: str, nbytes: int):
@@ -336,6 +342,70 @@ def _read_party_meta(session_id: str) -> str:
     except FileNotFoundError:
         return ""
 
+def _prep_context_path(session_id: str) -> str:
+    session_dir = init_session(session_id)
+    return os.path.join(session_dir, "prep_context.json")
+
+def _read_prep_context(session_id: str):
+    path = _prep_context_path(session_id)
+    return read_json(path, default={})
+
+def _write_prep_context(session_id: str, payload):
+    if payload is None:
+        payload = {}
+    if not isinstance(payload, dict):
+        raise ValueError("prepContext must be a JSON object.")
+    path = _prep_context_path(session_id)
+    write_json_atomic(path, payload)
+    session_dir = init_session(session_id)
+    status_path = os.path.join(session_dir, "status.json")
+    status = read_json(status_path, default={})
+    status["prepUpdatedAt"] = int(time.time())
+    status["updatedAt"] = int(time.time())
+    write_json_atomic(status_path, status)
+
+def _prep_context_text(prep: dict) -> str:
+    if not isinstance(prep, dict) or not prep:
+        return ""
+    dungeon = prep.get("dungeon") or {}
+    rooms = prep.get("rooms") or []
+    monsters = prep.get("monsters") or []
+    npcs = prep.get("npcs") or []
+    lines = []
+    if isinstance(dungeon, dict):
+        dname = str(dungeon.get("name") or "").strip()
+        dsub = str(dungeon.get("subtitle") or "").strip()
+        if dname or dsub:
+            lines.append(f"Dungeon: {dname} {('- ' + dsub) if dsub else ''}".strip())
+    if isinstance(rooms, list):
+        lines.append(f"Rooms loaded: {len(rooms)}")
+        for r in rooms[:20]:
+            if not isinstance(r, dict):
+                continue
+            num = str(r.get("number") or "").strip()
+            short_name = str(r.get("short_name") or "").strip()
+            if num or short_name:
+                lines.append(f"- Room {num}: {short_name}".strip())
+    if isinstance(monsters, list):
+        lines.append(f"Monsters loaded: {len(monsters)}")
+        for m in monsters[:30]:
+            if not isinstance(m, dict):
+                continue
+            name = str(m.get("name") or "").strip()
+            cr = str(m.get("cr") or "").strip()
+            if name:
+                lines.append(f"- {name}{(' (CR ' + cr + ')') if cr else ''}")
+    if isinstance(npcs, list):
+        lines.append(f"NPCs loaded: {len(npcs)}")
+        for n in npcs[:30]:
+            if not isinstance(n, dict):
+                continue
+            name = str(n.get("name") or "").strip()
+            role = str(n.get("role") or "").strip()
+            if name:
+                lines.append(f"- {name}{(' (' + role + ')') if role else ''}")
+    return "\n".join(lines).strip()
+
 def _read_notes_summary(session_id: str) -> str:
     session_dir = os.path.join(UPLOADS_DIR, session_id)
     summary_path = os.path.join(session_dir, "notes_summary.txt")
@@ -455,6 +525,335 @@ def _load_all_transcripts(session_id: str):
         return []
     lines.sort(key=lambda o: int(o.get("chunkIndex", -1)))
     return lines
+
+def _tracking_events_path(session_id: str) -> str:
+    session_dir = init_session(session_id)
+    return os.path.join(session_dir, "tracking_events.jsonl")
+
+def _slugify_name(text: str) -> str:
+    s = re.sub(r"[^a-z0-9]+", "-", str(text or "").strip().lower())
+    s = s.strip("-")
+    return s or "entity"
+
+def _parse_party_rows(party_text: str):
+    rows = []
+    for raw in (party_text or "").splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        row = {}
+        for part in line.split("|"):
+            p = part.strip()
+            if "=" not in p:
+                continue
+            key, value = p.split("=", 1)
+            row[key.strip().lower()] = value.strip()
+        if row:
+            rows.append(row)
+    return rows
+
+def _initial_party_entities(session_id: str):
+    rows = _parse_party_rows(_read_party_meta(session_id))
+    entities = []
+    used = {}
+    for row in rows:
+        role = str(row.get("role") or "Player").strip() or "Player"
+        if role.lower() != "player":
+            continue
+        name = str(row.get("character") or row.get("player") or "").strip()
+        if not name:
+            continue
+        base = _slugify_name(name)
+        n = used.get(base, 0)
+        used[base] = n + 1
+        entity_id = base if n == 0 else f"{base}-{n+1}"
+        entities.append({
+            "entityId": entity_id,
+            "name": name,
+            "entityType": "party",
+            "hp": 0,
+            "note": "",
+            "lastAction": "",
+        })
+    return entities
+
+def _read_tracking_events(session_id: str):
+    path = _tracking_events_path(session_id)
+    if not os.path.isfile(path):
+        return []
+    events = []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    events.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+    except Exception:
+        return []
+    return events
+
+def _append_tracking_event(session_id: str, event: dict):
+    path = _tracking_events_path(session_id)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(event) + "\n")
+
+def _event_delta(event: dict) -> int:
+    try:
+        return int(event.get("delta") or 0)
+    except Exception:
+        return 0
+
+def _event_hp(event: dict):
+    if event.get("hp") is None:
+        return None
+    try:
+        return int(event.get("hp"))
+    except Exception:
+        return None
+
+def _apply_tracking_action(entity: dict, event_type: str, event: dict):
+    if event_type == "damage":
+        entity["hp"] = int(entity.get("hp") or 0) - abs(_event_delta(event))
+    elif event_type == "heal":
+        entity["hp"] = int(entity.get("hp") or 0) + abs(_event_delta(event))
+    elif event_type == "hp_set":
+        hp = _event_hp(event)
+        if hp is not None:
+            entity["hp"] = hp
+    elif event_type == "note":
+        entity["note"] = str(event.get("note") or "")
+
+def _derive_tracking_state(session_id: str, events=None):
+    if events is None:
+        events = _read_tracking_events(session_id)
+
+    party = {}
+    monsters = {}
+    for e in _initial_party_entities(session_id):
+        party[e["entityId"]] = dict(e)
+
+    for event in events:
+        entity_type = str(event.get("entityType") or "").strip().lower()
+        entity_id = str(event.get("entityId") or "").strip()
+        if entity_type not in ("party", "monster") or not entity_id:
+            continue
+        target = party if entity_type == "party" else monsters
+        if entity_id not in target:
+            target[entity_id] = {
+                "entityId": entity_id,
+                "name": str(event.get("entityName") or entity_id),
+                "entityType": entity_type,
+                "hp": 0,
+                "note": "",
+                "lastAction": "",
+                "removed": False,
+            }
+        entity = target[entity_id]
+        event_type = str(event.get("eventType") or "").strip().lower()
+
+        if event_type == "create":
+            entity["removed"] = False
+            hp = _event_hp(event)
+            if hp is not None:
+                entity["hp"] = hp
+            name = str(event.get("entityName") or "").strip()
+            if name:
+                entity["name"] = name
+            entity["lastAction"] = "created"
+            continue
+        if event_type == "remove":
+            entity["removed"] = True
+            entity["lastAction"] = "removed"
+            continue
+        if event_type == "undo":
+            undo_type = str(event.get("undoEventType") or "").strip().lower()
+            _apply_tracking_action(entity, undo_type, event)
+            entity["lastAction"] = f"undo {undo_type}"
+            continue
+
+        _apply_tracking_action(entity, event_type, event)
+        entity["lastAction"] = event_type
+
+    party_list = sorted(party.values(), key=lambda x: str(x.get("name") or "").lower())
+    monster_list = [
+        m for m in sorted(monsters.values(), key=lambda x: str(x.get("name") or "").lower())
+        if not m.get("removed")
+    ]
+    for item in party_list + monster_list:
+        item.pop("removed", None)
+    return {
+        "updatedAt": int(time.time()),
+        "party": party_list,
+        "monsters": monster_list,
+    }
+
+def _store_tracking_state(session_id: str, tracking_state: dict):
+    session_dir = init_session(session_id)
+    status_path = os.path.join(session_dir, "status.json")
+    status = read_json(status_path, default={})
+    status["trackingState"] = tracking_state
+    status["updatedAt"] = int(time.time())
+    write_json_atomic(status_path, status)
+
+def _get_tracking_state(session_id: str):
+    state = _derive_tracking_state(session_id)
+    _store_tracking_state(session_id, state)
+    return state
+
+def _new_tracking_event(session_id: str, entity_type: str, entity_id: str, entity_name: str, event_type: str, **extra):
+    event = {
+        "eventId": f"{int(time.time()*1000)}-{uuid.uuid4().hex[:8]}",
+        "sessionId": session_id,
+        "ts": int(time.time() * 1000),
+        "entityType": entity_type,
+        "entityId": entity_id,
+        "entityName": entity_name,
+        "eventType": event_type,
+        "source": "tracker_ui",
+    }
+    event.update(extra or {})
+    return event
+
+def _validate_tracking_event_payload(data: dict):
+    session_id = safe_session_id(str(data.get("sessionId") or ""))
+    entity_type = str(data.get("entityType") or "").strip().lower()
+    if entity_type not in ("party", "monster"):
+        raise ValueError("entityType must be party or monster.")
+    entity_id = str(data.get("entityId") or "").strip()
+    if not entity_id:
+        raise ValueError("entityId is required.")
+    entity_name = str(data.get("entityName") or entity_id).strip()
+    event_type = str(data.get("eventType") or "").strip().lower()
+    if event_type not in ("damage", "heal", "hp_set", "note"):
+        raise ValueError("eventType must be one of damage, heal, hp_set, note.")
+
+    payload = {
+        "sessionId": session_id,
+        "entityType": entity_type,
+        "entityId": entity_id,
+        "entityName": entity_name,
+        "eventType": event_type,
+    }
+    if event_type in ("damage", "heal"):
+        delta = abs(int(data.get("delta")))
+        if delta <= 0:
+            raise ValueError("delta must be > 0 for damage/heal.")
+        payload["delta"] = delta
+    if event_type == "hp_set":
+        payload["hp"] = int(data.get("hp"))
+    if event_type == "note":
+        payload["note"] = str(data.get("note") or "")
+    return payload
+
+def _next_monster_id(session_id: str, name: str):
+    base = _slugify_name(name)
+    events = _read_tracking_events(session_id)
+    used = set()
+    for e in events:
+        if str(e.get("entityType") or "").lower() != "monster":
+            continue
+        eid = str(e.get("entityId") or "").strip()
+        if eid:
+            used.add(eid)
+    if base not in used:
+        return base
+    i = 2
+    while f"{base}-{i}" in used:
+        i += 1
+    return f"{base}-{i}"
+
+def _last_mutable_event_for_entity(events, entity_id: str):
+    for event in reversed(events):
+        if str(event.get("entityId") or "") != entity_id:
+            continue
+        et = str(event.get("eventType") or "").lower()
+        if et in ("damage", "heal", "hp_set", "note"):
+            return event
+    return None
+
+def _entity_state_before_event(events, entity_id: str, stop_event_id: str):
+    session_id = str(events[0].get("sessionId")) if events else ""
+    state = _derive_tracking_state(session_id, events=[]) if session_id else {"party": [], "monsters": []}
+    by_id = {}
+    for e in state.get("party", []) + state.get("monsters", []):
+        by_id[str(e.get("entityId"))] = e
+    for event in events:
+        if str(event.get("eventId") or "") == stop_event_id:
+            break
+        etype = str(event.get("entityType") or "").lower()
+        eid = str(event.get("entityId") or "")
+        target = by_id.get(eid)
+        if not target:
+            target = {
+                "entityId": eid,
+                "name": str(event.get("entityName") or eid),
+                "entityType": etype,
+                "hp": 0,
+                "note": "",
+                "removed": False,
+            }
+            by_id[eid] = target
+        kind = str(event.get("eventType") or "").lower()
+        if kind == "create":
+            target["removed"] = False
+            hp = _event_hp(event)
+            if hp is not None:
+                target["hp"] = hp
+            continue
+        if kind == "remove":
+            target["removed"] = True
+            continue
+        if kind == "undo":
+            _apply_tracking_action(target, str(event.get("undoEventType") or "").lower(), event)
+            continue
+        _apply_tracking_action(target, kind, event)
+    return by_id.get(entity_id, {"hp": 0, "note": "", "name": entity_id})
+
+def _tracking_state_text(state: dict) -> str:
+    state = state or {}
+    party = state.get("party") or []
+    monsters = state.get("monsters") or []
+    lines = []
+    lines.append("Party:")
+    if party:
+        for p in party:
+            lines.append(f"- {p.get('name')}: HP={p.get('hp')} note={p.get('note') or ''}".rstrip())
+    else:
+        lines.append("- (none)")
+    lines.append("Monsters:")
+    if monsters:
+        for m in monsters:
+            lines.append(f"- {m.get('name')}: HP={m.get('hp')} note={m.get('note') or ''}".rstrip())
+    else:
+        lines.append("- (none)")
+    return "\n".join(lines)
+
+def _recent_tracking_events_text(session_id: str, limit: int = 25) -> str:
+    events = _read_tracking_events(session_id)
+    if not events:
+        return ""
+    items = events[-max(1, min(100, int(limit))):]
+    lines = []
+    for e in items:
+        et = str(e.get("eventType") or "")
+        name = str(e.get("entityName") or e.get("entityId") or "")
+        if et in ("damage", "heal"):
+            lines.append(f"- {name} {et} {abs(_event_delta(e))}")
+        elif et == "hp_set":
+            lines.append(f"- {name} hp set {e.get('hp')}")
+        elif et == "note":
+            lines.append(f"- {name} note: {str(e.get('note') or '').strip()}")
+        elif et == "create":
+            lines.append(f"- created monster {name} hp={e.get('hp')}")
+        elif et == "remove":
+            lines.append(f"- removed monster {name}")
+        elif et == "undo":
+            lines.append(f"- undo for {name}: {e.get('undoEventType')}")
+    return "\n".join(lines)
 
 def _extract_json_object(text: str):
     if not text:
@@ -590,6 +989,7 @@ def _default_game_summary_system_prompt() -> str:
     return (
         "You are a D&D campaign recapper. Produce a readable game summary in plain text Markdown.\n"
         "Prioritize chronological events, major discoveries, NPC interactions, combat outcomes, loot, and open hooks.\n"
+        "Treat tracker HP/damage state as authoritative when it conflicts with transcript narration.\n"
         "Do not invent facts. Use the party roster to normalize transcript names to the correct character names whenever context supports it.\n"
         "Prefer character names consistently. If a name is unclear and cannot be matched confidently, use a neutral description.\n"
         "Format with short sections: Summary, Timeline, Key NPCs, Loot/Treasure, Outstanding Hooks.\n"
@@ -638,7 +1038,15 @@ def clean_transcript_chunk_with_openai(chunk_text: str, party: str = "", chunk_i
     )
     return out.strip()
 
-def generate_game_summary_from_text(transcript_text: str, party: str = "", notes_text: str = "", notes_summary: str = "") -> str:
+def generate_game_summary_from_text(
+    transcript_text: str,
+    party: str = "",
+    notes_text: str = "",
+    notes_summary: str = "",
+    tracker_state_text: str = "",
+    tracker_events_text: str = "",
+    prep_context_text: str = "",
+) -> str:
     transcript_text = (transcript_text or "").strip()
     if not transcript_text:
         raise RuntimeError("No transcript text available for summary generation.")
@@ -651,12 +1059,24 @@ def generate_game_summary_from_text(transcript_text: str, party: str = "", notes
         f"{notes_text.strip() if notes_text else '(none)'}\n\n"
         "Existing rolling notes summary (if any):\n"
         f"{notes_summary.strip() if notes_summary else '(none)'}\n\n"
+        "Tracker state (authoritative for hp/damage when present):\n"
+        f"{tracker_state_text.strip() if tracker_state_text else '(none)'}\n\n"
+        "Recent tracker events (if any):\n"
+        f"{tracker_events_text.strip() if tracker_events_text else '(none)'}\n\n"
+        "Session prep context (rooms/monsters/npcs, if any):\n"
+        f"{prep_context_text.strip() if prep_context_text else '(none)'}\n\n"
         "Transcript for the full game session:\n"
         f"{transcript_text}\n"
     )
     return _chat_complete_text(system_prompt, user_prompt, _summary_model())
 
-def generate_game_narrative_from_text(transcript_text: str, party: str = "", notes_text: str = "", notes_summary: str = "") -> str:
+def generate_game_narrative_from_text(
+    transcript_text: str,
+    party: str = "",
+    notes_text: str = "",
+    notes_summary: str = "",
+    prep_context_text: str = "",
+) -> str:
     transcript_text = (transcript_text or "").strip()
     if not transcript_text:
         raise RuntimeError("No transcript text available for narrative generation.")
@@ -669,6 +1089,8 @@ def generate_game_narrative_from_text(transcript_text: str, party: str = "", not
         f"{notes_text.strip() if notes_text else '(none)'}\n\n"
         "DM notes rolling summary (if any):\n"
         f"{notes_summary.strip() if notes_summary else '(none)'}\n\n"
+        "Session prep context (rooms/monsters/npcs, if any):\n"
+        f"{prep_context_text.strip() if prep_context_text else '(none)'}\n\n"
         "Transcript for the full game session:\n"
         f"{transcript_text}\n"
     )
@@ -683,11 +1105,19 @@ def generate_game_summary_for_session(session_id: str) -> str:
     notes_summary = read_text(os.path.join(session_dir, "notes_summary.txt"), "")
     party = _read_party_meta(session_id)
 
+    tracking_state = _get_tracking_state(session_id)
+    tracking_state_text = _tracking_state_text(tracking_state)
+    tracking_events_text = _recent_tracking_events_text(session_id, limit=40)
+    prep_context_text = _prep_context_text(_read_prep_context(session_id))
+
     summary = generate_game_summary_from_text(
         transcript_text=transcript_text,
         party=party,
         notes_text=notes_text,
         notes_summary=notes_summary,
+        tracker_state_text=tracking_state_text,
+        tracker_events_text=tracking_events_text,
+        prep_context_text=prep_context_text,
     )
 
     out_path = os.path.join(session_dir, "game_summary.txt")
@@ -708,12 +1138,14 @@ def generate_game_narrative_for_session(session_id: str) -> str:
     notes_text = read_text(os.path.join(session_dir, "notes.txt"), "")
     notes_summary = read_text(os.path.join(session_dir, "notes_summary.txt"), "")
     party = _read_party_meta(session_id)
+    prep_context_text = _prep_context_text(_read_prep_context(session_id))
 
     narrative = generate_game_narrative_from_text(
         transcript_text=transcript_text,
         party=party,
         notes_text=notes_text,
         notes_summary=notes_summary,
+        prep_context_text=prep_context_text,
     )
 
     out_path = os.path.join(session_dir, "game_narrative.txt")
@@ -732,6 +1164,7 @@ def _generate_notes_with_context(session_id: str, chunk_index: int, recent: list
         raise RuntimeError("OPENAI_API_KEY not set. Add it to .env or your environment.")
 
     party = _read_party_meta(session_id)
+    prep_context_text = _prep_context_text(_read_prep_context(session_id))
     summary = (summary_override or "").strip() or _read_notes_summary(session_id)
     window = _notes_window()
     if window_override is not None:
@@ -747,6 +1180,8 @@ def _generate_notes_with_context(session_id: str, chunk_index: int, recent: list
     user_prompt = (
         "Party data (if any):\n"
         f"{party if party else '(none)'}\n\n"
+        "Session prep context (rooms/monsters/npcs, if any):\n"
+        f"{prep_context_text if prep_context_text else '(none)'}\n\n"
         "Rolling summary so far:\n"
         f"{summary if summary else '(none)'}\n\n"
         f"Recent transcript window (last {window} chunks):\n"
@@ -1261,6 +1696,31 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
 
+        if parsed.path == "/api/tracking/state":
+            try:
+                qs = parse_qs(parsed.query)
+                session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                tracking_state = _get_tracking_state(session_id)
+                self._send_json(200, {"ok": True, "sessionId": session_id, "trackingState": tracking_state})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/prep/get":
+            try:
+                qs = parse_qs(parsed.query)
+                session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                prep = _read_prep_context(session_id)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "prepContext": prep,
+                    "prepContextText": _prep_context_text(prep),
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
         if parsed.path == "/api/notes/default-prompt":
             try:
                 self._send_json(200, {"ok": True, "prompt": _default_notes_system_prompt()})
@@ -1385,6 +1845,190 @@ class Handler(SimpleHTTPRequestHandler):
                 status["updatedAt"] = int(time.time())
                 write_json_atomic(status_path, status)
                 self._send_json(200, {"ok": True, "sessionId": session_id, "sessionName": session_name})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/prep/save":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                prep_context = data.get("prepContext")
+                if prep_context is None:
+                    prep_context = {}
+                _write_prep_context(session_id, prep_context)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "prepContext": _read_prep_context(session_id),
+                    "prepContextText": _prep_context_text(_read_prep_context(session_id)),
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/prep/import":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                prep_context = data.get("prepContext")
+                if not isinstance(prep_context, dict):
+                    raise ValueError("prepContext must be a JSON object.")
+                _write_prep_context(session_id, prep_context)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "prepContext": prep_context,
+                    "prepContextText": _prep_context_text(prep_context),
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/tracking/event":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                payload = _validate_tracking_event_payload(data)
+                session_id = payload["sessionId"]
+                event = _new_tracking_event(
+                    session_id=session_id,
+                    entity_type=payload["entityType"],
+                    entity_id=payload["entityId"],
+                    entity_name=payload["entityName"],
+                    event_type=payload["eventType"],
+                    delta=payload.get("delta"),
+                    hp=payload.get("hp"),
+                    note=payload.get("note"),
+                )
+                with TRACKING_LOCK:
+                    _append_tracking_event(session_id, event)
+                    tracking_state = _get_tracking_state(session_id)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "event": event,
+                    "trackingState": tracking_state,
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/tracking/monster/add":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                name = str(data.get("name") or "").strip()
+                if not name:
+                    raise ValueError("Monster name is required.")
+                hp = int(data.get("hp"))
+                entity_id = _next_monster_id(session_id, name)
+                event = _new_tracking_event(
+                    session_id=session_id,
+                    entity_type="monster",
+                    entity_id=entity_id,
+                    entity_name=name,
+                    event_type="create",
+                    hp=hp,
+                )
+                with TRACKING_LOCK:
+                    _append_tracking_event(session_id, event)
+                    tracking_state = _get_tracking_state(session_id)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "event": event,
+                    "trackingState": tracking_state,
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/tracking/monster/remove":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                entity_id = str(data.get("entityId") or "").strip()
+                if not entity_id:
+                    raise ValueError("entityId is required.")
+                state = _get_tracking_state(session_id)
+                name = entity_id
+                for m in state.get("monsters") or []:
+                    if str(m.get("entityId")) == entity_id:
+                        name = str(m.get("name") or entity_id)
+                        break
+                event = _new_tracking_event(
+                    session_id=session_id,
+                    entity_type="monster",
+                    entity_id=entity_id,
+                    entity_name=name,
+                    event_type="remove",
+                )
+                with TRACKING_LOCK:
+                    _append_tracking_event(session_id, event)
+                    tracking_state = _get_tracking_state(session_id)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "event": event,
+                    "trackingState": tracking_state,
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/tracking/undo":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                entity_id = str(data.get("entityId") or "").strip()
+                if not entity_id:
+                    raise ValueError("entityId is required.")
+
+                with TRACKING_LOCK:
+                    events = _read_tracking_events(session_id)
+                    target = _last_mutable_event_for_entity(events, entity_id)
+                    if not target:
+                        raise ValueError("No mutable event to undo for this entity.")
+                    before = _entity_state_before_event(events, entity_id, str(target.get("eventId") or ""))
+                    undo_type = str(target.get("eventType") or "").lower()
+                    entity_type = str(target.get("entityType") or "party").lower()
+                    entity_name = str(target.get("entityName") or entity_id)
+                    undo_extra = {
+                        "undoEventType": undo_type,
+                        "undoOfEventId": str(target.get("eventId") or ""),
+                    }
+                    if undo_type in ("damage", "heal"):
+                        undo_extra["delta"] = abs(_event_delta(target))
+                    elif undo_type == "hp_set":
+                        undo_extra["hp"] = int(before.get("hp") or 0)
+                    elif undo_type == "note":
+                        undo_extra["note"] = str(before.get("note") or "")
+                    else:
+                        raise ValueError("Unsupported undo target.")
+
+                    event = _new_tracking_event(
+                        session_id=session_id,
+                        entity_type=entity_type,
+                        entity_id=entity_id,
+                        entity_name=entity_name,
+                        event_type="undo",
+                        **undo_extra,
+                    )
+                    _append_tracking_event(session_id, event)
+                    tracking_state = _get_tracking_state(session_id)
+
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "event": event,
+                    "trackingState": tracking_state,
+                })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
             return

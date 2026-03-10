@@ -1,17 +1,10 @@
-127.0.0.1 - - [27/Feb/2026 22:56:28] "GET / HTTP/1.1" 302 -
-127.0.0.1 - - [27/Feb/2026 22:56:28] "GET /dnd-audio.html HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 22:56:28] "GET /api/notes/default-prompt HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 22:56:28] "GET /api/sessions/list?limit=100 HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 22:56:28] "GET /api/sessions/list?limit=200 HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 22:56:28] "GET /api/sessions/get?sessionId=1772071619044 HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 22:56:42] "GET /dnd-audio.html HTTP/1.1" 304 -
-127.0.0.1 - - [27/Feb/2026 22:56:42] "GET /api/notes/default-prompt HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 22:56:42] "GET /api/sessions/list?limit=200 HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 22:56:42] "GET /api/sessions/list?limit=100 HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 22:56:42] "GET /api/sessions/get?sessionId=1772071619044 HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 22:56:59] "GET /api/sessions/get?sessionId=1772071619044&_t=1772261819371 HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 23:01:02] "GET /dnd-audio.html HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 23:01:02] "GET /api/notes/default-prompt HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 23:01:02] "GET /api/sessions/list?limit=200 HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 23:01:02] "GET /api/sessions/list?limit=100 HTTP/1.1" 200 -
-127.0.0.1 - - [27/Feb/2026 23:01:02] "GET /api/sessions/get?sessionId=1772071619044 HTTP/1.1" 200 -
+127.0.0.1 - - [28/Feb/2026 09:55:55] "GET / HTTP/1.1" 302 -
+127.0.0.1 - - [28/Feb/2026 09:55:55] "GET /api/notes/default-prompt HTTP/1.1" 200 -
+127.0.0.1 - - [28/Feb/2026 09:55:55] code 404, message File not found
+127.0.0.1 - - [28/Feb/2026 09:55:55] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [28/Feb/2026 09:55:55] "GET /api/sessions/list?limit=100 HTTP/1.1" 200 -
+127.0.0.1 - - [28/Feb/2026 09:55:55] "GET /api/sessions/list?limit=200 HTTP/1.1" 200 -
+127.0.0.1 - - [28/Feb/2026 09:55:55] "GET /api/sessions/get?sessionId=1772071619044 HTTP/1.1" 200 -
+127.0.0.1 - - [28/Feb/2026 09:55:59] "GET /api/tracking/state?sessionId=1772071619044&_t=1772301359283 HTTP/1.1" 200 -
+127.0.0.1 - - [28/Feb/2026 10:01:16] "POST /api/tracking/monster/add HTTP/1.1" 200 -
+127.0.0.1 - - [28/Feb/2026 10:15:14] "POST /api/tracking/event HTTP/1.1" 200 -
