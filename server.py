@@ -1195,10 +1195,11 @@ def _default_game_summary_system_prompt() -> str:
         "Format with short sections: Summary, Timeline, Key NPCs, Loot/Treasure, Outstanding Hooks.\n"
     )
 
-def _default_game_narrative_system_prompt() -> str:
+def _default_game_narrative_system_prompt(target_word_count: int = 600) -> str:
+    target_word_count = max(150, min(5000, int(target_word_count or 600)))
     return (
         "You are a fantasy chronicler retelling a D&D session as a humorous high-fantasy narrative.\n"
-        "Write approximately 600 words in plain text Markdown (no code fences).\n"
+        f"Write approximately {target_word_count} words in plain text Markdown (no code fences).\n"
         "Accuracy is the top priority. Build the narrative from the DM notes timeline first, then use the transcript to add detail.\n"
         "Preserve chronological order of events. Do not reorder scenes for dramatic effect.\n"
         "Use vivid but clear prose, with light humor only where it does not distort the facts.\n"
@@ -1291,12 +1292,14 @@ def generate_game_narrative_from_text(
     notes_summary: str = "",
     prep_context_text: str = "",
     narrative_guidance: str = "",
+    target_word_count: int = 600,
 ) -> str:
     transcript_text = (transcript_text or "").strip()
     if not transcript_text:
         raise RuntimeError("No transcript text available for narrative generation.")
 
-    system_prompt = _default_game_narrative_system_prompt()
+    target_word_count = max(150, min(5000, int(target_word_count or 600)))
+    system_prompt = _default_game_narrative_system_prompt(target_word_count)
     guidance_text = (narrative_guidance or "").strip()
     user_prompt = (
         "Party roster (if any):\n"
@@ -1307,6 +1310,7 @@ def generate_game_narrative_from_text(
         f"{notes_summary.strip() if notes_summary else '(none)'}\n\n"
         "Campaign and session context (if any):\n"
         f"{prep_context_text.strip() if prep_context_text else '(none)'}\n\n"
+        f"Target word count for this run: {target_word_count}\n\n"
         "One-time narrative guidance for this run (if any):\n"
         f"{guidance_text if guidance_text else '(none)'}\n\n"
         "Transcript for the full game session:\n"
@@ -1348,7 +1352,7 @@ def generate_game_summary_for_session(session_id: str) -> str:
     write_json_atomic(status_path, status)
     return summary
 
-def generate_game_narrative_for_session(session_id: str, narrative_guidance: str = "") -> str:
+def generate_game_narrative_for_session(session_id: str, narrative_guidance: str = "", target_word_count: int = 600) -> str:
     session_dir = os.path.join(UPLOADS_DIR, session_id)
     clean_transcript = read_text(os.path.join(session_dir, "clean_transcript.txt"), "").strip()
     raw_transcript = read_text(os.path.join(session_dir, "transcript.txt"), "").strip()
@@ -1365,6 +1369,7 @@ def generate_game_narrative_for_session(session_id: str, narrative_guidance: str
         notes_summary=notes_summary,
         prep_context_text=prep_context_text,
         narrative_guidance=narrative_guidance,
+        target_word_count=target_word_count,
     )
 
     out_path = os.path.join(session_dir, "game_narrative.txt")
@@ -2434,7 +2439,12 @@ class Handler(SimpleHTTPRequestHandler):
                 data = json.loads(body) if body else {}
                 session_id = safe_session_id(str(data.get("sessionId", "")))
                 narrative_guidance = str(data.get("narrativeGuidance") or "")
-                narrative = generate_game_narrative_for_session(session_id, narrative_guidance=narrative_guidance)
+                target_word_count = int(data.get("narrativeWordCount") or 600)
+                narrative = generate_game_narrative_for_session(
+                    session_id,
+                    narrative_guidance=narrative_guidance,
+                    target_word_count=target_word_count,
+                )
                 self._send_json(200, {
                     "ok": True,
                     "sessionId": session_id,
