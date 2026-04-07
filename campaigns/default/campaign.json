@@ -1,0 +1,521 @@
+{
+  "campaignId": "default",
+  "name": "default",
+  "party": "",
+  "campaignSummary": "",
+  "dungeonMakerJson": {
+    "export_type": "dm_recorder_context",
+    "exported_at": "2026-03-22T16:34:45.819Z",
+    "schema_version": "1.0",
+    "dungeon": {
+      "id": "dng_t7hz165",
+      "name": "Yurga",
+      "subtitle": "",
+      "description": "",
+      "recommended_levels": {
+        "min": 1,
+        "max": 1
+      }
+    },
+    "rooms": [
+      {
+        "id": "rm_srimnaw",
+        "number": "3",
+        "short_name": "Approach to Yurga",
+        "run_this_room": {
+          "read_aloud": "## **Read-Aloud: Approach to Yurga**\n\n> The road thins to a pair of muddy ruts as the land flattens and softens beneath your feet. What little rise the ground once had has long since given way to wet soil and shallow standing water, broken here and there by low clusters of trees with pale trunks and sagging branches.\n>\n> For the past hour, a faint haze has clung to the horizon ahead. As you draw closer, you begin to smell it\u2014sharp, sour, almost cheesy\u2014and beneath it, the heavier scents of wet earth, woodsmoke, and something animal.\n>\n> The air itself takes on a faint bluish cast, as though the light is filtering through something unseen. It hangs low over the ground, drifting lazily between reeds and scrub.\n>\n> Then you hear them.\n>\n> A chorus of low, guttural calls\u2014deep, almost bovine, but wrong somehow. Not quite cattle. Not quite anything you\u2019ve heard before.\n\n---\n\n## **Read-Aloud: First Sight of Yurga**\n\n> The village comes into view slowly, rising out of the damp lowlands rather than sitting above them.\n>\n> Pens stretch outward before the first buildings, enclosing dozens\u2014hundreds\u2014of large, rotund creatures. Their bodies are thick and low, covered in dull, scaly hides. Some lie half-submerged in mud. Others stand and bellow, releasing faint plumes of bluish vapor that drift into the air around them.\n>\n> Beyond the pens, fields of enormous mushrooms spread in irregular patches, some as tall as a man\u2019s waist. Workers move among them with curved blades, cutting thick stalks and stacking them in low carts.\n>\n> The buildings themselves are rough and damp, wood swollen from years of moisture. A few lean slightly. Most bear signs of constant repair.\n>\n> Despite it all, the place is alive\u2014voices carry, tools ring, animals call\u2014but there\u2019s a heaviness to it. A sense that everything here is just a little too wet, a little too worn\u2026 and a little too watched.\n>\n> At the center of the village stands a larger structure, its sign creaking softly in the breeze.\n>\n> Hanging from it is a strange metal shape\u2014something like a stomach, or a coiled length of intestine\u2014gilded just enough to catch the dim light.\n>\n> **The Gilded Gizzard.**\n\n---\n\n## Optional Button (if you want a subtle sting)\n\nDrop this *after a pause* if you want just a touch more unease:\n\n> As you pass the first few villagers, you begin to notice small things.\n>\n> A patch of scaled skin along a forearm.\n>\n> Eyes that don\u2019t quite blink the way you expect.\n>\n> A gaze that lingers a moment too long before turning away.\n\n\n",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_ywfhv5u",
+        "number": "4",
+        "short_name": "Gilden Gizzard Inn",
+        "run_this_room": {
+          "read_aloud": "Perfect\u2014here\u2019s a **tight, Gary-ready entry**. Clean, scannable, playable at the table.\n\n---\n\n# **YURGA \u2013 THE GILDED GIZZARD (ENTRY ENCOUNTER)**\n\n## **Purpose**\n\n* Establish tone (earthy + uneasy)\n* Introduce Augrey Gammel\n* Deliver priest delay\n* Seed rumors + tension\n* Give players agency without slowing pacing\n\n---\n\n## **READ ALOUD \u2013 ENTRY**\n\n> The door of the Gilded Gizzard sticks before giving way with a damp wooden groan.\n>\n> Warmth rolls out to meet you\u2014thick with the smell of stew, sour mash, and something faintly mineral beneath it.\n>\n> The room is low-beamed and dim, lit by oil lamps that burn with a faint bluish tint. A long hearth runs along one wall, where a heavy pot bubbles steadily.\n>\n> A handful of travelers sit at rough tables. Conversation dips as you enter, eyes lingering just a moment too long before turning away.\n>\n> Behind the counter stands an enormous woman, easily eight feet tall, polishing a mug with slow, deliberate care.\n>\n> Without looking up, she gestures into the room.\n>\n> \u201cSit where you like.\u201d\n\n---\n\n## **ROOM STATE (AT A GLANCE)**\n\n* 6 travelers at one table (scavengers/relic hunters)\n* Augrey behind the bar\n* 2\u20133 quiet locals eating\n* Low conversation, watchful mood\n* Blue-tinted lamp light\n* Constant stew simmer\n\n---\n\n## **AUGREY GAMMEL (INNKEEPER)**\n\nMassive, calm, observant. Not intimidated by anyone.\n\n### **Opening Line**\n\n> \u201cStew\u2019s hot. Scumble\u2019s fresh. Costs what it costs.\u201d\n\n---\n\n### **Information (Progressive)**\n\n**Free**\n\n* Priests of Lathander were here\n* Left into the wilds\n* Expected back in \u201ca day or two\u201d\n* Three halflings: one leader, two attendants\n\n---\n\n### **Checks**\n\n**Persuasion DC 12**\n\n* \u201cDidn\u2019t like it here much. Too much mud.\u201d\n\n**Persuasion DC 15**\n\n* \u201cBeen searching a long time. Year or more.\u201d\n\n**Insight DC 12**\n\n* She dislikes the priests\n\n**Insight DC 16**\n\n* She\u2019s worried, not just annoyed\n\n**Persuasion DC 17 (or buying drinks)**\n\n* \u201cYou\u2019re not the first they\u2019ve hired.\u201d\n\n---\n\n### **Flavor Line**\n\n> \u201cEat. Rest. Ask what you like.\n> Just don\u2019t expect straight answers.\u201d\n\n---\n\n## **TRAVELER TABLE (6 PEOPLE)**\n\nRough, tired, guarded. Mixed success scavengers.\n\n### **Trigger**\n\n* Party approaches\n* Mentions ruins\n* Mentions Garagos\n* Stares too long\n\n---\n\n### **Tone**\n\n* Suspicious \u2192 loosens with drink or confidence\n\n---\n\n### **Checks**\n\n**Persuasion DC 12**\n\n* \u201cPlenty of ruins out there.\u201d\n\n**Persuasion DC 14**\n\n* \u201cSome are already picked clean.\u201d\n\n**Persuasion DC 16**\n\n* \u201cSome aren\u2019t empty.\u201d\n\n**Intimidation DC 15**\n\n* \u201cYou don\u2019t go too far north.\u201d\n\n**Insight DC 13**\n\n* They\u2019re holding back\n\n**Insight DC 17**\n\n* One has seen something bad\n\n---\n\n### **Key Line**\n\n> \u201cYou can tell which ruins are dead.\n> It\u2019s the ones that aren\u2019t\u2026 that get you.\u201d\n\n---\n\n### **Optional Beat**\n\nDrunk traveler mutters:\n\n> \u201cHope you\u2019re worth more than the last lot.\u201d\n\n(Immediately shuts up when Augrey looks over)\n\n---\n\n## **AMBIENT UNEASE (PASSIVE)**\n\n**Passive Perception 12+**\n\n* Blue tint in flames\n* Damp, heavy air\n\n**Passive Perception 15+**\n\n* Subtle scaled skin on patrons\n* Odd blinking (quick, sideways)\n\n**Passive Insight 14+**\n\n* Conversations dip when party enters\n\n---\n\n## **RELIC HOOK (OPTIONAL)**\n\nOne traveler has a **Garagos plaque**.\n\n**Investigation DC 13**\n\n* Too new\n\n**Religion DC 14**\n\n* Garagos symbol\n\n**Insight DC 15**\n\n* Traveler is hiding its origin\n\n---\n\n## **OUTCOME**\n\nPlayers should leave with:\n\n* Priests are not present\n* They\u2019ll return soon\n* Ruins are **not clearly safe**\n* Town is **watching, not welcoming**\n* Something is **off beneath the surface**\n\n---\n\n## **EXIT BEAT**\n\nLet the room settle.\n\nThen:\n\n* return to normal noise\n* stew bubbling\n* quiet glances\n\nNo resolution.\n\n---\n\n## **NIGHT TAG (OPTIONAL)**\n\nIf they stay:\n\n* distant blug calls\n* faint gas hissing\n* something large moving outside briefly\n* no combat\n\n---\n\n## **DM NOTES (FAST)**\n\n* Don\u2019t overplay mutation\u2014keep it subtle\n* Let players lead interactions\n* Reward curiosity, not interrogation\n* Cut the scene when momentum dips\n* Priests arrival is the next strong beat\n\n---\n\nIf you want next, I\u2019d strongly recommend:\n\n\ud83d\udc49 **Gary sheet for \u201cPriests Arrive at Night\u201d**\nThat moment is where this whole setup *snaps into focus* and pushes them out of Yurga.\n\n#### 1. The Gilded Gizzard (Inn)\n\n**Innkeeper:** **Augfrey Gammel**\nEnormous woman. Arms like ham hocks. Laughs loudly. Breaks up fights physically.\n\n- 8 rooms (simple but clean)\n- Large hearth\n- Blug steak specialty\n- Stable for 12 mounts\n- Secret: She knows about the mutations and pretends not to.",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_ogvfpf6",
+        "number": "6",
+        "short_name": "Pushel Manor",
+        "run_this_room": {
+          "read_aloud": "# 2. Dinner Encounter at Pushel Manor\n\n## Purpose\n\nThis is a social pressure encounter. It should feel:\n\n* slightly comic\n* increasingly uncomfortable\n* morally revealing\n\nLord Gardo Pushel invites the party to dinner in an attempt to flatter, delay, redirect, or buy them off before they head north.\n\n---\n\n## Pushel Manor Overview\n\nThe manor is a decaying \u201csmall castle-house\u201d trying very hard to be elegant.\n\n**Details**\n\n* Damp tapestries\n* Cracked silver polished to a shine\n* A too-formal table setting for a muddy frontier village\n* A single fiddler trying to provide refinement\n* Watered wine served as if it were rare vintage\n* Blug roast presented like noble cuisine\n\nThe comedy should not undercut the danger. It should make the whole affair feel fragile and false.\n\n---\n\n## Read-Aloud\n\n> Pushel Manor rises above the village on slightly firmer ground, though \u201cmanor\u201d flatters it. Its stone shell is old, but the woodwork sags and the shutters hang unevenly. Inside, however, everything has been arranged with determined care: lamps polished bright, silver laid out, candles burning low in mismatched holders, and a long dining table set as though this were a courtly house instead of a damp lowland residence.\n>\n> Lord Gardo Pushel greets you in his best dark coat, his smile thin and practiced. \u201cHonored guests,\u201d he says, with just enough flourish to suggest he has rehearsed it. \u201cYurga is not often blessed with capable company. Tonight, at least, let us pretend it is.\u201d\n\n---\n\n## Encounter Structure\n\n### Phase 1: Courtesy and Flattery\n\nGardo praises their reputation, complains gently about the priests, and suggests the north ruins are overblown nonsense.\n\n**What he wants**\n\n* make them feel valued\n* encourage caution\n* test how committed they are\n\n**Checks**\n\n* **Insight DC 12:** He is fishing for their intentions.\n* **Persuasion DC 14:** Get him talking about the ruins.\n* **Performance DC 13:** Play along socially and lower his guard.\n\n---\n\n### Phase 2: Soft Discouragement\n\nHe shifts to concern.\n\n**Lines**\n\n* \u201cThere is no profit in dead heroics.\u201d\n* \u201cThe marsh keeps what it takes.\u201d\n* \u201cPriests are prone to visions. Mud and distance make fools of certainty.\u201d\n* \u201cI would rather see you enjoy Yurga\u2019s hospitality than vanish into black water for some rumor of an old god.\u201d\n\n**Checks**\n\n* **Insight DC 15:** He knows the threat is more concrete than he says.\n* **Persuasion DC 15:** He admits the roads north have worsened.\n* **History DC 13:** Realize he is understating the significance of Garagos ruins.\n\n---\n\n### Phase 3: The Offer\n\nIf the party remains determined, he makes a practical offer.\n\n**Possible offers**\n\n* 150 gp total to abandon the expedition\n* free lodging and supplies for several days\n* payment to escort a caravan elsewhere instead\n* \u201cofficial warning\u201d that the site is unsafe and unworthy\n\nFor your strong party, **150\u2013250 gp total** is enough to be insulting but plausible.\n\n**Checks**\n\n* **Insight DC 16:** This is not generosity; he is protecting something.\n* **Persuasion DC 16:** He admits \u201cthere are arrangements in these lowlands.\u201d\n* **Intimidation DC 17:** He admits the ruins are occupied.\n* **Deception DC 15:** Pretend to agree, prompting him to reveal more.\n\n---\n\n### Phase 4: Pressure or Slip\n\nIf pushed harder, he lets something slip.\n\n**Good slip lines**\n\n* \u201cThe outer ruins are unstable and... inhabited by things better left unprovoked.\u201d\n* \u201cSome places remain quiet because men know when not to interfere.\u201d\n* \u201cYou are strangers. You do not understand what keeps Yurga safe.\u201d\n\nThis is where the players should feel the contradiction clearly.\n\n---\n\n## Role of Greta Pushel\n\nGreta, his wife, is sharper and more socially skilled. She helps smooth over awkward moments, but she is watching the party closely.\n\n**Useful twist**\nShe may not approve of everything Gardo has done, but she supports him publicly.\n\n**Checks**\n\n* **Insight DC 14:** Greta is measuring them.\n* **Insight DC 17:** She knows Gardo is concealing details and worries he will mishandle them.\n* **Persuasion DC 16:** Greta may quietly confirm that \u201csome roads north are not as abandoned as the maps suggest.\u201d\n\n---\n\n## Physical Clues at the Manor\n\nIf the party snoops:\n\n* a ledger with odd shipments\n* marsh delivery notes\n* \u201cprivate toll\u201d entries\n* sealed bundles of reeds, resin, rare fungi, or relic wrappings\n* a guest room chest with silver from mixed mints\n\n**Checks**\n\n* **Investigation DC 15:** Find suspicious shipment records.\n* **Thieves\u2019 Tools DC 15:** Open private desk or strongbox.\n* **Perception DC 14:** Notice muddy boots and reed traces near a side door.\n* **History DC 15:** Some listed artifacts could not plausibly come from abandoned surface ruins.\n\n---\n\n## Outcome\n\nThe dinner should end with more questions than answers.\n\n**Best result**\nThe party strongly suspects:\n\n* Gardo is involved in illicit trade\n* the ruins are active\n* raids are happening in the wider region\n* Yurga\u2019s \u201csafety\u201d is bought\n\nThen the priests press departure before the party can dig deeper.\n\n---\n\n\n#### 2. Pushel Manor (Small Castle-House)\n\n**Lord:** **Gardo Pushel**\nNarrow eyes. Soft voice. Always calculating.\n\n**Wife:** **Greta Pushel**\nSharp-minded, observant, socially adept.\n\nStone house with small inner courtyard. Not truly fortified but pretends to be.\n\nSecret: Gardo keeps detailed tax logs and \u201cinformal tribute\u201d lists.",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_qcsuyxb",
+        "number": "7",
+        "short_name": "Gurn's Forge",
+        "run_this_room": {
+          "read_aloud": "\n#### 3. Gurn\u2019s Forge (Blacksmith)\n\n**Gurnig Feld**\nCompetent but not masterwork quality.\n\n\n- **Wide-Foot Marsh Shoes for Mounts (2 gp per animal):** Reduce chance of slipping or bogging in soft ground.\n- **Blug-Iron Cleaver (8 gp):** Counts as a handaxe or light chopping tool; excellent for fungus and brush.\n- **Pole Hook (1 gp):** Useful for hauling gear or bodies from shallow water; advantage on one check to retrieve something without entering the water.\n- **Boardwalk Nails & Repair Kit (2 gp):** Good for field repairs on platforms or wagons.\n\n- Repairs armor\n- Makes farming tools\n- Blug-iron horseshoes (thick and wide)\n\nComplains constantly about humidity ruining his tempering.",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_x9q5teu",
+        "number": "8",
+        "short_name": "Grelma\u2019s Guarded Goods (Armorer ",
+        "run_this_room": {
+          "read_aloud": "#### 4. Grelma\u2019s Guarded Goods (Armorer & Weapons)\n\n**Grelma Daggart**\n\n\n- **Blug-Leather Jerkin (15 gp):** Leather armor with a reptilian sheen; resists damp better than ordinary leather.\n- **Reed-Camo Net (5 gp):** Can conceal gear, campsite, or one prone creature in swamp cover.\n- **Long Spear of the Low Marsh (3 gp):** Extra hook near the head; gives advantage on one disarm/pull attempt against a creature in water or mud.\n- **Tarred Shield Backing (2 gp):** Waterproof treatment for wooden shields.\n\n---\n\n- Sells spears, short swords, shields\n- Stocks padded and leather armor\n- Pushes blug-leather armor heavily\n\nKeeps a crossbow under the counter.\n",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_40ny8ux",
+        "number": "9",
+        "short_name": "The Greenglow Chapel",
+        "run_this_room": {
+          "read_aloud": "#### 5. The Greenglow Chapel\n\nPriest: **Gethren Volg**\n\nIf Chauntea: kindly but guarded.\nIf Helm: stern and watchful.\nIf Glythra: unsettlingly serene.\n\nStone chapel with mushroom motifs carved into pillars.\n\nSecret: Several congregation members have more advanced mutations.",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_41ttirr",
+        "number": "10",
+        "short_name": "Grindle's General Goods",
+        "run_this_room": {
+          "read_aloud": "## 6. Grindle\u2019s General Goods\n\n**Grindle Marrig**\n\n**Interesting purchases**\n\n- **Swamp Stakes (1 gp for 4):** Hardened poles for stabilizing camp on wet ground.\n- **Waxed Rope (3 gp, 50 ft):** Resists damp and rot better than ordinary rope.\n- **Mushroom Flour Travel Cakes (5 sp/day):** Cheap rations with a faint blue tint.\n- **Blug Jerky (7 sp/day):** Tough but filling.\n- **Reed Cloak (2 gp):** Gives advantage on one check to hide in reeds or marsh brush, once per day until badly soiled.\n- **Mosquito Veil (8 sp):** Advantage on one overnight save/check against biting insects or nuisance exposure.\n\n---\n\nOvercharges adventurers subtly.",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_6qyccfn",
+        "number": "11",
+        "short_name": "The Gossamer Stall - Fine Blug Leather",
+        "run_this_room": {
+          "read_aloud": "#### 7. The Gossamer Stall\n\n**Gillyn Roeg**\n\n\n- **Blugskin Gloves (3 gp):** Better grip in wet conditions; advantage on one climbing or handling check involving slick surfaces.\n- **Waterproof Scroll Wrap (4 gp):** Essential for spellbooks, notes, and maps.\n- **Mud-Silent Boots (6 gp):** Advantage on one Stealth check in soft wet ground before needing cleaning.\n- **Blug-Hide Pack Cover (2 gp):** Keeps gear dry in rain or swamp spray.\n\n\n- Sells blug leather cloaks, boots, gloves\n- Soft but durable material\n- Faint reptilian sheen\n\nGillyn\u2019s hands are almost fully scaled.\n",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_7dk6sv4",
+        "number": "12",
+        "short_name": "The Grazing Gate Livestock",
+        "run_this_room": {
+          "read_aloud": "#### 8. The Grazing Gate (Livestock Pens)\n\n**Gorvan Hessig**\n\nManages hundreds of blugs.\n\nKnows breeding lines.\nKnows which ones \u201cchange.\u201d\n\nSecret: Some blugs are not entirely docile.\n",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_7bcszp8",
+        "number": "13",
+        "short_name": "Gamber\u2019s Cartwright and stables",
+        "run_this_room": {
+          "read_aloud": "#### 9. Gamber\u2019s Cartwright\n\n**Gamber Tolg**\n\n- Repairs wagons\n- Builds blug carts\n- Reinforces axles for ruin-hauling\n\nClaims ruins bring good business.\n",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_sovhc9y",
+        "number": "14",
+        "short_name": "The Grey Lantern (Adventurer Broker)",
+        "run_this_room": {
+          "read_aloud": "#### 10. The Grey Lantern (Adventurer Broker)\n\n**Gavric Haldren**\n\nFormer adventurer with limp.\n\nPosts notices:\n\n- Ruin exploration\n- Escort work\n- \u201cScaled sightings\u201d\n\nKeeps maps of nearby ruins.\n\n---\n",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_n31ccyo",
+        "number": "15",
+        "short_name": "Grushka\u2019s Apothecary",
+        "run_this_room": {
+          "read_aloud": "#### 11. Grushka\u2019s Apothecary\n\n**Grushka Lendig**\n\n- **Scale Salve (15 gp):** Applied to exposed skin; advantage on one save against rash, rot, or minor swamp irritation over the next 24 hours.\n- **Mushroom Antitoxin Draft (25 gp):** As antitoxin, but bitter and foul.\n- **Night-Reed Poultice (10 gp):** Applied during a short rest; restores an extra 1d4 HP once per day. Nonmagical but potent.\n- **Bluecap Wake Tea (5 gp):** Removes one level of mundane travel grogginess; no effect on magical exhaustion.\n- **Leech Jar (2 gp):** Gruesome, but useful for infected wounds and local trust.\n\n---\n\n- Mushroom tinctures\n- Anti-toxin\n- \u201cScale salve\u201d (secretly slows mutation?)\n\nSpeaks softly.\nEyes fully slit.\n\n---",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_hb0hszt",
+        "number": "16",
+        "short_name": "Reed and Reliquery",
+        "run_this_room": {
+          "read_aloud": "### The Relic Shop\n\n#### The Reed & Reliquary\n\n**Owner:** Vargen Silt\n\nThis is the relic shop you needed named and staffed.\n\n**Tone**\nPart curiosity cabinet, part scam, part genuine black-market antiquities dealer.\n\nShelves are crowded with:\n\n- rusted votive blades\n- carved plaques\n- bone charms\n- swamp idols\n- prayer strips\n- broken medallions\n- \u201csaint bones\u201d of very uncertain origin\n\nVargen insists almost everything has a history. He is wrong often, but not always.\n\n---\n\n### \n\nYes \u2014 this is a great shop for **almost-right magic**.\n\nI\u2019d make the relics **expensive enough to hurt a little**, flashy enough to tempt them, and real enough that Detect Magic pings on several of them. The fun is that Vargen Silt oversells every single piece.\n\n## The Reed & Reliquary \u2014 revised relic stock\n\nFormat:\n**Name**\n**Price**\n**What Vargen claims**\n**Sales line**\n**What it really does**\n\n---\n\n### 1. Coin of the Last Captain\n\n**Price:** 40 gp\n**What Vargen claims:** A drowned war-captain\u2019s coin that ensures victory in any fair bargain or negotiation.\n**Sales line:** \u201cKeep this in your palm while you bargain, and watch lesser men talk themselves into generosity.\u201d\n**What it really does:** Warm to the touch when someone nearby knowingly lies in a negotiation. No other effect.\n\n---\n\n### 2. Feather of Dawn\n\n**Price:** 35 gp\n**What Vargen claims:** A holy feather of Lathander that shines like sunrise and drives away fear and darkness.\n**Sales line:** \u201cA true dawn token. Priests would pay triple, if they had the sense.\u201d\n**What it really does:** Once per dawn, it glows like a candle for 10 minutes when held aloft. It gives no fear protection.\n\n---\n\n### 3. Serpent-Ward Charm\n\n**Price:** 75 gp\n**What Vargen claims:** Protects the bearer from snakes, lizards, and all scaled creatures, which refuse to approach within twenty feet.\n**Sales line:** \u201cScaled things know old power when they smell it. Wear this, and they\u2019ll give you a respectful berth.\u201d\n**What it really does:** Gives advantage on **one** Animal Handling check made to calm or redirect a mundane snake or lizard. Then it does nothing until the next dawn.\n\n---\n\n### 4. Sainted Finger Bone\n\n**Price:** 90 gp\n**What Vargen claims:** A saint\u2019s relic that can cure fever, poison, and rot with a touch.\n**Sales line:** \u201cUgly little thing, isn\u2019t it? That\u2019s how you know it\u2019s genuine.\u201d\n**What it really does:** If placed in water for 1 minute, it purifies that water as if it were clean and safe to drink. No healing effect.\n\n---\n\n### 5. War-Priest\u2019s Votive Nail\n\n**Price:** 65 gp\n**What Vargen claims:** Hammer this into a threshold and no enemy may cross it willingly.\n**Sales line:** \u201cSiege-priests used these. Whole halls held with one spike and a prayer.\u201d\n**What it really does:** Once per long rest, if driven into wood or earth, it sheds dim red light in a 10-foot radius for 1 hour and vibrates faintly when a hostile creature first enters that light.\n\n---\n\n### 6. Garagos Devotional Plaque\n\n**Price:** 120 gp\n**What Vargen claims:** A battle-blessing plaque from the old temple; carry it and no weapon strike can catch you unready.\n**Sales line:** \u201cYou don\u2019t find Garagos pieces this clean unless destiny wants them found.\u201d\n**What it really does:** Once per dawn, when initiative is rolled, the bearer can gain advantage on their initiative roll. That\u2019s it.\nAlso, it is **too new-looking**, which is itself a clue.\n\n---\n\n### 7. Wax-Sealed Prayer Strip\n\n**Price:** 110 gp\n**What Vargen claims:** A prayer strip that reveals hidden sanctuaries and points to buried holy places.\n**Sales line:** \u201cMaps fade. Sacred writing remembers.\u201d\n**What it really does:** If unrolled and read aloud near a consecrated, desecrated, or ritually active site, a few words briefly darken or brighten on the strip. It does not point or map anything. It is, however, a **real clue document**.\n\n---\n\n### 8. Ritual Bone Dice\n\n**Price:** 85 gp\n**What Vargen claims:** Dice used by war priests to read the will of the gods before battle.\n**Sales line:** \u201cA commander\u2019s edge. Cast them before danger and the bones will whisper which way death leans.\u201d\n**What it really does:** Once per long rest, before making an ability check, attack roll, or saving throw, the user may roll the dice and add **1d4** to the roll. After use, the dice stain faintly red until next dawn.\n\n---\n\n### 9. Marsh Oath Ring\n\n**Price:** 95 gp\n**What Vargen claims:** A binding oath ring. Anyone who swears on it and lies is struck mute.\n**Sales line:** \u201cUseful in business, diplomacy, and marriage.\u201d\n**What it really does:** The ring grows cold when a creature touching it speaks a promise they do not intend to keep. It does not punish them.\n\n---\n\n### 10. Lantern Bead of the Fen\n\n**Price:** 145 gp\n**What Vargen claims:** A sacred swamp pearl that reveals invisible enemies and burns through glamours.\n**Sales line:** \u201cDrop this in water and falsehood has nowhere to hide.\u201d\n**What it really does:** Once per long rest, when dipped in swamp water, it glows dim green for 1 hour in a 20-foot radius. While glowing, it outlines recent footprints in wet mud or shallow water within 10 feet of the bearer for 1 minute at a time, up to 3 times during that hour.\n\n---\n\n### 11. War-Sworn Token\n\n**Price:** 160 gp\n**What Vargen claims:** A medal of the old war cult that makes the bearer fearless in battle.\n**Sales line:** \u201cWhen fear comes, bite the edge and remember what lesser men forgot.\u201d\n**What it really does:** Once ever, as a bonus action, the bearer gains advantage on one saving throw against being frightened. Then the token becomes mundane.\n\n---\n\n### 12. Reed Saint\u2019s Reed Whistle\n\n**Price:** 140 gp\n**What Vargen claims:** Calls beasts to heel and sends marsh predators fleeing.\n**Sales line:** \u201cOne sharp note, and the swamp remembers who is master.\u201d\n**What it really does:** Once per long rest, gives advantage on one Animal Handling check involving a beast that can hear it. That\u2019s all.\n\n---\n\n### 13. Ash of the Old Altar\n\n**Price:** 130 gp\n**What Vargen claims:** Sacred ash that reveals any hidden creature, spirit, or traitor nearby.\n**Sales line:** \u201cScatter this, and secrets cling to the floor like guilt.\u201d\n**What it really does:** A vial can be scattered into a 10-foot square to reveal **nonmagical** footprints and recent movement in damp ground for 1 minute. It does not reveal invisibility.\n\n---\n\n## Your three pricier relics\n\n### 14. Drowned Breather Bead\n\n**Price:** 220 gp\n**What Vargen claims:** Grants full freedom beneath the water for an hour \u2014 speech, sight, and the lungs of a marsh saint.\n**Sales line:** \u201cAn hour below the black water, easy as sitting in a bath. Priceless where you\u2019re headed.\u201d\n**What it really does:** Crush the bead as an action to gain the ability to breathe underwater for **1 minute**. It does not improve swim speed, sight, speech, or resistance to pressure/cold.\n\n---\n\n### 15. Cloak of the Scaled Guest\n\n**Price:** 240 gp\n**What Vargen claims:** Made from skin willingly shed by a swamp king. Reptiles cannot perceive the wearer at all.\n**Sales line:** \u201cTo scaled eyes, you are mist. To lesser merchants, you are a bargain.\u201d\n**What it really does:** A mottled lizardskin cloak. It is magical, but weakly. While motionless in reeds, mud, or swamp brush, the wearer gains advantage on **one** Stealth check per long rest. It does **nothing** to hide the wearer from reptiles specifically.\n\n---\n\n### 16. Blackwater Pilgrim\u2019s Cup\n\n**Price:** 210 gp\n**What Vargen claims:** Fill it from any foul pool, and it becomes holy water fit for healing, blessing, and warding off evil.\n**Sales line:** \u201cA traveler\u2019s miracle. Drink where others would die.\u201d\n**What it really does:** Once per dawn, water poured into the cup becomes clean, fresh drinking water after 1 minute. If filled with swamp water, the cup also floats and gently points toward the nearest larger natural body of water for 10 minutes. Surprisingly useful, but nothing like what he promises.\n\nThat third one is nice because it\u2019s practical, odd, and feels ancient without being too strong.\n\n---\n\n## How magic-item identification works\n\nUnder the 2024 rules, **handling a magic item is enough to sense that it is extraordinary**, but that does **not** automatically reveal its properties. A character can usually learn an item\u2019s properties by casting **Identify** on it, by focusing on it during a **Short Rest** while in contact with it, or by experimentation. Potions are a special case: a small taste is enough to tell what a potion does. Also, **most methods of identifying items, including Identify, do not reveal curses**. ([D&D Beyond](https://www.dndbeyond.com/sources/dnd/br-2024/magic-items?srsltid=AfmBOopRyJ5_RP-6LsSRL58JBXQnbyaVR0HOTe7kCgJ-yrbjvGabS5Co&utm_source=chatgpt.com))\n\n### The practical version at your table\n\nThat means you can cleanly do this:\n\n- On first handling: \u201cThis item feels magical or unusual.\u201d\n- Without full identification: they do **not** know what it really does.\n- With **Detect Magic**: they know it\u2019s magical.\n- With **Identify** or a **Short Rest study**: they learn the real properties.\n- If cursed, Identify usually won\u2019t reveal the curse. ([D&D Beyond](https://www.dndbeyond.com/sources/dnd/br-2024/magic-items?srsltid=AfmBOopRyJ5_RP-6LsSRL58JBXQnbyaVR0HOTe7kCgJ-yrbjvGabS5Co&utm_source=chatgpt.com))\n\nSo yes \u2014 your instinct works. They can absolutely know an item is magical, buy it with hope, and only later discover that Vargen\u2019s sales pitch was wildly optimistic.\n\n---\n\n## How Detect Magic works for this\n\n**Detect Magic** tells the caster whether there is magic within range and can reveal a visible aura around a visible creature or object bearing magic. It tells you the **school of magic**, but it does **not** by itself teach the item\u2019s command words, limits, charges, or actual gameplay function. ([D&D Beyond](https://www.dndbeyond.com/forums/dungeons-dragons-discussion/rules-game-mechanics/207527-detect-magic-2024-detecting-magic-effects-vs?srsltid=AfmBOoqktbS2MsOnWwxUqkjYM6_zDJGwqr69w3nBH0eVz2w-NIlHQimO&utm_source=chatgpt.com))\n\nSo at the table, Detect Magic is perfect for this shop:\n\n- it confirms some relics are genuinely magical\n- it does not protect them from being oversold\n- it lets Vargen smugly say, \u201cYou see? I told you it was genuine.\u201d\n\nThat\u2019s exactly the vibe you want.\n\n---\n\n## A good DM method for this shop\n\nI\u2019d handle it in three tiers:\n\n### 1. No magic used\n\nThey get Vargen\u2019s pitch, visual clues, and maybe an **Insight** or **Investigation** check.\n\n### 2. Detect Magic\n\nThey learn which pieces are actually magical and maybe what school flavor they carry, but not the precise effect. ([D&D Beyond](https://www.dndbeyond.com/forums/dungeons-dragons-discussion/rules-game-mechanics/207527-detect-magic-2024-detecting-magic-effects-vs?srsltid=AfmBOoqktbS2MsOnWwxUqkjYM6_zDJGwqr69w3nBH0eVz2w-NIlHQimO&utm_source=chatgpt.com))\n\n### 3. Identify or short-rest study\n\nThey learn the actual effect. ([D&D Beyond](https://www.dndbeyond.com/spells/2619180-identify?srsltid=AfmBOor94n0smIJNfHFPwPSvI7NkVj47hq6KfPjq0tjzNTHF3LxYkm3T&utm_source=chatgpt.com))\n\nThat makes the shop play well whether the party is cautious, impulsive, or spell-rich.\n\n---\n\n## Suggested shop checks\n\n**Insight**\n\n- DC 12: Vargen exaggerates constantly.\n- DC 15: He is more nervous around items from farther north.\n- DC 18: He is trying hardest to unload the Garagos plaque and prayer strip.\n\n**Investigation**\n\n- DC 13: Some items are obvious fakes.\n- DC 15: A few \u201cancient\u201d pieces are suspiciously unworn.\n- DC 17: The Garagos plaque and one or two others are recent, not excavated.\n\n**Arcana / Religion**\n\n- DC 13: Some pieces do carry real magic.\n- DC 15: The magic is weaker or stranger than advertised.\n- DC 17: The prayer strip is more important as information than as a magic item.\n\n## \n\nVargen starts high.\n\n- **Persuasion DC 13:** 10% discount\n- **Persuasion DC 16:** 20% discount\n- **Deception DC 15:** Convince him you know more than you do\n- **Insight DC 14:** Spot which item he actually wants gone\n- **Intimidation DC 17:** He lowers price, but remembers the insult",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_s6tmifj",
+        "number": "17",
+        "short_name": "Mushroom Fields",
+        "run_this_room": {
+          "read_aloud": "#### MUSHROOM FIELDS\n\nSouth of town:\n\nLow rolling fungal farms.\nLarge pale mushroom clusters 2\u20135 feet tall.\nWorkers harvesting blugfruit with curved knives.\n\nIn heavy fog?\nYou can\u2019t see more than 30 feet.\n",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_oovi4ur",
+        "number": "18",
+        "short_name": "Ruins",
+        "run_this_room": {
+          "read_aloud": "#### RUINS (Adventure Hooks)\n\n#### R1 \u2013 Broken Watchtower\n\n- 2 stories collapsed\n- Overlooks road\n- Good bandit or scout base\n\n#### R2 \u2013 Sunken Shrine\n\n- Half submerged in marshy ground\n- Reptile carvings\n- Possibly source of mutation\n\n#### R3 \u2013 Collapsed Manor\n\n- Burned long ago\n- Blugs avoid this place\n\n#### R4 \u2013 Stone Circle\n\n- Moss-covered\n- Serpent relief carvings\n- Mushrooms grow unnaturally large here\n\n####",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_7uy11w6",
+        "number": "19",
+        "short_name": "Blug pens",
+        "run_this_room": {
+          "read_aloud": "The Blugs\nLarge, rotund reptilian livestock:\n\nPig-sized\nThick hide\nBlunt snout\nSlow-moving\nFeed primarily on blugfruit (giant mushrooms)\nProducts:\n\nBlug steaks\nBlug stew\nBlug leather\nBlug tallow lamps\nBlug bone tools\nRumor: Some blugs watch people too carefully.\n\nFeatures:\n\nThick wooden posts\nMud troughs\nMushroom feeding racks\nOccasional elevated watch platform\nAt night:\nBlugs are unnervingly quiet.",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      }
+    ],
+    "monsters": [],
+    "npcs": [
+      {
+        "id": "npc_0hqvcuo",
+        "name": "Morning Sunshine",
+        "source": "",
+        "role": "",
+        "pronouns": "",
+        "species": {
+          "name": "halfing",
+          "subspecies": null,
+          "lineage": null
+        },
+        "size": "Medium",
+        "alignment": "",
+        "tags": [],
+        "statblock": {
+          "ac": 10,
+          "hp": {
+            "average": 10,
+            "formula": "2d8"
+          },
+          "speed": {},
+          "abilities": {
+            "str": 10,
+            "dex": 10,
+            "con": 10,
+            "int": 10,
+            "wis": 10,
+            "cha": 10
+          },
+          "saving_throws": [],
+          "skills": [],
+          "senses": {
+            "passive_perception": 10
+          },
+          "languages": [],
+          "proficiency_bonus": 2,
+          "initiative_bonus": 0,
+          "resistances": [],
+          "immunities": [],
+          "vulnerabilities": [],
+          "conditions_immunities": []
+        },
+        "dm_notes": "## \u2600\ufe0f Priests of Lathander\n\nThree halfling clerics traveling under the banner of the Morninglord. Publicly penitents. Privately well-funded. They wear simple robes, but their packs reveal silvered cutlery, fine wineskins, embroidered linens, and a collapsible mahogany field chair that only one of them ever sits in.\n\nThey are not soldiers. They are not na\u00efve. They are on assignment.\n\n---\n\n# \u2600\ufe0f Morning Sunshine\n\n*Halfling Cleric (7th Level, Light Domain)*\nAristocratic airs. Soft voice. Absolute authority over his subordinates.\n\n---\n\n**Armor Class:** 18 (Breastplate, Shield)\n**HP:** 58 (7d8+21)\n**Speed:** 25 ft\n**Proficiency Bonus:** +3\n\n**STR** 10\n**DEX** 14\n**CON** 16\n**INT** 12\n**WIS** 18\n**CHA** 16\n\n**Saving Throws:** Wis, Cha\n**Skills:** Persuasion +6, Insight +7, Religion +5\n**Senses:** Passive Perception 14\n**Languages:** Common, Halfling, Celestial\n\n---\n\n### Features\n\n* **Warding Flare** (impose disadvantage on an attacker within 30 ft, Wis mod per long rest)\n* **Radiance of the Dawn** (Channel Divinity, burst radiant damage)\n* **Blessed Healer**\n* **Halfling Lucky** (reroll 1s)\n\n---\n\n### Equipment\n\n* Fine-etched shield bearing a golden rising sun\n* Silvered mace (ornate, polished daily)\n* Breastplate under robes\n* Signet ring of a Lathander noble house\n* Perfumed oils\n* Portable folding field chair (mahogany, brass fittings)\n* Fine tent with embroidered sunburst interior\n* 120 gp in silk coin purse\n\n---\n\n### Spellcasting (DC 15, +7 to hit)\n\n**Prepared Highlights:**\n\n* *Bless*\n* *Shield of Faith*\n* *Spiritual Weapon* (appears as a blazing golden morningstar)\n* *Lesser Restoration*\n* *Prayer of Healing*\n* *Beacon of Hope*\n* *Daylight*\n* *Spirit Guardians* (radiant, glowing armored halfling knights)\n* *Revivify*\n\nMorning Sunshine prefers to let others fight. When forced, he stands radiant and immovable.\n\n---\n\n\n\n"
+      },
+      {
+        "id": "npc_qqyofv3",
+        "name": "Dusk",
+        "source": "",
+        "role": "",
+        "pronouns": "",
+        "species": {
+          "name": "Humanoid",
+          "subspecies": null,
+          "lineage": null
+        },
+        "size": "Medium",
+        "alignment": "",
+        "tags": [],
+        "statblock": {
+          "ac": 10,
+          "hp": {
+            "average": 10,
+            "formula": "2d8"
+          },
+          "speed": {},
+          "abilities": {
+            "str": 10,
+            "dex": 10,
+            "con": 10,
+            "int": 10,
+            "wis": 10,
+            "cha": 10
+          },
+          "saving_throws": [],
+          "skills": [],
+          "senses": {
+            "passive_perception": 10
+          },
+          "languages": [],
+          "proficiency_bonus": 2,
+          "initiative_bonus": 0,
+          "resistances": [],
+          "immunities": [],
+          "vulnerabilities": [],
+          "conditions_immunities": []
+        },
+        "dm_notes": "# \ud83c\udf05 Dusk\n\n*Halfling Cleric (3rd Level, Light Domain)*\nStreetwise. Quiet. Efficient. Watches everything.\n\n---\n\n**Armor Class:** 16 (Chain shirt, shield)\n**HP:** 24 (3d8+9)\n**Speed:** 25 ft\n**Proficiency Bonus:** +2\n\n**STR** 9\n**DEX** 14\n**CON** 16\n**INT** 10\n**WIS** 16\n**CHA** 11\n\n**Skills:** Stealth +4, Religion +4, Survival +3\n**Senses:** Passive Perception 13\n\n---\n\n### Features\n\n* Channel Divinity (Radiance of the Dawn)\n* Warding Flare\n* Halfling Lucky\n\n---\n\n### Equipment\n\n* Plain wooden shield painted with a small sun symbol\n* Club (reinforced oak)\n* Penitent robes over chain shirt\n* Cooking kit\n* Heavy supply pack\n* Large canvas tent poles\n* Iron tripod cooking stand\n* 12 gp tucked in boot lining\n\n---\n\n### Spellcasting (DC 13, +5 to hit)\n\n**Prepared Highlights:**\n\n* *Bless*\n* *Cure Wounds*\n* *Guiding Bolt*\n* *Lesser Restoration*\n* *Spiritual Weapon*\n\nDusk defers to Morning Sunshine instantly and without hesitation.\n\n---"
+      },
+      {
+        "id": "npc_6ydvyun",
+        "name": "Twilight",
+        "source": "",
+        "role": "",
+        "pronouns": "",
+        "species": {
+          "name": "Humanoid",
+          "subspecies": null,
+          "lineage": null
+        },
+        "size": "Medium",
+        "alignment": "",
+        "tags": [],
+        "statblock": {
+          "ac": 10,
+          "hp": {
+            "average": 10,
+            "formula": "2d8"
+          },
+          "speed": {},
+          "abilities": {
+            "str": 10,
+            "dex": 10,
+            "con": 10,
+            "int": 10,
+            "wis": 10,
+            "cha": 10
+          },
+          "saving_throws": [],
+          "skills": [],
+          "senses": {
+            "passive_perception": 10
+          },
+          "languages": [],
+          "proficiency_bonus": 2,
+          "initiative_bonus": 0,
+          "resistances": [],
+          "immunities": [],
+          "vulnerabilities": [],
+          "conditions_immunities": []
+        },
+        "dm_notes": "\n# \ud83c\udf07 Twilight\n\n*Halfling Cleric (3rd Level, Light Domain)*\nTalkative. Slight edge of resentment. Still loyal.\n\n---\n\n**Armor Class:** 16\n**HP:** 22 (3d8+6)\n**Speed:** 25 ft\n**Proficiency Bonus:** +2\n\n**STR** 10\n**DEX** 14\n**CON** 14\n**INT** 12\n**WIS** 16\n**CHA** 12\n\n**Skills:** Insight +5, Deception +3, Perception +5\n\n---\n\n### Features\n\n* Channel Divinity (Radiance of the Dawn)\n* Warding Flare\n* Halfling Lucky\n\n---\n\n### Equipment\n\n* Iron mace\n* Folding brass table\n* Lanterns and polished silver cutlery set\n* Fine wine skin\n* Repair kit for Morning Sunshine\u2019s armor\n* 15 gp\n\n---\n\n### Spellcasting (DC 13, +5 to hit)\n\n**Prepared Highlights:**\n\n* *Healing Word*\n* *Guiding Bolt*\n* *Bless*\n* *Sanctuary*\n* *Spiritual Weapon*\n\nTwilight handles negotiations with inn staff. Dusk handles labor. Morning Sunshine handles theology.\n\n---\n\n# \u2600\ufe0f On Lathander\n\nLathander is the Morninglord \u2014 god of dawn, renewal, beginnings, birth, creativity, and vitality. His faith emphasizes optimism, second chances, and the belief that each sunrise is an opportunity to reshape the world. His clergy often sponsor rebuilding efforts, new settlements, and artistic endeavors.\n\nHowever, Lathander is not na\u00efve. Renewal sometimes requires destruction of what has grown stagnant. His church supports decisive action against darkness, undeath, and corruption.\n\nHis symbol \u2014 a rising sun \u2014 represents both warmth and inevitability.\n\nIn your campaign, his clergy may genuinely believe they are preventing a catastrophe\u2026 or ensuring one does not remain contained.\n\n---"
+      },
+      {
+        "id": "npc_xb4l0n9",
+        "name": "Gardo Pushel",
+        "source": "",
+        "role": "",
+        "pronouns": "",
+        "species": {
+          "name": "Humanoid",
+          "subspecies": null,
+          "lineage": null
+        },
+        "size": "Medium",
+        "alignment": "",
+        "tags": [],
+        "statblock": {
+          "ac": 10,
+          "hp": {
+            "average": 10,
+            "formula": "2d8"
+          },
+          "speed": {},
+          "abilities": {
+            "str": 10,
+            "dex": 10,
+            "con": 10,
+            "int": 10,
+            "wis": 10,
+            "cha": 10
+          },
+          "saving_throws": [],
+          "skills": [],
+          "senses": {
+            "passive_perception": 10
+          },
+          "languages": [],
+          "proficiency_bonus": 2,
+          "initiative_bonus": 0,
+          "resistances": [],
+          "immunities": [],
+          "vulnerabilities": [],
+          "conditions_immunities": []
+        },
+        "dm_notes": "### Lord Gardo Pushel\n\n**Role:** Local lord, chief political broker\n**Public face:** Nervous gentleman trying to seem more grand than he is\n**Private truth:** Takes a cut of the marsh trade and tries to keep outsiders away from the ruins\n\n**What he knows**\n\n* The \u201cabandoned\u201d ruins are not empty.\n* Scaled marsh folk occupy at least the outer reaches.\n* Certain merchants buy goods that clearly did not come from ancient excavations.\n* Small villages in the wider lowlands have been raided.\n* Yurga has so far been spared.\n\n**What he tells himself**\n\n* He is keeping Yurga safe.\n* Limited trade is better than open violence.\n* The raids are regrettable but not his problem.\n* Interfering with the marsh folk would only bring disaster.\n\n**What he hides**\n\n* He has authorized nighttime exchange at certain points in the swamp.\n* He has been paid in silver, relics, and rare marsh goods.\n* He knows more about the roads north than he should.\n\n**Useful checks**\n\n* **Insight DC 12:** He is anxious beneath his polished manners.\n* **Insight DC 15:** He is not merely worried for their safety; he has a personal stake in stopping them.\n* **Insight DC 18:** He is rationalizing guilt.\n* **Persuasion DC 16:** He lets slip that \u201carrangements\u201d keep Yurga safe.\n* **Intimidation DC 17:** He admits some trade exists, but insists it is necessary.\n* **Investigation DC 15** at the manor: ledgers or notes suggest off-books transactions.\n"
+      },
+      {
+        "id": "npc_0c1mgkn",
+        "name": "Greta Pushel",
+        "source": "",
+        "role": "",
+        "pronouns": "",
+        "species": {
+          "name": "Humanoid",
+          "subspecies": null,
+          "lineage": null
+        },
+        "size": "Medium",
+        "alignment": "",
+        "tags": [],
+        "statblock": {
+          "ac": 10,
+          "hp": {
+            "average": 10,
+            "formula": "2d8"
+          },
+          "speed": {},
+          "abilities": {
+            "str": 10,
+            "dex": 10,
+            "con": 10,
+            "int": 10,
+            "wis": 10,
+            "cha": 10
+          },
+          "saving_throws": [],
+          "skills": [],
+          "senses": {
+            "passive_perception": 10
+          },
+          "languages": [],
+          "proficiency_bonus": 2,
+          "initiative_bonus": 0,
+          "resistances": [],
+          "immunities": [],
+          "vulnerabilities": [],
+          "conditions_immunities": []
+        },
+        "dm_notes": ""
+      }
+    ]
+  },
+  "sessionSummaries": [],
+  "createdAt": 1773194007,
+  "updatedAt": 1774202782
+}

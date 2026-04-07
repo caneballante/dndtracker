@@ -1,0 +1,538 @@
+{
+  "campaignId": "parmedia-redux",
+  "name": "Parmedia redux",
+  "party": "role=DM | player=Jon | character=DM | aliases=DM, GM, Dungeon Master\nrole=Player | player=Robert | character=Trell | class=Wizard | race=High Elf\nrole=Player | player=Geir | character=Goibert | class=Sourcer | race=Rabbit-folk\nrole=Player | player=Dan | character=Malygris | class=Fighter | race=Human\nrole=Player | player=Geoff | character=Visit | class=Cleric | race=Human\nrole=Player | player=Rubin | character=Ghedorim | class=Monk | race=Dragonborn\n\n\n",
+  "campaignSummary": "",
+  "dungeonMakerJson": {
+    "export_type": "dm_recorder_context",
+    "exported_at": "2026-03-11T02:42:32.723Z",
+    "schema_version": "2.0",
+    "dungeon": {
+      "id": "dgn_underdungeon_fort_aelwind",
+      "name": "Underdungeon of Fort Aelwind",
+      "subtitle": "Homebrew (Jon / Fort Aelwind)",
+      "description": "",
+      "recommended_levels": {
+        "min": 2,
+        "max": 3
+      }
+    },
+    "rooms": [
+      {
+        "id": "rm_aelwind_02",
+        "number": "2",
+        "short_name": "Strategy Room",
+        "run_this_room": {
+          "read_aloud": "#### Read Aloud:\n\nThe chamber carries the ghost of command. A circular table dominates the center, its surface cracked and covered in dust and soot. several objects are on the table but what they are is obscured by the dust and cobwebs.  shattered skeleton in a blue officer\u2019s coat, one arm outstretched toward the table, an eight-pointed star clasped at her belt.on the far wall a burned banner droops, its silver griffin barely visible through soot. Beneath it lies a shattered skeleton in a scorched blue officer\u2019s coat, one arm outstretched toward the table, an eight-pointed star clasped at her belt.\n\n",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": "no monsters"
+        },
+        "checks_traps_loot": "### General Scan (No Roll)\nThe table is carved with a map, but much of it is fire-scarred and obscured by soot.\n\n### DC 12 Investigation (Table Surface)\nClearing soot reveals an engraved eight-pointed star at the center of the map. Each point ends in a shallow circular recess. A 12 inch dark crystal disk sits at the star\u2019s center, flush with the wood, dull and opaque. Three of the eight points bear intact silver sigils; the other five are cracked and blackened.\n\n### The three intact sigils depict:\n- A tower within a ring\n- A branching tree whose roots form a circle\n- A skyline crowned by three spires\n\n### DC 12 Investigation (Skeleton)\nThe officer\u2019s coat contains:\nThree small carved stone markers, each engraved with one of the intact sigils. The other five markers are missing. Her posture suggests some blast threw her from the table.\n\n### DC 14 Arcana (Optional)\nThe crystal disk radiates faint divination magic. The star inlay faintly responds to touch, warming slightly at the intact sigils.\n\n### Activation\nWhen a marker is placed into its matching recess: The silver inlay glows faint blue. The crystal darkens like deep water. The vision appears within the disk. Only one marker can sit in place at a time. Placing a marker in the wrong recess does nothing.\n\n#### Fort Aelwind Nexus\n*The crystal deepens into darkness, then resolves into a stone chamber lit only by a thin ring of blue light suspended in the air. The glow barely reaches the floor, outlining a circular platform and the faint edge of a mirror-like surface beyond it. Nothing moves; the room feels sealed and utterly still.*\n\n#### King\u2019s Tower Chamber\n*The image shifts to a tall, pale chamber where shuttered windows admit a muted wash of light. Across the room stands a great mirror reflecting a massive white-barked tree heavy with faintly luminous fruit, though no tree stands within the chamber itself. If watched closely, the light beyond the shutters subtly shifts, as though clouds drift across the sky outside.*\n\n#### Arentoria\n*The vision deepens into a sweeping view of Arentoria\u2019s skyline\u2014its towers and bridges unmistakable, yet all washed in cold blue light. The city appears distant but steady, rooftops sharp against a dim horizon. No smoke rises, no banners move; the world looks preserved, suspended in that strange blue hue.*",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_aelwind_03",
+        "number": "3",
+        "short_name": "Jail Cells",
+        "run_this_room": {
+          "read_aloud": "#### Read Aloud:\n\nIron bars and narrow stone cells line this cramped hall. Rust flakes from the locks like dried blood, and the smell is sour\u2014mildew, old sweat, and something sharp beneath it. Chains hang from wall rings, some snapped, others still closed as if waiting for wrists that will never return. From the last cell comes a faint shuffling and a wet, eager breathing.",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "Monsters:\nThe last cell contains a ghoul in red tattered uniform. He\u2019s pacing back and forth in his cell and can be seen from the barred window in the door to the cells. once he notices them he starts dementedly asking them for the keys. \u201cgive me the keys\u201d \u201cdon\u2019t hide those keys\u201d \u201cgive them here\u201d \u201cThe duke is coming. \u201c he\u2019s got the keys!\u201d \u201cha, he got thirsty\u201d.He\u2019ll rant for awhile and then go back to pacing. If they open the cell he attacks.\n\nThere are several skeletons in other cells that animate if the door is opened.\n\nThis room includes the key needed to access the lower level if the party didn\u2019t find it elsewhere.\n\nA wight in one cell is shackled and mutters about \u201cthe Flame\u201d and \u201cthe ruby.\u201d If freed, it tries to flee deeper rather than fight.\n\nTreasure:\nA ring of keys (cell keys + one heavy iron key for the stair gate).",
+        "room_contents": {
+          "monsters": [
+            {
+              "id": "mon_skeleton",
+              "count": 10,
+              "tactics": ""
+            }
+          ],
+          "npcs": [],
+          "loot": [
+            {
+              "id": "itm_a_ring_of_keys",
+              "name": "A ring of keys (cell keys + one heavy iron key for the stair gate)",
+              "quantity": 1,
+              "where": ""
+            }
+          ]
+        }
+      },
+      {
+        "id": "rm_aelwind_04",
+        "number": "4",
+        "short_name": "Kitchen",
+        "run_this_room": {
+          "read_aloud": "#### Read Aloud:\n\nThe kitchen sags in ruin. Cabinets hang loose from the walls. A heavy wooden worktable stands intact at the center, pots and cracked dishware stacked neatly as if abandoned mid-task. At the far hearth, water drips down the chimney into a cold cauldron. The hearth, chimney stones, and surrounding floor are coated in a thick golden-green fuzz.\nA ring of giant rat carcasses lies in a half-circle around the hearth, all facing inward. In the ashes sits a misshapen mound, completely smothered in the same mold.\n\n#### Details \nas you examine the room further you notice\n- Deep fungal smell\n- Soft dripping echo.\n- The mold faintly shimmers in torchlight",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": "#### Faery Mold\nEach round a creature remains in the room, roll 1d6. On a 5\u20136, the mold releases spores (spore attack as written in the stat block).\nIf the mound is disturbed, spores trigger automatically."
+        },
+        "checks_traps_loot": "###Treasure:\nCupboards (DC 12 Investigation): A wooden case containing fine silverware worth 20 gp.\nSpice Rack (DC 13 Perception): large bag of salt\nInside the Mold-Covered Mound (in the hearth): A hidden Bloodwell Vial. Retrieving it triggers spores automatically unless the mold is burned or carefully cleared.\n\n#### Bloodwell Vial\nA slender crystal vial filled with faintly glowing crimson liquid that hums with arcane power,\nUncommon (+1)\nRequires Attunement by a Sorcerer\nWhile you are attuned to this vial and using it as a spellcasting focus:\n\u2022 You gain a bonus to spell attack rolls and to your spell save DC.\nUncommon: +1\nRare: +2\nVery Rare: +3\n\u2022 In addition, when you roll any Hit Dice to recover hit points during a short rest, you can regain 5 sorcery points.\nOnce you use this property, you can\u2019t use it again until the next dawn.",
+        "background_lore_notes": "\n",
+        "room_contents": {
+          "monsters": [
+            {
+              "id": "mon_faery_mold_v2_0001",
+              "count": 1,
+              "tactics": ""
+            }
+          ],
+          "npcs": [],
+          "loot": [
+            {
+              "id": "itm_gng5iu5",
+              "name": "Bloodwell Vial",
+              "quantity": 1,
+              "where": ""
+            }
+          ]
+        }
+      },
+      {
+        "id": "rm_aelwind_07",
+        "number": "7",
+        "short_name": "Commanders Office",
+        "run_this_room": {
+          "read_aloud": "#### Read Aloud:\n\nA heavy oak desk dominates the chamber, its surface stacked with neat bundles of vellum tied in faded blue ribbon. Tall shelves line the walls, ledgers arranged with rigid precision. A war map of Parmedia hangs behind the desk, pinned with small brass markers. Behind the desk is a heavy reinforced door. A blue all weather hooded cloak hangs from a hook next to a pair of fine but well used boots. Seated upright in a high-backed chair is a figure in a dark blue officer\u2019s coat, quill scratching steadily across parchment. He does not look up as you enter. \u201cDisturbances,\u201d he says evenly, without pause, \u201cwill not be tolerated.\u201d \"begone!\"",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": "#### Commander Revenant\n\nIf approached the commander looks up from his paper work, his skin waxy with a terrible cut from from his forehead through his cheek and jaw. As he speaks you feel the temperature drop slightly in the room. \n\n*\"these soldiers will be paid and the tallies will be squared, but not if you continue to disturb me*\n\nHe lurches up from the table in jerky but deliberate motions unsheathing his longsword and points it at the closest party member and puts his command on them. then he attacks yelling *\"out of the office you dogs\"*. he takes any chance to put his command on them and if he freezes them all or incapacitates them all he sits back at the desk. "
+        },
+        "checks_traps_loot": "### Checks:\nKnowledge check on the Revenant: 12 \nThis is an oath-bound undead\u2014animated by duty and ritual, not hunger.\n\n### Treasure: \nBoots of the Last Charge +10ft to speed\nCloak of protection +1 to AC and +1 to saving throws\n\nin the desk you find a fine lock steel case about 12 inches by 3 by 3. DC 12 to pick: inside in a velvet enclosure.\n**Wand of Cinderburst**\n*Wand, uncommon (requires attunement by a wizard, sorcerer, or warlock)*\n\nA blackened iron wand capped with a brass lattice shaped like a flared nozzle. Faint warmth radiates from its tip.\n\n### Charges\n\nThe wand has **3 charges**.\nWhile holding it, you can use an action to expend 1 charge to cast **Burning Hands** at **2nd level** (save DC equals your spell save DC).\n\n### Spell Effect\n\n**Burning Hands (2nd-Level Version)**\n15-foot cone.\nEach creature in the area must make a Dexterity saving throw.\n\n* On a failed save: **4d6 fire damage**\n* On a successful save: half damage\n\nFlammable unattended objects ignite.\n\n-\n\n\n\n\n\n#### Subtle details:\n- Oak desk with ink, sand shaker, ledgers\n- Payroll ledger open and actively being written in\n- Wall-mounted cloak and boots (Elvenkind)\n- Locked strong room door \n- Brass wall clock, long stopped at a specific hour\n- No dust on desk surface.\n- Ink is fresh.\n- Papers are dated the night the fort fell.",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [
+            {
+              "id": "mon_oathbound_commander_0001",
+              "count": 1,
+              "tactics": ""
+            }
+          ],
+          "npcs": [],
+          "loot": [
+            {
+              "id": "itm_wqwz6op",
+              "name": "Boots of the Last Charge",
+              "quantity": 1,
+              "where": ""
+            },
+            {
+              "id": "itm_h4qnf1g",
+              "name": "Cloak of Protection",
+              "quantity": 1,
+              "where": ""
+            }
+          ]
+        }
+      },
+      {
+        "id": "rm_aelwind_08",
+        "number": "8",
+        "short_name": "Strongroom",
+        "run_this_room": {
+          "read_aloud": "#### Read Aloud:\n\nThe iron-bound door swings inward to reveal a narrow vault of cold stone. The back wall is completely lined with stacked metal boxes\u2014twenty across and fifteen high\u2014three hundred in all, each front stamped in neat lettering: \u201c500 Gold.\u201d A heavy iron cage has been lowered over the entire wall of boxes, its bars bolted into the stone floor and ceiling.\n\nTo the left stands a tall steel safe. Behind its small reinforced window hangs an ornate glass case, glowing faintly blue from within.",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "### Checks\n\n## Cage Mechanics\nThe cage has a large central lock.\nDC 17 Thieves\u2019 Tools to pick\nFailure by 5 or more triggers a loud metallic snap echoing down the hall.\nDC 20 Strength to bend bars (very loud)\nThe cage prevents access to any boxes until opened.\nor 30 minutes to break\n\n## Safe Mechanics\nHeavy steel, reinforced.\nDC 18 Thieves\u2019 Tools to pick\nFailure by 5+ jams the mechanism (DC increases to 20 for further attempts)\nDC 22 Strength to force (extremely loud)\nNo arcane seal \u2014 purely mechanical.\n\n1 hour to break\n\nInside the Safe\nMounted at the back wall:\nAn ornate glass display case.\nIt floats slightly off the mounting brackets.\nBlue light pulses slowly within.\nInside the case:\nAn 8-inch gold rod capped with a large faceted blue gem.\nThe gem emits the same tone as the Royal Path portals.\nThis is the Keystone Rod.\nThe Glass Case Trap\nThe case is protected by an authority seal keyed to the signet ring.\nIf Wearing the Ring\nThe diamond on the ring warms.\nThe blue glow in the case dims.\nThe glass unlatches silently.\nNo roll required.\nIf NOT Wearing the Ring\nTouching or attempting to open the case triggers a force discharge.\nDC 13 Con save\n3d6 force damage\nOn failure: pushed back 10 ft\nOn success: half damage, no push\nThe case reseals automatically.\nNo repeated triggering from same creature within 1 minute.\nArcana DC 13\nThe rod resonates with the same divination aura as the war table crystal.\nThis is a network key.\n\n### Treasure:",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_jt1fd8y",
+        "number": "8.5",
+        "short_name": "Oathbound Stairs",
+        "run_this_room": {
+          "read_aloud": "### Read Aloud:\n\nThe stairway descends in quiet splendor. Unlike the utilitarian granite of the upper level, each tread is veined white marble set with narrow silver stars along the nosing. Silver sconces adorn the walls, each with a faintly glowing blue gem. At the bottom an ornate metal door with the same tree, the king and queen, with ripe fruit etched on surface.   A small woven rug lies before it lightly worn, the image of an eight-pointed star visible in the weave.",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "#### Checks:\n\n#### Door to the Oathbound Hall. The door has no lock but won't open for anyone not wearing the ring. Open the door wearing the key it slides smoothly open. ",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_aelwind_09",
+        "number": "9",
+        "short_name": "Hall of the Oathbound",
+        "run_this_room": {
+          "read_aloud": "#### Read Aloud:\n\nA hush falls as the door swings open. Ahead stretches a wide hall of polished stone, its stillness bordering on sacred. Unlike the areas above the room is clean and dust free. Two shallow steps raise the far half of the chamber into a dais framed by a graceful archway. A soft blue nimbus ripples across the opening like moonlight on water, humming with restrained power.\n\nFlanking the arch stand twin suits of resplendent plate, each etched with an eight-pointed star. Their helms gape, black and empty, yet the unseen gaze feels keen. Halberds rest in gauntleted hands, blades catching firelight. Underfoot, an immense eight-pointed star is inlaid in silver, its arms converging on a golden sunburst that glows faintly whenever you breathe too close.\n\nTwo alcoves, left and right, hold majestic statues with incredible detail: on the left, Queen Seralith in radiant armor; on the right, King Aelwind in a mantle of star-studded mail. Stone kneelers invite supplicants before shallow copper offering bowls. Carved into the pedestals are simple vows:\n\nSeralith: \u201cI swear by all the gods to upholding the light of the world and to pledge my undying allegiance to the dawnfire\u201d\nAelwind: \u201cI commit to standing steadfast against the encroaching dark.\n\nOn the far side of the dais, half-lost in shadow, stands a freestanding wardrobe of white oak stained midnight blue. A pair of silver doors are inlaid with a split design: the left depicts a sunlit sky (#Seralith), the right a star-strewn firmament (#Aelwind). A faint halo of motes\u2014glittering like dust in moonbeams\u2014drifts around it, hinting that the cabinet is steeped in the same warding magic as the archway.\n\nAs you enter the room: \nAs the first of you steps into the chamber, **both helms turn slowly toward you**.",
+          "what_changes_reacts": "#### Blue Nimbus Barrier:\nThis magical threshold prevents entry to the next room unless the person has made an offering at one of the shrines and read aloud the oath. If any creature attempts to go around the arch way the two armored knights step forward in eerie synchrony, place their massive gauntlets against the intruder\u2019s chest, and gently but firmly push them back across the star. They speak no words and do not attack unless they or the room are defiled.\n---\n#### The Oathbound Sentinels:\n\n# The Sacred Protocol\n\nThey will not attack unless the party attempts to:\n\n\u2022 pass through the **warded arch**\n\u2022 damage the shrines\n\u2022 draw weapons in the chamber\n\u2022 cast hostile magic\n\nIf the players simply explore or speak, the sentinels remain motionless.\n\n---\n\n# The Warning\n\nWhen someone approaches the arch:\n\n> The halberds rise together with a heavy metallic scrape.\n>\n> One sentinel speaks in a hollow voice that sounds like wind through armor.\n>\n> **\u201cNone may pass.\u201d**\n\nIf the party continues:\n\n> **\u201cBy the oath of Aerlan and Seralith\u2026 the path is sealed.\u201d**\n\nIf they still continue:\n\n> **\u201cTurn back.\u201d**\n\nThen combat begins.\n\n---\n\n# Sacred Formation\n\nThe sentinels fight as **ritual guardians**.\n\n### The Arch is Their Anchor\n\nThey **never move more than 10 feet away from the arch**.\n\nTheir purpose is not to kill intruders \u2014 it is to **deny passage**.\n\nDescribe them repositioning to block the path like this:\n\n> The two constructs step together, halberds crossing like a gate of steel.\n\n---\n\n# Divine Synchronization\n\nWhen both are active:\n\n\u2022 Their movements are **perfectly mirrored**\n\u2022 When one strikes high, the other strikes low\n\u2022 When one advances, the other shifts to guard\n\nPlayers should feel like they are fighting **one mind in two bodies**.\n\n---\n\n# Ancient and Solemn Voice Lines\n\n\u2022 \u201cThe oath endures.\u201d\n\u2022 \u201cThe ward must stand.\u201d\n\u2022 \u201cNone may break the seal.\u201d\n\u2022 \u201cBy crown and covenant.\u201d\n\u2022 \u201cStand down.\u201d\n\n---\n\n# If One Sentinel Falls\n\nThis is a great cinematic moment.\n\nWhen the first sentinel is destroyed:\n\n> The remaining sentinel pauses.\n>\n> Its helm slowly turns toward the fallen construct.\n>\n> Then it grips its halberd tighter and steps forward to stand directly before the arch.\n\nThen it says:\n\n> **\u201cThe oath\u2026 remains.\u201d**\n\nThen it fights more aggressively.\n\n---\n\n# If the Party Withdraws\n\nThe sentinels **do not pursue**.\n\nThey return to their original positions and plant their halberds again.\n\n> The chamber grows silent once more.\n> Only the faint hum of the warded arch remains.\n\n---\n\n\nThese are headless guardians, animated by ancient pact magic. Their armor bears the crest of the twin crowns and a sunburst symbol on each shoulder. \n---\n#### Celestial Wardrobe\n* The doors are **arcane-locked** (DC 17 Thieves\u2019 Tools or *knock*) **and** keyed to oath magic.\n* A character bearing either Disciple mark may open it as an **action**, feeling the lock \u201crecognize\u201d them. Without an oath, any attempt triggers a pulse that pushes the creature 10 ft. back and alerts the sentinels.\n                                                                            |",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "#### Checks:\nMechanical Touch (optional)\nDivine Sense: A creature with proficiency in Arcana or Religion can identify which brand is which by the aura it emits (Seralith = faint evocation; Aelwind = faint abjuration).\n\nDetectable Flavor: Casting detect magic shows the Seralith brand pulsing in warm concentric waves, while the Aelwind brand projects a tight, shield-shaped ward around the bearer\u2019s hand.\n\n ** Vestment of Dawnfire** (Seralith)   | Silken robe shot through with gold thread; warms your skin like first light.  | While worn (no attunement), can cast *faerie fire* once per long rest. \n\n** Tabard of the Iron Star** (Aelwind) | Heavy indigo surcoat embroidered with a silver starburst; feels reassuringly weighty.  | Can cast shield once a day\n                                                 \n",
+        "background_lore_notes": "\n#### Using This in Play\n\n* **Visual Temptation:** PCs see the wardrobe glowing softly behind the barrier as soon as they enter, seeding curiosity.\n* **Motivation to Swear:** Realizing that only oath-takers can reach or open it nudges hesitant players toward commitment.\n* **Prep for the Portal:** The vestments + key-rod form the last puzzle piece for activating or stabilizing the portal in Room 10, ensuring the party engages with the new mechanics rather than rushing ahead.\n* **Scaling Power:** If your party is higher-level, simply bump the robe\u2019s spell (e.g., *daylight* once per long rest) and the tabard\u2019s AC bonus (+2) or add temporary HP.\nPlace a parchment inside\u2014\u201cInstructions for Investiture, Year of Falling Stars\u201d\u2014if you want more lore clues or a skill-check reward. Otherwise, let the wardrobe stand as a tangible link between vow and reward: the higher calling literally outfits them for the journey beyond.\n\nClues & Lore\nA careful inspection of the mural (DC 12 Investigation) reveals worn inscriptions between the star\u2019s arms:\n   \u201cNone shall pass unblessed.\u201d\ndetail descriptions\n\n",
+        "room_contents": {
+          "monsters": [
+            {
+              "id": "mon_kruthik",
+              "count": 1,
+              "tactics": ""
+            }
+          ],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_aelwind_10",
+        "number": "10",
+        "short_name": "Chamber of Petitioners",
+        "run_this_room": {
+          "read_aloud": "#### Read Aloud:\n\n\u201dYou step into a surprisingly well-preserved chamber of deep burgundy tapestries and pale golden stone. The scent of aged silk and old perfume lingers in the air. Several high-backed wooden chairs, their red velvet cushions faded but intact, line the walls. A plush carpet, once finely embroidered with images of crowned doves and flowering spears, stretches to a small stone dais at the far end of the room.\nOn that dais sits a low marble desk flanked by two empty candleholders. Behind the desk, a tapestry covers the entire wall with the same image of the King and Queen under tree filled with fruite.\n\nThe only thing marring the sanctity of the room is the door on the right. it\u2019s a metal door and although the metal is mostly intact but damaged.\nThere is a matching door on the left side of the room undamaged.\n\nThe chairs are arranged like a place for nobles or commanders to await audience. Each bears a unique sigil.",
+          "what_changes_reacts": "There\u2019s an almost sacred hush here. Characters feel a slight tingle on their skin when they speak aloud. Speaking above a whisper causes the air to ripple, and anyone raising their voice hears their words echoed back in reversed order.\n\n\n",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "#door to lab\nExamining the door more closely reveals that it's been in places as if struck from the otherside. In the area most damaged the door has been cracked or torn open leaving a small gap 5inches long and 1/2 inch wide.\n\n#knowledge check on the sigils\n+10 Reveals that these are probably old house sigils\n+15 one is reminiscent of the duck symbol of Vayne House. \n\n#Desk & Documents:\nThe desk contains two delicate scroll tubes (DC 12 to open without tearing).\nOne holds a decree from Queen Seralith calling for the evacuation of outer villages through the Royal Path and rewarding \u201cthose who held the southern bastions until the flame consumes the gate.\u201d\nThe other scroll is half-burned and cryptic: \u201cThe Duke\u2019s shadow was captured. We've bound him here but so far he resists all questioning\u201d\n\n#Behind tapestry (DC 13 Investigation)\nBehind the desk is a small 2\u2019x2\u2019 locked secret door at chest height.\n\nDC 15 to open. \nPerfumed Satchel of Calm (Wondrous item, uncommon): One use  - Smelling it grants advantage on the next Charisma (Persuasion or Deception) check.\nrectangle gold bars 1/2\u201d by 3\u201d x 7\u201d. they are stamped with the star mark. An investigation check of 15 will give them an estimate of the worth.\n96 bars each bar is worth 42 gp. total value 4,032 gp\n",
+        "background_lore_notes": "Echo of Petition (non-combat):\nIf a character sits in one of the chairs and speaks aloud as if petitioning the queen (DM\u2019s discretion), they are momentarily enveloped in golden light and hear a ghostly response tailored to their speech. For example:\n\n   \u201cI came to warn you, Majesty.\u201d\n    \u2014 Response: \u201cToo late. He burned the seal.\u201d\n\n   \u201cI seek safe passage.\u201d\n    \u2014 Response: \u201cThen walk the path of light, as we did.\u201d\n\n",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_aelwind_11",
+        "number": "11",
+        "short_name": "Shattered Laboratory and Burrow",
+        "run_this_room": {
+          "read_aloud": "#### Read Aloud:\n\n\u201dA heavy chemical tang clings to this ruined chamber, sharp and bitter\u2014alcohol, brimstone, scorched herbs. Broken glass glitters across overturned tables. Cracked alembics and toppled mortars lie scattered beneath curling parchment scrawled with formulas and warding glyphs.\nThe far wall of the laboratory is no longer stone\u2014it\u2019s been tunneled through, leaving behind a jagged breach into a cave beyond. The scent shifts\u2014beneath the alchemy lingers something muskier, dank and organic.\nwhat must be daylight shines faintly illuminating the cave beyond\nVenturing into the cave, the light grows stronger. just around the bend, you see bones gnawed clean and tangled piles of torn cloth and some branches and brambles forming what looks like a nest. Faint chittering sounds rise in response to your footsteps.\u201d",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": "9 Kruthik Hatchlings + 1 Kruthik Young\nAlien, insectile burrowers that hiss and dart from the walls, making use of the tight tunnels and jagged terrain.\nThey spit acid (range 20ft, +7 to hit 1d4 damage)  and retreat quickly, making this a dynamic hit-and-run fight.\n"
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "Read Aloud:\n\n\nLaboratory Features\nAlchemical Tools:\nA still-functional distillation column sits untouched in a brass stand.\nA cabinet of labeled ingredients (mildewed but readable) includes belladonna, powdered copper, ghost orchid petals, and quicksilver.\nDC 13 Investigation or Arcana reveals one usable alchemical fire (1d8 fire damage, Dex save DC 13 to avoid catching fire).\nClues:\nA fragment of an alchemist\u2019s journal references instability in \u201cthe ley-thread running beneath the mountain.\u201d\nA scribbled margin note: \u201cThe beasts are drawn to the heat. Must seal the breach.\u201d\n\nCave Features\nAs you venture further into the cave, you can see the light is coming from a crack in the ceiling. you can climb to the crack with a DC 14 climb check. when examined at it\u2019s origin sticking your head in you can actually see the sky 40-50 ft above. the entrance is 1 1/2 feet wide by 3ft long but it\u2019s unclear if it\u2019s wide enough to give access all the way to the surface.\nif they send the rat up to the surface\ninvestigation check 17-20 the crack isn\u2019t going to allow egress without some work at digging or break rocks. \n\nOn the surface the orcs about 100 orcs are camped out, but about half are lining up to march on. You can hear the shouting of exhortations to work harder at the collapsed stairs. \n\nFaint, animalistic noises echo within: soft rustling, an occasional wet crunch.\n\nTreasure (Hidden or Salvageable)\n\nBurrow Cache: In the largest nest (DC 14 Investigation) is a broken crate with 3 potion of healing, a scroll of Feather Fall, and a rusted crown-shaped clasp.\n",
+        "room_contents": {
+          "monsters": [
+            {
+              "id": "mon_kruthik",
+              "count": 10,
+              "tactics": ""
+            }
+          ],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_08hf1kw",
+        "number": "11.5",
+        "short_name": "Library Landing",
+        "run_this_room": {
+          "read_aloud": "# Read Aloud:\n\nLanding\nthe landing above the library contains two chairs and a small table. \ntwo books \ntreatise on occult thamaturgical condundrums\nTreatise on conditions and ethics of mind control.",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_aelwind_12",
+        "number": "12",
+        "short_name": "Library of Chains",
+        "run_this_room": {
+          "read_aloud": "#### Read Aloud:\n\nThe chamber is perfectly round, and the moment you enter, your footsteps seem to hush of their own accord. Bookshelves climb the walls in a continuous circle from floor to domed ceiling, each shelf lined with leather-bound tomes, scroll cases, and bundles of parchment secured with black twine. A faint golden glow traces the edges of the shelves, revealing arcane glyphs etched into the wood itself.\n\nIn the center of the room stands a low circular table of black stone, carved with burning runes that shimmer faintly but emit no heat. Atop the table is a single massive tome, easily three feet wide and nearly as tall as a halfling, bound in cracked red leather veined with gold. It is held shut by four heavy chains attached to the table. Every so often, the book shudders softly, as though something within it dreams\u2014or breathes.\u201d\n",
+          "what_changes_reacts": "#### The Tome of Azuraths Flame\nHistory & Lore (Arcana or Religion DC 15):\nThis book is known as the Tome of Azuraths Flame, a grimoire recovered during the final battle with the demon whose whispers corrupted Duke Varnholde. It is said to contain fragments of the demon\u2019s original name, spells taught to mortal warlocks, and testimony stolen from the minds of those the demon touched. \nQueen Seralith herself ordered it bound in iron sigils and sealed in the Library of Chains\u2014here, it could be watched but never burned, read but never opened without cost.\nTouching the Tome:\nThe book is warm to the touch, its chains vibrating faintly. Touching it causes the glyphs on the table to flare briefly, and the room seems to press inward\u2014like a held breath.\nOpening the  touching the tome a ghost is released. he is a wearing the remnants of a red officers uniform. his eyes burn like pits of fire.\nHe appears floating abve the table. \n\u201cyou must release tome of Azuraths Flame\u201d in a booming voice. \u201cI command it\u201d.\n\nif they try and break the chains, red ghostly fire envelopes the table and tome begins to jerk ad twist as if trying to free itself. after 1 minute the two oath knights enter the room and will attack anyone touching the tome. \nIf they fight the ghost, after 5 min the two oath knights appear. ",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [
+            {
+              "id": "mon_ps4v012",
+              "count": 1,
+              "tactics": ""
+            }
+          ],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_aelwind_13",
+        "number": "13",
+        "short_name": "Prayer Room of Mirrors",
+        "run_this_room": {
+          "read_aloud": "#### Read Aloud:\n\nThis room glows with a strange, serene warmth. Dozens of tall mirrors encircle the walls, each framed in silver and gold, each reflecting not just your body\u2014but your wounds, fears, and flickering memories. At the chamber\u2019s center lies a low, stone pool filled with a still, radiant water, glowing faintly gold. The scent is holy and old\u2014myrrh, juniper, and warm metal.\n\nAbove the pool, set into the arched ceiling, burns a ring of unquenchable torches, their white flames dancing without smoke or heat. Despite the stillness of the room, the mirrors seem to shift subtly, not in reflection\u2014but in what they choose to show.\u201d",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "Room 14: The Prayer Room of Mirrors\n\n\n\nThe Consecrated Pool\nThe consecrated oil here is deeper than the basin in the crypt\u2014large enough to fully submerge a Medium creature.\nYhe surface is glass-smooth until touched. Then, it ripples outward with rings of light and soft whispers in Old Common.\n\n Effect of Full Submersion:\n\nA creature who voluntarily submerges themselves completely is briefly surrounded by visions of Seralith and Aerlan, clad in armor, standing at a mountain pass beneath a burning sky. The vision is brief but intense\u2014and leaves a permanent silvery glyph on the back of their neck.\nThey are healed of all curses and damage. Their spell and action slots are fully restored.\nIf previously cursed, they are immediately cleansed, and one mirror shows a radiant, whole version of them standing tall.\n\n Clues to Submerge\n\n1. Etching on a Mirror\u2019s Frame (DC 12 Perception):\n\u201cTo know truth, not your shape but your soul must be reflected.\u201d\n\n2. Floor Mosaic Beneath the Pool (DC 14 Investigation, requires disturbing the water slightly):\nA mosaic of a kneeling knight fully submerged in golden light, beneath a carving of Queen Seralith with both hands raised in blessing.\n\n3. Whisper upon Touching the Surface:\nThe first character to touch the oil hears in their mind:\n\u201cHalf-light cannot see the path. Step into light. The worthy fortified with the blessings of dawn and dusk. Let no evil enter.\u201d\n\nOther Room Features\nThe mirrors do not show the water\u2014instead, they show the room without the pool, as if it were dry. This illusion breaks only after someone submerges.\n One mirror (DC 13 Insight) shows Seralith\u2019s reflection watching the pool. She nods if the viewer moves closer.\n A hidden compartment behind a mirrored sconce (DC 15 Investigation) holds:\nBlessed Band of Clarity: A silver ring that grants advantage on saving throws against fear while worn.\nA parchment with Seralith\u2019s seal, containing only the words:\n\u201cThe true throne is not seated. It kneels.\u201d\n",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_aelwind_14",
+        "number": "14",
+        "short_name": "Royal Path Nexus",
+        "run_this_room": {
+          "read_aloud": "Read Aloud:\n\u201dYou step into a tall, cold chamber where the stone floor rises into a narrow walkway that leads up to a smooth golden platform. At its end, set into the far wall, is a great circular mirror, easily seven feet across. Its glass is flawless, black and still as obsidian. Surrounding the central mirror are a dozen smaller gold-rimmed circles, each about the size of a dinner plate. Most of these golden disks have been smashed and marred, their delicate inlays shattered as if by hammer or mace. Only one remains untouched\u2014its polished gold face pristine, its small socket at the center glinting faintly.\u201d\nThe room hums faintly with arcane tension. You feel a presence here\u2014not a creature, but a pull, like the air itself is waiting to be given purpose.\nThe Mirror Device\n This is the Royal Path, a teleportation network once used to link major seats of power across the realm. The mirror is not a reflection\u2014it is a portal surface, long dormant.\n The smaller gold circles once linked to different destinations. Now, only one remains intact.\n Activation\n When the crystal keystone found earlier in the dungeon is inserted into the socket of the intact gold circle:\nThe crystal hums with resonant warmth, and the golden circle glows.\nThe black glass of the main mirror ripples like water in slow motion, then vanishes entirely.\n   In its place is not a mirror, but a window into another room.\nThrough the Portal\nRead Aloud:\n\u201dThe surface of the mirror melts away, revealing a richly appointed room on the other side. You see deep red carpets, warm candlelight flickering on velvet chairs, and a tall arched window beyond them. Through it shines the orange glow of a sunset sky over distant peaks. You feel warmth from the other side\u2014a world not just alive, but majestic.\nAnd faintly, you hear music\u2014a high, noble chord as if played on a crystal glass\u2014before the hum of magic swells and beckons you forward.\u201d\n \ud83e\udde9 Optional Clues & Details\n Arcane Glyphs etched beneath the walkway (DC 14 Arcana): \u201cOnly the unbroken path remains. The fire shall not pass.\u201d\n Burn marks around the broken circles suggest they were destroyed intentionally\u2014perhaps to seal off corrupted destinations.\n Behind the device\u2019s pillar base (DC 15 Investigation) is a discarded letter fragment:\n  \u201cWe burned the southern paths. Varnholde\u2019s gate cracked first.\u201d\nWould you like to define what room lies beyond the portal next? Or set up a final moment\u2014perhaps a whispered warning or one last test\u2014as the party prepares to cross?",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      },
+      {
+        "id": "rm_aelwind_15",
+        "number": "15",
+        "short_name": "Crypt",
+        "run_this_room": {
+          "read_aloud": "#### Read Aloud:\nRoom 16: The Crypt of the Oathbound\nRead Aloud:\n\u201cYou pass into a chamber unlike any before. The air here is crisp and light, untouched by decay. No dust mars the gleaming black floor tiles, and the stone walls shimmer faintly, as if polished each dawn by unseen hands. A soft, amber light glows from sconces high in the walls, casting no shadows. You feel watched\u2014but not with menace. With remembrance.\u201d\nAt the center stands a marble fountain, its bowl wide and shallow, from which crystal-clear oil flows endlessly. The scent is sweet and heavy\u2014frankincense and cedar. The surface of the oil reflects your face not as it is, but as it once was or may yet be.\t\nThree sarcophagi rest along the walls, each carved with lifelike statues atop the lids:\nOne is a female knight, her face serene, hands crossed over a sword whose blade is buried beneath the stone.\nOne is a robed figure, hood back, eyes closed in meditation, with an open scroll across his chest.\nThe third is a bare-headed man in royal attire, a broken crown resting at his side, a falcon perched on his gauntlet.\nAll bear inscriptions in Old Common, legible with effort:\n\u201cThey swore to serve beyond death.\u201d\n\u201cTo protect the flame from the storm.\u201d\n\u201cAnd to guard the threshold until the Path opens once more.\u201d\n\ud83d\udd25 Magical Elements & Interactions\nThe Fountain of Consecration\nThe oil is consecrated and radiates faint abjuration and transmutation magic.\nTouching the oil leaves no residue, but a warm glow marks the palm of the one who touched it.\nOnly those marked by the oil may activate the teleportation circle in Room 15.\nIf a character drinks it, they receive a Bless spell effect for 1 hour (once per character, ever).\nThe Ornate Chest\nHidden beneath the fountain basin (DC 15 Perception to notice bolts, DC 13 Strength to move). Chest is watertight and sealed by magic.\nOpening reveals a set of 8 scrolls bound with a gold ring etched with the image of two thrones encircled by flame.\nThe Scrolls\nEach scroll shimmers faintly and radiates divination and enchantment magic.\nThe language is archaic Common, readable but poetic and heavy with metaphor.\nOpening a scroll causes the words to lift slightly off the parchment in golden ink, then slowly settle back.\nSample scroll passages:\n\u201cThe flame is not fire\u2014it is memory. And memory, if held by many, cannot be extinguished.\u201d\n\u201cThe Duke did not summon a demon. He opened a door. And what passed through\u2026 reshaped him.\u201d\n\u201cShould the seal be broken, let the mountain speak. Let the ruby shatter only under a crown of will.\u201d\n\u201cWe three stood. One with sword, one with scripture, one with silence. The storm passed because we did not.\u201d\n\u201cno you must swear the oath, repeat these words and join us in our holy pact\u201d\n\ud83e\udded Optional Player Actions\nPrayer at the Sarcophagi: A character who kneels and speaks with reverence (no spell required) feels the presence of the dead watching\u2014and may be granted Inspiration.\nPlace the ring on a finger: The wearer hears a faint voice say: \u201cIf you lead, you will not lead alone.\u201d\nTouching the fountain with a wound: Instantly heals 1d6 HP and leaves behind a silvery scar shaped like a crown.e.\u201d\n\n",
+          "what_changes_reacts": "",
+          "monster_behavior_notes": ""
+        },
+        "checks_traps_loot": "",
+        "background_lore_notes": "",
+        "room_contents": {
+          "monsters": [],
+          "npcs": [],
+          "loot": []
+        }
+      }
+    ],
+    "monsters": [
+      {
+        "id": "mon_ghoul",
+        "name": "Ghoul",
+        "source": "Homebrew (Fort Aelwind)",
+        "size": "Medium",
+        "creature_type": "humanoid",
+        "alignment": "unaligned",
+        "cr": "1/4",
+        "monster_stats": ""
+      },
+      {
+        "id": "mon_zombie",
+        "name": "Zombie",
+        "source": "Homebrew (Fort Aelwind)",
+        "size": "Medium",
+        "creature_type": "humanoid",
+        "alignment": "unaligned",
+        "cr": "1/4",
+        "monster_stats": ""
+      },
+      {
+        "id": "mon_skeleton",
+        "name": "Skeleton",
+        "source": "Homebrew (Fort Aelwind)",
+        "size": "Medium",
+        "creature_type": "humanoid",
+        "alignment": "unaligned",
+        "cr": "1/4",
+        "monster_stats": ""
+      },
+      {
+        "id": "mon_wight",
+        "name": "Wight",
+        "source": "Homebrew (Fort Aelwind)",
+        "size": "Medium",
+        "creature_type": "humanoid",
+        "alignment": "unaligned",
+        "cr": "1/4",
+        "monster_stats": ""
+      },
+      {
+        "id": "mon_kruthik",
+        "name": "Kruthik",
+        "source": "Homebrew (Fort Aelwind)",
+        "size": "Medium",
+        "creature_type": "humanoid",
+        "alignment": "unaligned",
+        "cr": "1/4",
+        "monster_stats": "Perfect. Five players vs. ten hatchlings is a *swarm pressure fight* \u2014 lots of motion, lots of flanking, lots of \u201coh no they\u2019re everywhere.\u201d\n\nWe\u2019ll tune these so:\n\n* Individually weak\n* Dangerous in numbers\n* Fast\n* Annoying\n* But not a grind\n\nThis assumes level 3\u20134 party. If different, tell me.\n\n---\n\n# Kruthic Hatchling\n\n*Small monstrosity, unaligned*\n\n---\n\n**Armor Class** 15 (natural armor)\n**Hit Points** 18 (4d6 + 4)\n**Speed** 30 ft., burrow 10 ft., climb 20 ft.\n\n---\n\n**STR** 12 (+1)\n**DEX** 14 (+2)\n**CON** 12 (+1)\n**INT** 2 (\u20134)\n**WIS** 10 (+0)\n**CHA** 5 (\u20133)\n\n---\n\n**Skills** Perception +2\n**Senses** darkvision 60 ft., tremorsense 30 ft., passive Perception 12\n**Languages** \u2014\n**Challenge** 1/2 (100 XP)\n\n---\n\n## Traits\n\n**Pack Tactics.** The hatchling has advantage on an attack roll against a creature if at least one of the hatchling\u2019s allies is within 5 feet of the creature and the ally isn\u2019t incapacitated.\n\n**Scuttle.** The hatchling can move through the space of any creature that is Medium or larger.\n\n**Burrowing Ambush.** If the hatchling emerges from burrow on the same turn it attacks, it has advantage on its first attack that turn.\n\n---\n\n## Actions\n\n**Bite.**\n*Melee Weapon Attack:* +4 to hit, reach 5 ft., one target.\nHit: 6 (1d8 + 2) piercing damage.\n\nIf two or more hatchlings are within 5 feet of the same target, the target must succeed on a DC 12 Strength saving throw or be knocked prone.\n\n---\n\n# Why This Works\n\nTen of these:\n\n* Total encounter XP: 1,000 base\n* With 10 monsters \u2192 x2.5 multiplier\n* Effective XP: 2,500\n\nThat\u2019s a **hard-to-deadly encounter** for five level-3s.\nVery manageable for level-4s.\n\nThe real danger comes from:\n\n* Advantage spam (Pack Tactics)\n* Prone lockdown\n* Tremorsense (no hiding)\n* Climb + burrow = chaos\n\n---\n\nIf you want it scarier:\n\n* Give them 22 HP\n* Or add one **Kruthic Young (CR 2)** leader\n\nIf you want cinematic:\nHave 3 burst from the walls on round 1, 3 from the ceiling round 2, 4 from floor cracks round 3.\n\n\n"
+      },
+      {
+        "id": "mon_faery_mold_v2_0001",
+        "name": "Faery Mold",
+        "source": "Homebrew",
+        "size": "Large",
+        "creature_type": "Plant",
+        "alignment": "Unaligned",
+        "cr": "4",
+        "monster_stats": "**Faery Mold**\n*Large plant, unaligned*\n\n---\n\n**Armor Class** 12\n**Hit Points** 80 (10d10 + 20)\n**Speed** 5 ft.\n\n---\n\n**STR** 8 (\u20131)\n**DEX** 6 (\u20132)\n**CON** 16 (+3)\n**INT** 1 (\u20135)\n**WIS** 12 (+1)\n**CHA** 14 (+2)\n\n---\n\n**Damage Resistances** bludgeoning, piercing, and slashing from nonmagical attacks\n**Damage Immunities** poison\n**Damage Vulnerabilities** fire, acid\n**Condition Immunities** frightened, prone\n**Senses** blindsight 30 ft. (heat and vibration), passive Perception 11\n**Languages** \u2014\n**Challenge** 4 (1,100 XP)\n\n---\n\n### Traits\n\n**Slow Creep.** The mold cannot Dash. Outside combat, it creeps 5 feet every 10 minutes toward the nearest source of heat or movement.\n\n**Feeding Bloom.** Whenever Faery Mold deals damage with Spore Bloom, it regains hit points equal to half the total damage dealt (rounded down).\n\n**Devotional Convergence.** If two or more creatures are Devoted at the same time, Faery Mold has advantage on its Spore Bloom recharge roll.\nIf three or more creatures are Devoted, Spore Bloom\u2019s radius increases to 20 feet.\nIf four creatures are Devoted, the mold regains an additional 5 hit points whenever it feeds.\n\n---\n\n### Actions\n\n**Spore Bloom (Recharge 5\u20136).**\nThe mold releases a burst of shimmering spores in a 15-foot radius centered on itself (20 feet if three or more creatures are Devoted).\n\nCreatures in the area must make a DC 13 Constitution saving throw, taking **2d6 poison damage** on a failed save, or half as much damage on a success.\n\nA creature that fails the save is also afflicted with **Devoted (Faery Spores)**.\n\nAfter dealing damage, the mold regains hit points equal to half the total damage dealt (rounded down).\n\n---\n\n### Devoted (Faery Spores)\n\nA Devoted creature is **poisoned** and **charmed** by the mold. Its speed becomes 0 and it is **incapacitated**. On its turn, it uses its action to kneel, drop prone, or gently touch the mold, whispering about warmth, light, or beauty.\n\nAt the end of each of its turns, the creature can repeat the DC 13 Constitution saving throw, ending the effect on a success. If it fails the save by 5 or more, it cannot attempt another save on its next turn.\n\nThe effect ends early if the creature:\n\n* Receives *cure wounds*\n* Receives *lesser restoration*\n* Is affected by any poison-curing effect\n* Takes 5 or more fire damage\n\n---\n\n### Behavior\n\nThe mold is nonlethal and never pursues fleeing creatures far beyond its territory. It vents spores when targets cluster, feeds to prolong the fight, and slowly relocates outside combat to block narrow passages or doorways.\n"
+      },
+      {
+        "id": "mon_oathbound_commander_0001",
+        "name": "Oath-Bound Commander",
+        "source": "Homebrew (Fort Aelwind)",
+        "size": "Medium",
+        "creature_type": "Undead",
+        "alignment": "Lawful Neutral",
+        "cr": "3",
+        "monster_stats": "**Oath-Bound Commander**\n*Medium undead, lawful neutral*\n\n---\n\n**Armor Class** 17\n**Hit Points** 120 (10d8 + 30)\n**Speed** 30 ft.\n\n---\n\n**STR** 16 (+3)\n**DEX** 12 (+1)\n**CON** 16 (+3)\n**INT** 12 (+1)\n**WIS** 14 (+2)\n**CHA** 14 (+2)\n\n---\n\n**Senses** darkvision 60 ft., passive Perception 12\n**Languages** Common, Old Common\n**Challenge** 3 (700 XP)\n\n---\n\n## Traits\n\n**Aura of Authority.** Creatures that start their turn within 10 feet of the commander must succeed on a DC 14 Wisdom saving throw or take a \u22122 penalty to attack rolls until the start of their next turn.\n\n**Unyielding Posture.** The commander cannot be knocked prone.\n\n**No Quarter Given (Nonlethal Doctrine).** When the commander reduces a creature to 0 hit points, that creature becomes stable but unconscious. The commander does not kill unless the party repeatedly attempts to destroy records or breach restricted doors.\n\n---\n\n## Actions\n\n**Multiattack.** The commander makes two attacks with his longsword.\n\n**Longsword.** *Melee Weapon Attack:* +6 to hit, reach 5 ft., one target.\nHit: 8 (1d8 + 4) slashing damage.\n\n**Commanding Word (Recharge 5\u20136).**\nOne creature the commander can see within 30 feet must succeed on a DC 14 Wisdom saving throw or become **Restrained by Authority**.\n\nOn a successful save, the creature is unaffected.\n\n**Mass Discipline (Recharge 5\u20136).**\nCreatures of the commander\u2019s choice within 20 feet must succeed on a DC 14 Wisdom saving throw or fall prone as spectral force compels them to kneel.\n\nOn a successful save, a creature keeps its footing.\n\n---\n\n## Special Condition\n\n**Restrained by Authority** *(cond_oathbound_restrained_0001)*\n\nThe target is **paralyzed** and **incapacitated**.\n\nIts muscles lock; it cannot move or speak above a whisper. On his turn, the commander may drag the restrained creature up to 10 feet without provoking opportunity attacks.\n\nThe creature may repeat the saving throw at the end of each of its turns, ending the effect on a success.\n\n---\n\n## Behavior\n\n**Intent:** Neutral\n\n**Finishing Move:** If reduced below 15 HP, the commander salutes and says,\n\u201cLedger\u2026 balanced.\u201d\nHe then collapses into dust and scraps of uniform.\n\n**Priorities:**\n\n* Restrain intruders\n* Prevent access to doors and records\n* Return to his desk and resume \u201cwork\u201d if the room falls quiet\n\n---\n\n## DM Notes\n\n**Roleplay:** Calm, clipped, bureaucratic.\nFrequently repeats:\n\n* \u201cDisturbances will not be tolerated.\u201d\n* \u201cThe troops must be paid.\u201d\n* \u201cYou are out of order.\u201d\n\n**Tactics:**\nRound 1 uses **Commanding Word** on the most aggressive PC.\nUses **longsword** to punish those who approach the desk or restricted doors.\nUses **Mass Discipline** if the party clusters or attempts to rush past.\n\nFocuses on control over damage.\n"
+      },
+      {
+        "id": "mn_oathbound_sentinel_0001",
+        "name": "Oath-Bound Sentinel",
+        "source": "[object Object]",
+        "size": "Medium",
+        "creature_type": "Construct (Automaton)",
+        "alignment": "Lawful Neutral",
+        "cr": "4",
+        "monster_stats": "\n# Oath-Bound Sentinel (Greater)\n\n*Medium construct (automaton), lawful neutral*\n\n---\n\n**Armor Class** 20 (fortified plate lattice)\n**Hit Points** 115 (10d10 + 60)\n**Speed** 30 ft., climb 10 ft.\n\n---\n\n**STR** 20 (+5)\n**DEX** 10 (+0)\n**CON** 18 (+4)\n**INT** 6 (\u22122)\n**WIS** 14 (+2)\n**CHA** 6 (\u22122)\n\n---\n\n**Saving Throws** Con +8, Wis +6\n**Skills** Athletics +9, Perception +6\n\n**Damage Resistances** bludgeoning, piercing, and slashing from nonmagical attacks that aren\u2019t adamantine\n**Damage Immunities** poison, psychic\n\n**Condition Immunities** charmed, exhaustion, frightened, paralyzed, poisoned\n\n**Senses** darkvision 60 ft., passive Perception 16\n**Languages** understands Common and its creator\u2019s tongue but can\u2019t speak\n\n**Challenge** 6 (2,300 XP)\n\n---\n\n# Traits\n\n**Constructed Resilience.**\nThe sentinel doesn\u2019t need air, food, drink, or sleep.\n\n**Oath-Bound Guardian.**\nThe sentinel magically bonds to the first non-construct creature it sees when activated (its ward). While within 60 ft. of its ward:\n\n* It has **advantage on attack rolls and saving throws**.\n* When the ward takes damage, the sentinel can take the damage instead (**maximum 20 per round**).\n\n**Sentinel Coordination.**\nIf another Oath-Bound Sentinel is within 20 ft., both gain **+2 AC** and **advantage on opportunity attacks**.\n\n**Immovable Guardian.**\nThe sentinel cannot be pushed, knocked prone, or forcibly moved unless the effect originates from a creature of Huge size or larger.\n\n---\n\n# Actions\n\n**Multiattack.**\nThe sentinel makes **three attacks** with its halberd.\n\n---\n\n**Halberd.**\n*Melee Weapon Attack:* +9 to hit, reach 10 ft., one target.\n\nHit: **13 (1d10 + 7) slashing damage.**\n\nIf the target moves before the sentinel\u2019s next turn, it takes **5 slashing damage** from the halberd\u2019s hooking blade.\n\n---\n\n**Bolt Launcher.**\n*Ranged Weapon Attack:* +8 to hit, range 40/120 ft., one target.\n\nHit: **10 (1d10 + 5) piercing damage.**\n\n---\n\n# Defensive Protocol (Recharge 5\u20136)\n\nThe sentinel plants its halberd into the ground and enters a defensive stance until the start of its next turn:\n\n* **AC increases to 22**\n* **Creatures provoke opportunity attacks when entering its reach**\n* **Each creature can trigger only one opportunity attack from it per turn**\n\n---\n\n\n"
+      },
+      {
+        "id": "mon_8mklk9g",
+        "name": "Orc Soldier",
+        "source": "",
+        "size": "",
+        "creature_type": "",
+        "alignment": "",
+        "cr": "",
+        "monster_stats": "# Orc Soldier of the Ashen Flame\n\n*Medium humanoid (orc), chaotic evil*\n\nThese orcs are sworn servants of **Ghurzag the Flame-Touched**. Their armor is smeared with soot and marked with the symbol of a **burning eye over crossed bones**. In battle they chant fragments of the Flame-Touched war prayer, believing that death in fire will earn them a place in the demon\u2019s reborn empire.\n\n**Armor Class** 14 (reinforced hide armor)\n**Hit Points** 45 (6d8 + 18)\n**Speed** 30 ft.\n\n**STR** 17 (+3)\u2003**DEX** 12 (+1)\u2003**CON** 16 (+3)\u2003**INT** 8 (\u22121)\u2003**WIS** 11 (+0)\u2003**CHA** 11 (+0)\n\n**Skills** Intimidation +2, Athletics +5\n**Senses** darkvision 60 ft., passive Perception 10\n**Languages** Common, Orc\n**Challenge** ~3\n**Proficiency Bonus** +2\n\n### Traits\n\n**Aggressive.** As a bonus action, the orc can move up to its speed toward a hostile creature it can see.\n\n**Flame-Touched Zeal.** The first time the orc is reduced below half its hit points, it gains advantage on its next attack roll and deals an extra 1d6 fire damage on that attack.\n\n### Actions\n\n**Multiattack.** The orc makes two greataxe attacks.\n\n**Greataxe.** *Melee Weapon Attack:* +5 to hit, reach 5 ft., one target.\nHit: 10 (1d12 + 4) slashing damage.\n\n**Javelin.** *Melee or Ranged Weapon Attack:* +5 to hit, reach 5 ft. or range 30/120 ft., one target.\nHit: 7 (1d6 + 4) piercing damage.\n\n"
+      },
+      {
+        "id": "mon_v2txhrn",
+        "name": "Orc Sargeant",
+        "source": "",
+        "size": "",
+        "creature_type": "",
+        "alignment": "",
+        "cr": "",
+        "monster_stats": "---\n\n# Grath Blood-Banner, Sergeant of Ghurzag\n\n*Medium humanoid (orc), chaotic evil*\n\nGrath carries a ragged banner stitched from burned cloth and bone charms. He believes Ghurzag has chosen him to witness the demon\u2019s return and speaks constantly of \u201cthe crown of flame.\u201d His warriors fear him almost as much as they worship him.\n\n**Armor Class** 16 (chain shirt, shield)\n**Hit Points** 68 (8d8 + 32)\n**Speed** 30 ft.\n\n**STR** 18 (+4)\u2003**DEX** 12 (+1)\u2003**CON** 18 (+4)\u2003**INT** 9 (\u22121)\u2003**WIS** 12 (+1)\u2003**CHA** 14 (+2)\n\n**Saving Throws** Con +7\n**Skills** Athletics +7, Intimidation +5\n**Senses** darkvision 60 ft., passive Perception 11\n**Languages** Common, Orc\n**Challenge** ~5\n**Proficiency Bonus** +3\n\n### Traits\n\n**Aggressive.** As a bonus action, Grath moves up to his speed toward a hostile creature he can see.\n\n**War Cry of the Crownless Flame (Recharge 5\u20136).**\nGrath bellows the chant of Ghurzag. Up to three allied orcs within 30 ft. gain advantage on their next attack roll and deal an extra **1d6 fire damage** if they hit.\n\n### Actions\n\n**Multiattack.** Grath makes two greataxe attacks.\n\n**Greataxe.** *Melee Weapon Attack:* +7 to hit, reach 5 ft., one target.\nHit: 11 (1d12 + 5) slashing damage.\n\n**Throwing Spear.** *Melee or Ranged Weapon Attack:* +7 to hit, reach 5 ft. or range 30/120 ft., one target.\nHit: 8 (1d6 + 5) piercing damage.\n\n### Bonus Actions\n\n**Command the Flame.** One allied orc within 30 ft. may move up to half its speed without provoking opportunity attacks.\n\n\n\n\n\n"
+      },
+      {
+        "id": "mon_e8iqoxy",
+        "name": "Orc War Mage",
+        "source": "",
+        "size": "",
+        "creature_type": "",
+        "alignment": "",
+        "cr": "",
+        "monster_stats": "---\n\n# Skarza Ember-Seer, War-Mage of Ghurzag\n\n*Medium humanoid (orc), chaotic evil*\n\nSkarza is a gaunt orc mystic whose flesh bears glowing infernal sigils burned into his skin during visions from the Crimson Star. He believes the demon whispers to him directly and often pauses mid-battle to listen for its guidance.\n\n**Armor Class** 13 (hide armor)\n**Hit Points** 52 (8d8 + 16)\n**Speed** 30 ft.\n\n**STR** 10 (+0)\u2003**DEX** 13 (+1)\u2003**CON** 14 (+2)\u2003**INT** 15 (+2)\u2003**WIS** 12 (+1)\u2003**CHA** 13 (+1)\n\n**Saving Throws** Int +5\n**Skills** Arcana +5, Religion +5\n**Senses** darkvision 60 ft., passive Perception 11\n**Languages** Common, Orc, Abyssal\n**Challenge** ~5\n**Proficiency Bonus** +3\n\n### Spellcasting\n\nSkarza is a **6th-level spellcaster**. His spellcasting ability is Intelligence (spell save **DC 13**, +5 to hit with spell attacks).\n\n**Cantrips (at will):**\n*fire bolt, mage hand, minor illusion*\n\n**1st level (4 slots):**\n*magic missile, shield, burning hands*\n\n**2nd level (3 slots):**\n*knock, scorching ray, mirror image*\n\n**3rd level (3 slots):**\n*fireball, counterspell*\n\n### Traits\n\n**Voice of the Demon.** Once per turn when Skarza deals fire damage with a spell, he may deal an additional **1d6 fire damage** to one target hit by the spell.\n\n### Actions\n\n**Dagger.** *Melee or Ranged Weapon Attack:* +4 to hit, reach 5 ft. or range 20/60 ft., one target.\nHit: 4 (1d4 + 2) piercing damage.\n\n---"
+      },
+      {
+        "id": "mon_ps4v012",
+        "name": "Shadow of Varnholde",
+        "source": "",
+        "size": "",
+        "creature_type": "",
+        "alignment": "",
+        "cr": "",
+        "monster_stats": "That\u2019s a great direction because it turns the boss fight into a **tactical puzzle** instead of just a stat grind. The chains become visible anchors of the curse, and the players can discover they matter.\n\nMechanically it also solves the \u201cboss dies too fast\u201d problem \u2014 the chains protect him until the players deal with them.\n\nBelow is a **clean stat block format** like the ones you\u2019ve been using in your dungeon tool.\n\n---\n\n# The Shadow of Varnholde\n\n*Undead Oathbreaker bound in chains*\n\nMedium Undead, Chaotic Evil\n\nAC: 15 (spectral armor)\nHP: 110 (13d8 + 52)\nSpeed: 0 ft., fly 30 ft. (hover)\n\nSTR 10 (+0)\nDEX 16 (+3)\nCON 18 (+4)\nINT 14 (+2)\nWIS 14 (+2)\nCHA 18 (+4)\n\nSaving Throws: Wis +5, Cha +7\nDamage Resistances: acid, fire, lightning, thunder; bludgeoning/piercing/slashing from nonmagical attacks\nDamage Immunities: necrotic, poison\nCondition Immunities: charmed, frightened, grappled, prone, restrained\nSenses: darkvision 120 ft., passive Perception 12\nLanguages: Common, Orc, Infernal\nCR: 5 (1,800 XP)\n\n---\n\n# Lore\n\nOnce a trusted lieutenant of Duke Varnholde, this officer was captured in the final days of the Sundering War and chained within the fortress library. Knowing he would never escape, he completed a forbidden ritual that cursed the entire dungeon, binding his soul to the chains that held him.\n\nHe failed to become a true lich.\n\nInstead he became **something worse \u2014 a shadow that cannot leave the room where he died.**\n\n---\n\n# Chains of the Curse\n\nFour massive black chains run from the Shadow\u2019s body into the walls and floor of the chamber.\n\nWhile **two or more chains remain intact**, the Shadow gains:\n\n\u2022 Resistance to all damage\n\u2022 Regains **10 HP at the start of its turn**\n\nDestroying a chain weakens him.\n\nEach chain:\n\nAC: 14\nHP: 20\nImmune to poison and psychic damage\n\nA creature adjacent to a chain can attack it.\n\nWhen a chain is destroyed, the Shadow shrieks and takes **10 radiant damage**.\n\nWhen the **last chain breaks**, the Shadow loses his regeneration and damage resistance.\n\n---\n\n# Aura of Binding\n\nSpectral chains writhe through the air around the Shadow.\n\nCreatures that start their turn within **10 ft** must succeed on a **DC 14 Strength save** or become **Restrained by ghostly chains** until the start of their next turn.\n\n---\n\n# Actions\n\n### Multiattack\n\nThe Shadow makes **two Chain Lash attacks**.\n\n---\n\n### Chain Lash\n\nMelee Spell Attack: +7 to hit\nReach: 15 ft\n\nHit:\n12 (2d6 + 5) necrotic damage\n\nThe target must succeed on a **DC 14 Constitution save** or their **maximum HP is reduced by the damage taken**.\n\nThis reduction lasts until a long rest.\n\n---\n\n### Summon the Library Dead (Recharge 5\u20136)\n\nThe Shadow calls forth darkness from the chained shelves.\n\nTwo **Shadows** crawl out of the walls or rise from the floor.\n\nThey act immediately after the Shadow.\n\n---\n\n### Curse of Betrayal (1/day)\n\nThe Shadow points at a creature he can see within 60 ft.\n\nThe target must succeed on a **DC 14 Wisdom save** or be cursed for 1 minute.\n\nWhile cursed:\n\n\u2022 disadvantage on attack rolls\n\u2022 disadvantage on saving throws against necrotic damage\n\nThe creature may repeat the save at the end of each of its turns.\n\n---\n\n# Reaction \u2014 Soul Hunger\n\nWhen a creature within 20 ft drops to **0 HP**, the Shadow regains **15 HP**.\n\n---\n\n# Environment (important for the fight)\n\nThe **Library of Chains** contains:\n\n\u2022 Iron bookcases bolted to the walls\n\u2022 Chains hanging from ceiling beams\n\u2022 Ritual circles carved into the floor\n\u2022 Old tomes bound in black leather\n\nA creature shoved into the hanging chains must make a **DC 12 Dexterity save** or become Restrained until the start of their next turn.\n\n---\n\n# Read-Aloud\n\nAs the party enters:\n\n> The chains along the walls begin to tremble.\n>\n> A shape gathers in the darkness \u2014 a man suspended in the air, his body pierced by four massive black chains that stretch into the stone walls.\n>\n> His armor hangs in spectral tatters, and his eyes burn like embers.\n>\n> Slowly, his head turns toward you.\n>\n> \u201cThe Queen chained my body\u2026\n>\n> \u2026so I chained my soul to this place.\u201d\n\n---\n\n# When the last chain breaks\n\nDescribe this moment dramatically.\n\n> The final chain snaps with a deafening crack.\n>\n> For the first time in centuries, the Shadow staggers \u2014 truly wounded.\n>\n> The chains collapse across the stone floor like dead serpents.\n\nNow the fight becomes much easier and the party will feel like they **solved the boss puzzle**.\n\n"
+      }
+    ],
+    "npcs": [
+      {
+        "id": "npc_vexatious_wayne",
+        "name": "Vexatious Vayne",
+        "source": "Homebrew (Fort Aelwind)",
+        "role": "Tagalong / guide",
+        "pronouns": "he/him",
+        "species": {
+          "name": "Human",
+          "subspecies": null,
+          "lineage": null
+        },
+        "size": "Small",
+        "alignment": "Chaotic Neutral",
+        "tags": [
+          "child",
+          "comic-relief",
+          "noble"
+        ],
+        "statblock": {
+          "ac": 10,
+          "hp": {
+            "average": 1,
+            "formula": "1d8"
+          },
+          "speed": {
+            "walk": 30
+          },
+          "abilities": {
+            "str": 10,
+            "dex": 10,
+            "con": 10,
+            "int": 10,
+            "wis": 10,
+            "cha": 10
+          },
+          "saving_throws": [],
+          "skills": [],
+          "senses": {
+            "passive_perception": 10
+          },
+          "languages": [],
+          "proficiency_bonus": 2,
+          "initiative_bonus": 0,
+          "resistances": [],
+          "immunities": [],
+          "vulnerabilities": [],
+          "conditions_immunities": []
+        },
+        "dm_notes": "Use him to point at obvious interactables (well, pedestal) and to inject humor or urgency."
+      }
+    ]
+  },
+  "sessionSummaries": [
+    {
+      "text": "# D&D Session Summary",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1773197042
+    },
+    {
+      "text": "## Summary\nIn this session, the party continued their exploration of a mysterious dungeon, encountering various undead creatures and a waxy-skinned commander. After defeating the commander, they discovered valuable loot, including a wand of Cinderburst and ornate keys. The session ended with the party preparing to investigate a locked metal box and the hallway leading deeper into the dungeon.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1773197042
+    },
+    {
+      "text": "## Timeline\n- The party explored a dungeon and encountered orcs.\n- They discovered a magical pedestal by a well and defeated zombies and skeletons in a prison.\n- Visit used the spell 'knock' to open a door to a strategy room.\n- Malygris used the mage hand cantrip to reveal a strategy map on a table.\n- Visit prayed over a skeleton, confirming it had died of natural causes, and discovered three ornate stones with sigils.\n- The party examined the table and found divots matching the sigils on the stones.\n- Malygris placed the first stone into the table, revealing a live image of the capital city, Arantoria.\n- The party placed additional stones, revealing images of a tall chamber with a giant mirror and a dark stone chamber lit by blue light.\n- They encountered a waxy-skinned commander who attacked them.\n- The party engaged in combat, with Trell casting Tasha's Hideous Laughter on the commander.\n- After a fierce battle, the commander was defeated.\n- The party found military records, a ring with a star, and two ornate keys on the commander's body.\n- Ghedorim opened a locked metal box, revealing a wand of Cinderburst with three charges.\n- The session concluded with the party preparing to explore further.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1773197042
+    },
+    {
+      "text": "## Key NPCs\n- **Waxy-skinned Commander**: An undead commander who attacked the party and was ultimately defeated.\n- **Skeleton in Blue Officer's Coat**: Found in the strategy room, confirmed to have died of natural causes.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1773197042
+    },
+    {
+      "text": "## Loot/Treasure\n- **Wand of Cinderburst**: Allows the casting of burning hands at second level with three charges.\n- **Ring with a Star**: Found on the commander's body, potential magical properties.\n- **Two Ornate Keys**: Found alongside the ring.\n- **Military Records**: Blurry records found in the commander's office.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1773197042
+    },
+    {
+      "text": "## Outstanding Hooks\n- The party has yet to explore the locked metal box found in the commander's desk.\n- There is a hallway leading deeper into the dungeon that the party has not yet investigated.\n- The significance of the ornate keys and the ring remains unclear, presenting potential future quests or challenges.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1773197042
+    }
+  ],
+  "createdAt": 1773197042,
+  "updatedAt": 1773197042
+}

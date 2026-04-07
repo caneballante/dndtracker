@@ -13,6 +13,7 @@ from urllib.error import URLError, HTTPError
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
+CAMPAIGNS_DIR = os.path.join(BASE_DIR, "campaigns")
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 OPENAI_API_KEY = None
 NOTES_LOCK = threading.Lock()
@@ -78,7 +79,193 @@ def load_env_file(path: str):
         # If .env can't be read, we just fall back to existing env.
         pass
 
-def init_session(session_id: str) -> str:
+def _campaign_dir(campaign_id: str) -> str:
+    return os.path.join(CAMPAIGNS_DIR, campaign_id)
+
+def _campaign_path(campaign_id: str) -> str:
+    return os.path.join(_campaign_dir(campaign_id), "campaign.json")
+
+def _safe_campaign_id(raw: str) -> str:
+    s = re.sub(r"[^a-z0-9_-]+", "-", str(raw or "").strip().lower())
+    s = re.sub(r"-+", "-", s).strip("-")
+    if not s:
+        raise ValueError("campaignId is required.")
+    return s[:64]
+
+def _default_campaign(campaign_id: str, name: str = ""):
+    now = int(time.time())
+    return {
+        "campaignId": campaign_id,
+        "name": str(name or campaign_id),
+        "party": "",
+        "campaignSummary": "",
+        "dungeonMakerJson": {},
+        "sessionSummaries": [],
+        "createdAt": now,
+        "updatedAt": now,
+    }
+
+def _normalize_session_summaries(items):
+    out = []
+    for item in items or []:
+        if isinstance(item, str):
+            text = item.strip()
+            if text:
+                out.append({"text": text, "updatedAt": int(time.time())})
+            continue
+        if isinstance(item, dict):
+            text = str(item.get("text") or "").strip()
+            if not text:
+                continue
+            out.append({
+                "text": text,
+                "label": str(item.get("label") or "").strip(),
+                "sessionId": str(item.get("sessionId") or "").strip(),
+                "updatedAt": int(item.get("updatedAt") or time.time()),
+            })
+    return out
+
+def _normalize_campaign_payload(campaign_id: str, payload):
+    base = _default_campaign(campaign_id, (payload or {}).get("name") if isinstance(payload, dict) else "")
+    if not isinstance(payload, dict):
+        return base
+    base["name"] = str(payload.get("name") or base["name"]).strip() or campaign_id
+    base["party"] = str(payload.get("party") or "")
+    base["campaignSummary"] = str(payload.get("campaignSummary") or "")
+    dungeon = payload.get("dungeonMakerJson")
+    base["dungeonMakerJson"] = dungeon if isinstance(dungeon, dict) else {}
+    base["sessionSummaries"] = _normalize_session_summaries(payload.get("sessionSummaries") or [])
+    base["createdAt"] = int(payload.get("createdAt") or base["createdAt"])
+    base["updatedAt"] = int(time.time())
+    return base
+
+def list_campaigns(limit: int = 100):
+    ensure_dir(CAMPAIGNS_DIR)
+    campaigns = []
+    for name in os.listdir(CAMPAIGNS_DIR):
+        cdir = os.path.join(CAMPAIGNS_DIR, name)
+        if not os.path.isdir(cdir):
+            continue
+        payload = read_json(_campaign_path(name), default=None)
+        if not isinstance(payload, dict):
+            continue
+        payload = _normalize_campaign_payload(_safe_campaign_id(payload.get("campaignId") or name), payload)
+        campaigns.append({
+            "campaignId": payload["campaignId"],
+            "name": payload["name"],
+            "updatedAt": payload["updatedAt"],
+            "sessionSummaryCount": len(payload.get("sessionSummaries") or []),
+        })
+    campaigns.sort(key=lambda x: x.get("updatedAt", 0), reverse=True)
+    return campaigns[:limit]
+
+def read_campaign(campaign_id: str):
+    cid = _safe_campaign_id(campaign_id)
+    ensure_dir(_campaign_dir(cid))
+    payload = read_json(_campaign_path(cid), default=None)
+    if payload is None:
+        payload = _default_campaign(cid)
+        write_json_atomic(_campaign_path(cid), payload)
+    return _normalize_campaign_payload(cid, payload)
+
+def write_campaign(campaign_id: str, payload):
+    cid = _safe_campaign_id(campaign_id)
+    ensure_dir(_campaign_dir(cid))
+    normalized = _normalize_campaign_payload(cid, payload)
+    write_json_atomic(_campaign_path(cid), normalized)
+    return normalized
+
+def _campaign_recent_session_summaries_text(campaign: dict, limit: int = 3) -> str:
+    entries = campaign.get("sessionSummaries") or []
+    if not entries:
+        return ""
+    lines = []
+    for item in entries[-limit:]:
+        label = str(item.get("label") or item.get("sessionId") or "").strip()
+        text = str(item.get("text") or "").strip()
+        if not text:
+            continue
+        if label:
+            lines.append(f"- {label}: {text}")
+        else:
+            lines.append(f"- {text}")
+    return "\n".join(lines).strip()
+
+def _build_context_snapshot(campaign: dict):
+    dungeon_json = campaign.get("dungeonMakerJson")
+    if not isinstance(dungeon_json, dict):
+        dungeon_json = {}
+    prep_text = _prep_context_text(dungeon_json)
+    campaign_summary = str(campaign.get("campaignSummary") or "").strip()
+    recent_summaries = _campaign_recent_session_summaries_text(campaign)
+    sections = []
+    if campaign_summary:
+        sections.append("Campaign summary:\n" + campaign_summary)
+    if recent_summaries:
+        sections.append("Recent session summaries:\n" + recent_summaries)
+    if prep_text:
+        sections.append("Relevant world prep:\n" + prep_text)
+    return {
+        "campaignId": campaign.get("campaignId") or "",
+        "campaignName": campaign.get("name") or "",
+        "partyText": str(campaign.get("party") or "").strip(),
+        "campaignSummaryText": campaign_summary,
+        "recentSessionSummariesText": recent_summaries,
+        "prepContext": dungeon_json,
+        "prepContextText": prep_text,
+        "contextText": "\n\n".join([s for s in sections if s]).strip(),
+        "createdAt": int(time.time()),
+    }
+
+def _read_session_status(session_id: str):
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    return read_json(os.path.join(session_dir, "status.json"), default={})
+
+def _session_context_snapshot(session_id: str):
+    status = _read_session_status(session_id)
+    snap = status.get("contextSnapshot")
+    if isinstance(snap, dict):
+        return snap
+    campaign_id = str(status.get("campaignId") or "").strip()
+    if campaign_id:
+        campaign = read_campaign(campaign_id)
+        return _build_context_snapshot(campaign)
+    return {}
+
+def _session_party_text(session_id: str) -> str:
+    snap = _session_context_snapshot(session_id)
+    if snap.get("partyText"):
+        return str(snap.get("partyText") or "").strip()
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    return read_text(os.path.join(session_dir, "party.txt"), "").strip()
+
+def _session_prep_context(session_id: str):
+    snap = _session_context_snapshot(session_id)
+    prep = snap.get("prepContext")
+    if isinstance(prep, dict) and prep:
+        return prep
+    return _read_prep_context(session_id)
+
+def _session_prompt_context_text(session_id: str) -> str:
+    snap = _session_context_snapshot(session_id)
+    context_text = str(snap.get("contextText") or "").strip()
+    if context_text:
+        return context_text
+    return _prep_context_text(_read_prep_context(session_id))
+
+def _assign_session_campaign(session_id: str, campaign_id: str):
+    cid = _safe_campaign_id(campaign_id)
+    campaign = read_campaign(cid)
+    session_dir = init_session(session_id)
+    status_path = os.path.join(session_dir, "status.json")
+    status = read_json(status_path, default={})
+    status["campaignId"] = cid
+    status["contextSnapshot"] = _build_context_snapshot(campaign)
+    status["updatedAt"] = int(time.time())
+    write_json_atomic(status_path, status)
+    return status, campaign
+
+def init_session(session_id: str, campaign_id: str = "") -> str:
     ensure_dir(UPLOADS_DIR)
     session_dir = os.path.join(UPLOADS_DIR, session_id)
     ensure_dir(session_dir)
@@ -89,12 +276,19 @@ def init_session(session_id: str) -> str:
         status = {
             "sessionId": session_id,
             "sessionName": "",
+            "campaignId": campaign_id,
             "createdAt": int(time.time()),
             "updatedAt": int(time.time()),
             "chunks": [],
             "latestChunkIndex": -1,
             "notes": "",
+            "contextSnapshot": {},
         }
+        write_json_atomic(status_path, status)
+
+    if campaign_id and not status.get("campaignId"):
+        status["campaignId"] = campaign_id
+        status["updatedAt"] = int(time.time())
         write_json_atomic(status_path, status)
 
     return session_dir
@@ -111,9 +305,12 @@ def list_sessions(limit: int = 50):
         status_path = os.path.join(session_dir, "status.json")
         status = read_json(status_path, default={})
         mtime = int(os.path.getmtime(session_dir))
+        snap = status.get("contextSnapshot") if isinstance(status.get("contextSnapshot"), dict) else {}
         sessions.append({
             "sessionId": name,
             "sessionName": str(status.get("sessionName") or ""),
+            "campaignId": str(status.get("campaignId") or ""),
+            "campaignName": str(snap.get("campaignName") or ""),
             "updatedAt": status.get("updatedAt") or mtime,
             "createdAt": status.get("createdAt") or mtime,
             "chunkCount": len(status.get("chunks") or []),
@@ -130,20 +327,23 @@ def read_session_text(session_id: str):
     summary_path = os.path.join(session_dir, "notes_summary.txt")
     game_summary_path = os.path.join(session_dir, "game_summary.txt")
     game_narrative_path = os.path.join(session_dir, "game_narrative.txt")
-    party_path = os.path.join(session_dir, "party.txt")
     structured = _latest_notes_structured(session_id)
     status = read_json(os.path.join(session_dir, "status.json"), default={})
     tracking_state = status.get("trackingState") or _get_tracking_state(session_id)
-    prep_context = _read_prep_context(session_id)
+    prep_context = _session_prep_context(session_id)
+    snap = _session_context_snapshot(session_id)
     return {
         "transcript": read_text(transcript_path, ""),
         "cleanTranscript": read_text(clean_transcript_path, ""),
         "notes": read_text(notes_path, ""),
-        "party": read_text(party_path, ""),
+        "party": _session_party_text(session_id),
         "summary": read_text(summary_path, ""),
         "gameSummary": read_text(game_summary_path, ""),
         "gameNarrative": read_text(game_narrative_path, ""),
         "sessionName": str(status.get("sessionName") or ""),
+        "campaignId": str(status.get("campaignId") or ""),
+        "campaignName": str(snap.get("campaignName") or ""),
+        "contextSnapshot": snap,
         "reprocessStatus": status.get("reprocessStatus") or {},
         "notesState": structured.get("state") or {},
         "notesLatestStructured": structured.get("latest"),
@@ -334,13 +534,7 @@ def _set_transcript_error(session_id: str, chunk_index: int, message: str):
     write_json_atomic(status_path, status)
 
 def _read_party_meta(session_id: str) -> str:
-    session_dir = os.path.join(UPLOADS_DIR, session_id)
-    party_path = os.path.join(session_dir, "party.txt")
-    try:
-        with open(party_path, "r", encoding="utf-8") as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        return ""
+    return _session_party_text(session_id)
 
 def _prep_context_path(session_id: str) -> str:
     session_dir = init_session(session_id)
@@ -556,9 +750,14 @@ def _initial_party_entities(session_id: str):
     rows = _parse_party_rows(_read_party_meta(session_id))
     entities = []
     used = {}
+    excluded_tokens = {"false", "0", "no", "off", "n", "exclude", "excluded"}
     for row in rows:
         role = str(row.get("role") or "Player").strip() or "Player"
-        if role.lower() != "player":
+        role_norm = role.lower()
+        if role_norm not in ("player", "npc"):
+            continue
+        include_raw = str(row.get("include") or row.get("included") or "yes").strip().lower()
+        if include_raw in excluded_tokens:
             continue
         name = str(row.get("character") or row.get("player") or "").strip()
         if not name:
@@ -570,6 +769,7 @@ def _initial_party_entities(session_id: str):
         entities.append({
             "entityId": entity_id,
             "name": name,
+            "role": "NPC" if role_norm == "npc" else "Player",
             "entityType": "party",
             "hp": 0,
             "note": "",
@@ -1014,13 +1214,22 @@ def _default_clean_transcript_system_prompt() -> str:
         "You are editing an auto-transcribed D&D session transcript for readability.\n"
         "Return plain text only for a single transcript chunk (no JSON, no markdown fences).\n"
         "Preserve facts and sequence. Do not invent content.\n"
+        "You may be given adjacent chunks for context, but only rewrite the target chunk.\n"
+        "Do not pull lines forward or backward from neighboring chunks.\n"
+        "Do not add connective narration, inferred transitions, or information not stated in the target chunk.\n"
         "Use the provided party roster to normalize likely mis-heard player/character names when context supports it.\n"
         "Prefer character names consistently. If uncertain, keep the original wording.\n"
         "Improve punctuation, sentence breaks, and paragraphing for readability.\n"
         "Do not summarize; this is still a transcript chunk.\n"
     )
 
-def clean_transcript_chunk_with_openai(chunk_text: str, party: str = "", chunk_index: int = -1) -> str:
+def clean_transcript_chunk_with_openai(
+    chunk_text: str,
+    party: str = "",
+    chunk_index: int = -1,
+    prev_chunk_text: str = "",
+    next_chunk_text: str = "",
+) -> str:
     chunk_text = (chunk_text or "").strip()
     if not chunk_text:
         return ""
@@ -1028,8 +1237,13 @@ def clean_transcript_chunk_with_openai(chunk_text: str, party: str = "", chunk_i
         f"Chunk index: {chunk_index}\n\n"
         "Party roster (if any):\n"
         f"{party.strip() if party else '(none)'}\n\n"
+        "Previous chunk for context only:\n"
+        f"{(prev_chunk_text or '').strip() or '(none)'}\n\n"
         "Transcript chunk to clean:\n"
-        f"{chunk_text}\n"
+        f"{chunk_text}\n\n"
+        "Next chunk for context only:\n"
+        f"{(next_chunk_text or '').strip() or '(none)'}\n\n"
+        "Return only the cleaned version of the target transcript chunk.\n"
     )
     out = _chat_complete_text(
         _default_clean_transcript_system_prompt(),
@@ -1063,7 +1277,7 @@ def generate_game_summary_from_text(
         f"{tracker_state_text.strip() if tracker_state_text else '(none)'}\n\n"
         "Recent tracker events (if any):\n"
         f"{tracker_events_text.strip() if tracker_events_text else '(none)'}\n\n"
-        "Session prep context (rooms/monsters/npcs, if any):\n"
+        "Campaign and session context (if any):\n"
         f"{prep_context_text.strip() if prep_context_text else '(none)'}\n\n"
         "Transcript for the full game session:\n"
         f"{transcript_text}\n"
@@ -1076,12 +1290,14 @@ def generate_game_narrative_from_text(
     notes_text: str = "",
     notes_summary: str = "",
     prep_context_text: str = "",
+    narrative_guidance: str = "",
 ) -> str:
     transcript_text = (transcript_text or "").strip()
     if not transcript_text:
         raise RuntimeError("No transcript text available for narrative generation.")
 
     system_prompt = _default_game_narrative_system_prompt()
+    guidance_text = (narrative_guidance or "").strip()
     user_prompt = (
         "Party roster (if any):\n"
         f"{party.strip() if party else '(none)'}\n\n"
@@ -1089,8 +1305,10 @@ def generate_game_narrative_from_text(
         f"{notes_text.strip() if notes_text else '(none)'}\n\n"
         "DM notes rolling summary (if any):\n"
         f"{notes_summary.strip() if notes_summary else '(none)'}\n\n"
-        "Session prep context (rooms/monsters/npcs, if any):\n"
+        "Campaign and session context (if any):\n"
         f"{prep_context_text.strip() if prep_context_text else '(none)'}\n\n"
+        "One-time narrative guidance for this run (if any):\n"
+        f"{guidance_text if guidance_text else '(none)'}\n\n"
         "Transcript for the full game session:\n"
         f"{transcript_text}\n"
     )
@@ -1108,7 +1326,7 @@ def generate_game_summary_for_session(session_id: str) -> str:
     tracking_state = _get_tracking_state(session_id)
     tracking_state_text = _tracking_state_text(tracking_state)
     tracking_events_text = _recent_tracking_events_text(session_id, limit=40)
-    prep_context_text = _prep_context_text(_read_prep_context(session_id))
+    prep_context_text = _session_prompt_context_text(session_id)
 
     summary = generate_game_summary_from_text(
         transcript_text=transcript_text,
@@ -1130,7 +1348,7 @@ def generate_game_summary_for_session(session_id: str) -> str:
     write_json_atomic(status_path, status)
     return summary
 
-def generate_game_narrative_for_session(session_id: str) -> str:
+def generate_game_narrative_for_session(session_id: str, narrative_guidance: str = "") -> str:
     session_dir = os.path.join(UPLOADS_DIR, session_id)
     clean_transcript = read_text(os.path.join(session_dir, "clean_transcript.txt"), "").strip()
     raw_transcript = read_text(os.path.join(session_dir, "transcript.txt"), "").strip()
@@ -1138,7 +1356,7 @@ def generate_game_narrative_for_session(session_id: str) -> str:
     notes_text = read_text(os.path.join(session_dir, "notes.txt"), "")
     notes_summary = read_text(os.path.join(session_dir, "notes_summary.txt"), "")
     party = _read_party_meta(session_id)
-    prep_context_text = _prep_context_text(_read_prep_context(session_id))
+    prep_context_text = _session_prompt_context_text(session_id)
 
     narrative = generate_game_narrative_from_text(
         transcript_text=transcript_text,
@@ -1146,6 +1364,7 @@ def generate_game_narrative_for_session(session_id: str) -> str:
         notes_text=notes_text,
         notes_summary=notes_summary,
         prep_context_text=prep_context_text,
+        narrative_guidance=narrative_guidance,
     )
 
     out_path = os.path.join(session_dir, "game_narrative.txt")
@@ -1164,7 +1383,7 @@ def _generate_notes_with_context(session_id: str, chunk_index: int, recent: list
         raise RuntimeError("OPENAI_API_KEY not set. Add it to .env or your environment.")
 
     party = _read_party_meta(session_id)
-    prep_context_text = _prep_context_text(_read_prep_context(session_id))
+    prep_context_text = _session_prompt_context_text(session_id)
     summary = (summary_override or "").strip() or _read_notes_summary(session_id)
     window = _notes_window()
     if window_override is not None:
@@ -1180,7 +1399,7 @@ def _generate_notes_with_context(session_id: str, chunk_index: int, recent: list
     user_prompt = (
         "Party data (if any):\n"
         f"{party if party else '(none)'}\n\n"
-        "Session prep context (rooms/monsters/npcs, if any):\n"
+        "Campaign and session context (if any):\n"
         f"{prep_context_text if prep_context_text else '(none)'}\n\n"
         "Rolling summary so far:\n"
         f"{summary if summary else '(none)'}\n\n"
@@ -1586,6 +1805,7 @@ def _run_reprocess_job(session_id: str, party_override: str, regenerate_summary:
             "error": str(e),
             "finishedAt": int(time.time()),
             "updatedAt": int(time.time()),
+            "window": int(window_override or 0),
         })
 
 def rebuild_clean_transcript_for_session(session_id: str, party_override: str = ""):
@@ -1601,17 +1821,31 @@ def rebuild_clean_transcript_for_session(session_id: str, party_override: str = 
 
     party = _read_party_meta(session_id)
     clean_transcript_path = os.path.join(session_dir, "clean_transcript.txt")
+    transcript_items = []
+    for item in transcripts:
+        chunk_index = int(item.get("chunkIndex", -1))
+        raw_text = str(item.get("text") or "").strip()
+        if chunk_index < 0 or not raw_text:
+            continue
+        transcript_items.append({
+            "chunkIndex": chunk_index,
+            "text": raw_text,
+        })
 
     cleaned_count = 0
     lines_out = []
-    for item in transcripts:
-        chunk_index = int(item.get("chunkIndex", -1))
-        if chunk_index < 0:
-            continue
-        raw_text = str(item.get("text") or "").strip()
-        if not raw_text:
-            continue
-        cleaned = clean_transcript_chunk_with_openai(raw_text, party=party, chunk_index=chunk_index)
+    for idx, item in enumerate(transcript_items):
+        chunk_index = int(item["chunkIndex"])
+        raw_text = str(item["text"])
+        prev_chunk_text = transcript_items[idx - 1]["text"] if idx > 0 else ""
+        next_chunk_text = transcript_items[idx + 1]["text"] if idx + 1 < len(transcript_items) else ""
+        cleaned = clean_transcript_chunk_with_openai(
+            raw_text,
+            party=party,
+            chunk_index=chunk_index,
+            prev_chunk_text=prev_chunk_text,
+            next_chunk_text=next_chunk_text,
+        )
         lines_out.append(f"[{chunk_index:04d}] {cleaned}".rstrip())
         cleaned_count += 1
 
@@ -1686,6 +1920,29 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
 
+        if parsed.path == "/api/campaigns/list":
+            try:
+                qs = parse_qs(parsed.query)
+                limit = int((qs.get("limit") or ["100"])[0])
+                self._send_json(200, {"ok": True, "campaigns": list_campaigns(limit)})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/campaign/get":
+            try:
+                qs = parse_qs(parsed.query)
+                campaign_id = _safe_campaign_id((qs.get("campaignId") or [""])[0])
+                campaign = read_campaign(campaign_id)
+                self._send_json(200, {
+                    "ok": True,
+                    "campaign": campaign,
+                    "contextPreview": _build_context_snapshot(campaign).get("contextText") or "",
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
         if parsed.path == "/api/sessions/get":
             try:
                 qs = parse_qs(parsed.query)
@@ -1733,23 +1990,114 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
 
+        if parsed.path == "/api/campaign/save":
+            try:
+                body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
+                data = json.loads(body) if body else {}
+                campaign_id = _safe_campaign_id(str(data.get("campaignId") or data.get("name") or "default"))
+                campaign = write_campaign(campaign_id, {
+                    "campaignId": campaign_id,
+                    "name": str(data.get("name") or campaign_id),
+                    "party": str(data.get("party") or ""),
+                    "campaignSummary": str(data.get("campaignSummary") or ""),
+                    "dungeonMakerJson": data.get("dungeonMakerJson") if isinstance(data.get("dungeonMakerJson"), dict) else {},
+                    "sessionSummaries": data.get("sessionSummaries") or [],
+                    "createdAt": data.get("createdAt"),
+                })
+                self._send_json(200, {
+                    "ok": True,
+                    "campaign": campaign,
+                    "contextPreview": _build_context_snapshot(campaign).get("contextText") or "",
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/campaign/import-dungeon":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                campaign_id = _safe_campaign_id(str(data.get("campaignId") or ""))
+                campaign = read_campaign(campaign_id)
+                dungeon = data.get("dungeonMakerJson")
+                if not isinstance(dungeon, dict):
+                    raise ValueError("dungeonMakerJson must be a JSON object.")
+                campaign["dungeonMakerJson"] = dungeon
+                campaign = write_campaign(campaign_id, campaign)
+                self._send_json(200, {
+                    "ok": True,
+                    "campaign": campaign,
+                    "contextPreview": _build_context_snapshot(campaign).get("contextText") or "",
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/context/refresh":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                session_dir = init_session(session_id)
+                status_path = os.path.join(session_dir, "status.json")
+                status = read_json(status_path, default={})
+                campaign_id = str(status.get("campaignId") or data.get("campaignId") or "default")
+                status, campaign = _assign_session_campaign(session_id, campaign_id)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "campaignId": status.get("campaignId") or "",
+                    "campaignName": campaign.get("name") or status.get("campaignId") or "",
+                    "contextSnapshot": status.get("contextSnapshot") or {},
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/assign-campaign":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                campaign_id = str(data.get("campaignId") or "").strip()
+                if not campaign_id:
+                    raise ValueError("campaignId is required.")
+                status, campaign = _assign_session_campaign(session_id, campaign_id)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "campaignId": status.get("campaignId") or "",
+                    "campaignName": campaign.get("name") or status.get("campaignId") or "",
+                    "contextSnapshot": status.get("contextSnapshot") or {},
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
         if parsed.path == "/api/session/start":
             try:
                 body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
                 data = json.loads(body) if body else {}
                 session_id = safe_session_id(str(data.get("sessionId", "")))
                 session_name = sanitize_session_name(data.get("sessionName", ""))
-                session_dir = init_session(session_id)
+                campaign_id = _safe_campaign_id(str(data.get("campaignId") or "default"))
+                campaign = read_campaign(campaign_id)
+                session_dir = init_session(session_id, campaign_id=campaign_id)
+                status_path = os.path.join(session_dir, "status.json")
+                status = read_json(status_path, default={})
                 if session_name:
-                    status_path = os.path.join(session_dir, "status.json")
-                    status = read_json(status_path, default={})
                     status["sessionName"] = session_name
-                    status["updatedAt"] = int(time.time())
-                    write_json_atomic(status_path, status)
+                status["campaignId"] = campaign_id
+                status["contextSnapshot"] = _build_context_snapshot(campaign)
+                status["updatedAt"] = int(time.time())
+                write_json_atomic(status_path, status)
                 self._send_json(200, {
                     "ok": True,
                     "sessionId": session_id,
                     "sessionName": session_name,
+                    "campaignId": campaign_id,
+                    "campaignName": campaign.get("name") or campaign_id,
+                    "contextSnapshot": status.get("contextSnapshot") or {},
                     "sessionDir": os.path.relpath(session_dir, BASE_DIR),
                     "statusUrl": f"/uploads/{session_id}/status.json",
                 })
@@ -2085,7 +2433,8 @@ class Handler(SimpleHTTPRequestHandler):
                 body = self._read_body().decode("utf-8")
                 data = json.loads(body) if body else {}
                 session_id = safe_session_id(str(data.get("sessionId", "")))
-                narrative = generate_game_narrative_for_session(session_id)
+                narrative_guidance = str(data.get("narrativeGuidance") or "")
+                narrative = generate_game_narrative_for_session(session_id, narrative_guidance=narrative_guidance)
                 self._send_json(200, {
                     "ok": True,
                     "sessionId": session_id,

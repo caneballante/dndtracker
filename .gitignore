@@ -1,4 +1,18 @@
 .env
-server.log
 uploads/
 *.save
+
+# Local runtime output
+*.log
+*.err.log
+
+# Python caches
+__pycache__/
+.pycache_tmp/
+*.pyc
+
+# Local bundled tools
+.tools/
+
+# OS/editor noise
+.DS_Store

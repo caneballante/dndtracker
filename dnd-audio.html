@@ -70,16 +70,21 @@
           <div class="card-body p-4">
             <div class="d-flex align-items-start justify-content-between gap-3">
               <div>
-                <h1 class="h4 mb-1">🎙️ Session Recorder v.6</h1>
+                <h1 class="h4 mb-1">🎙️ Session Recorder v.7</h1>
                 <div class="text-muted">
                   Records audio in chunks and uploads to <span class="mono">server.py</span> endpoints
                 </div>
+                <div class="small mono text-secondary">Build: campaign-refactor-1</div>
               </div>
               <div class="text-end">
                 <div class="small text-muted">Session ID</div>
                 <div class="mono" id="sessionId">(not started)</div>
                 <div class="small text-muted mt-2">Session Name</div>
                 <input id="sessionNameInput" type="text" class="form-control form-control-sm" placeholder="Optional (e.g. Avernus - Session 12)" style="min-width:260px;">
+                <div class="small text-muted mt-2">Campaign</div>
+                <select id="campaignSelect" class="form-select form-select-sm" style="min-width:260px;">
+                  <option value="default">default</option>
+                </select>
               </div>
             </div>
 
@@ -99,7 +104,7 @@
                 <button class="nav-link" id="tab-tracker" data-bs-toggle="tab" data-bs-target="#pane-tracker" type="button" role="tab">Tracker</button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-prep" data-bs-toggle="tab" data-bs-target="#pane-prep" type="button" role="tab">Prep</button>
+                <button class="nav-link" id="tab-prep" data-bs-toggle="tab" data-bs-target="#pane-prep" type="button" role="tab">Campaign</button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="tab-test" data-bs-toggle="tab" data-bs-target="#pane-test" type="button" role="tab">Test</button>
@@ -119,6 +124,11 @@
                       Chunk: <span class="mono" id="chunkCounter">0</span> · Next upload in: <span class="mono" id="countdown">—</span>
                     </div>
                   </div>
+                </div>
+
+                <div class="alert alert-secondary py-2 px-3 mb-3">
+                  <div class="small"><strong>New session campaign:</strong> <span id="recording-selected-campaign" class="mono">default</span></div>
+                  <div class="small text-muted">Current session campaign: <span id="recording-active-campaign" class="mono">(not started)</span></div>
                 </div>
 
               <div class="d-flex flex-wrap gap-2 mb-4">
@@ -168,17 +178,20 @@
                 <div class="row g-2 mt-3">
                   <div class="col-12">
                     <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-                      <label class="form-label mb-0">Roster</label>
-                      <button id="partyAddMemberBtn" type="button" class="btn btn-outline-primary btn-sm">Add Party Member</button>
-                      <button id="partyAddDmBtn" type="button" class="btn btn-outline-primary btn-sm">Add DM</button>
+                      <label class="form-label mb-0">Session Participants</label>
+                      <button id="partyLoadCampaignBtn" type="button" class="btn btn-outline-secondary btn-sm">Load Saved Campaign Roster</button>
+                      <button id="partyAddPlayerBtn" type="button" class="btn btn-outline-primary btn-sm">Add Player</button>
+                      <button id="partyAddNpcBtn" type="button" class="btn btn-outline-primary btn-sm">Add NPC</button>
+                      <button id="partyAddDmBtn" type="button" class="btn btn-outline-secondary btn-sm">Add DM</button>
                     </div>
                     <div class="table-responsive">
                       <table class="table table-sm align-middle" id="partyRosterTable">
                         <thead>
                           <tr>
+                            <th style="width:90px;">Include</th>
                             <th style="min-width:90px;">Role</th>
-                            <th style="min-width:130px;">Player</th>
-                            <th style="min-width:130px;">Character</th>
+                            <th style="min-width:130px;">Player / Controller</th>
+                            <th style="min-width:130px;">Character / NPC</th>
                             <th style="min-width:110px;">Class</th>
                             <th style="min-width:110px;">Race</th>
                             <th style="min-width:150px;">Aliases</th>
@@ -188,17 +201,12 @@
                         <tbody id="partyRosterBody"></tbody>
                       </table>
                     </div>
-                    <label class="form-label small mt-2" for="partyMeta">Generated roster text (sent to notes/summaries)</label>
-                    <textarea id="partyMeta" class="form-control" rows="5"
-                      placeholder="Roster text is generated automatically. You can still edit it manually if needed."></textarea>
-                    <div class="d-flex gap-2 mt-2">
-                      <button id="partySaveBtn" type="button" class="btn btn-outline-secondary btn-sm">Save Party</button>
-                      <button id="partyLoadBtn" type="button" class="btn btn-outline-secondary btn-sm">Load Party</button>
-                      <button id="partyClearBtn" type="button" class="btn btn-outline-danger btn-sm">Clear Saved</button>
-                    </div>
+                    <label class="form-label small mt-2" for="partyMeta">Generated session roster text (sent to notes/summaries)</label>
+                    <textarea id="partyMeta" class="form-control" rows="5" readonly
+                      placeholder="Session roster text is generated from the table above."></textarea>
                     <div id="partyMetaStatus" class="small text-muted mt-1"></div>
                     <div class="form-text">
-                      Roster rows improve name matching in notes and summaries. The generated text is what gets sent with the session.
+                      Seeded from the campaign roster. Add guest players or companion NPCs here, and uncheck Include for anyone absent.
                     </div>
                   </div>
                 </div>
@@ -269,33 +277,53 @@
               <div class="tab-pane fade" id="pane-prep" role="tabpanel">
                 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
                   <div>
-                    <div class="small text-muted">Session prep context (rooms, monsters, NPCs)</div>
+                    <div class="small text-muted">Campaign context and memory</div>
                     <div id="prep-session-label" class="small"></div>
                   </div>
                   <div class="d-flex gap-2 align-items-end">
                     <div>
-                      <label class="form-label small mb-1">Import recorder JSON</label>
+                      <label class="form-label small mb-1">Import Dungeon Maker JSON</label>
                       <input id="prep-file-input" type="file" accept=".json,application/json" class="form-control form-control-sm">
                     </div>
-                    <button id="prep-import-btn" class="btn btn-outline-primary btn-sm">Import</button>
-                    <button id="prep-load-btn" class="btn btn-outline-secondary btn-sm">Load</button>
-                    <button id="prep-save-btn" class="btn btn-primary btn-sm">Save</button>
+                    <button id="prep-import-btn" class="btn btn-outline-primary btn-sm">Import JSON</button>
+                    <button id="prep-load-btn" class="btn btn-outline-secondary btn-sm">Load Campaign</button>
+                    <button id="prep-save-btn" class="btn btn-primary btn-sm">Save Campaign</button>
+                    <button id="prep-refresh-context-btn" class="btn btn-outline-secondary btn-sm">Refresh Session Context</button>
                   </div>
                 </div>
                 <div id="prep-status" class="small text-muted mb-2"></div>
+                <div class="row g-2 mb-2">
+                  <div class="col-12 col-md-4">
+                    <label class="form-label small mb-1">Campaign name</label>
+                    <input id="campaignName" class="form-control" placeholder="e.g. Fort Aelwind">
+                  </div>
+                  <div class="col-12 col-md-8">
+                    <label class="form-label small mb-1">Party roster</label>
+                    <textarea id="campaignParty" class="form-control mono" rows="3" placeholder="Rubin - Ghedorim - monk"></textarea>
+                  </div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label small mb-1">Campaign summary</label>
+                    <textarea id="campaignSummary" class="form-control" rows="6" placeholder="Running campaign memory and current situation."></textarea>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label small mb-1">Session summaries (one entry per paragraph)</label>
+                    <textarea id="campaignSessionSummaries" class="form-control" rows="6" placeholder="Paste or edit session recap entries here."></textarea>
+                  </div>
+                </div>
                 <div class="row g-2">
                   <div class="col-12 col-md-5">
-                    <div class="small text-muted mb-1">Prep summary</div>
+                    <div class="small text-muted mb-1">Compiled context preview</div>
                     <pre id="prep-summary"
-                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:320px; overflow:auto; white-space: pre-wrap;"></pre>
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:420px; overflow:auto; white-space: pre-wrap;"></pre>
                   </div>
                   <div class="col-12 col-md-7">
-                    <div class="small text-muted mb-1">Prep JSON (editable)</div>
-                    <textarea id="prep-json" class="form-control mono" rows="16" placeholder="{ }"></textarea>
+                    <div class="small text-muted mb-1">Dungeon Maker JSON (editable)</div>
+                    <textarea id="prep-json" class="form-control mono" rows="20" placeholder="{ }"></textarea>
                   </div>
                 </div>
               </div>
-
               <div class="tab-pane fade" id="pane-test" role="tabpanel">
                 <div class="small text-muted mb-2">Post-session notes test harness (session-based).</div>
                 <div class="row g-2">
@@ -394,19 +422,32 @@
                     <label class="form-label small mb-1">Sessions</label>
                     <select id="sessions-select" class="form-select"></select>
                   </div>
-                  <div class="col-12 col-md-5">
+                  <div class="col-12 col-md-4">
                     <label class="form-label small mb-1">Session name</label>
                     <div class="d-flex gap-2">
                       <input id="sessions-name-input" type="text" class="form-control" placeholder="Name this session">
                       <button id="sessions-save-name" class="btn btn-outline-secondary btn-sm">Save Name</button>
                     </div>
                   </div>
-                  <div class="col-12 col-md-3">
+                  <div class="col-12 col-md-2">
+                    <label class="form-label small mb-1">Campaign</label>
+                    <div class="d-grid gap-2">
+                      <select id="sessions-campaign-select" class="form-select form-select-sm"></select>
+                      <button id="sessions-assign-campaign" class="btn btn-outline-secondary btn-sm">Assign</button>
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-2">
                     <label class="form-label small mb-1">Session info</label>
                     <div id="sessions-info" class="small text-muted"></div>
                   </div>
                 </div>
                 <div class="row g-2 mt-2">
+                  <div class="col-12">
+                    <label class="form-label small mb-1" for="sessions-narrative-guidance">Narrative guidance (optional, this run only)</label>
+                    <textarea id="sessions-narrative-guidance" class="form-control" rows="3"
+                      placeholder="Example: Make sure to include the missing room in Yurga and the dinner at Pushel Manor. Prefer the DM notes timeline if the transcript is unclear."></textarea>
+                    <div class="form-text">Used only for the next narrative generation run. It does not change campaign canon.</div>
+                  </div>
                   <div class="col-12">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                       <div class="small text-muted">Game Summary</div>
@@ -484,6 +525,9 @@
   const logEl = document.getElementById('log');
   const sessionIdEl = document.getElementById('sessionId');
   const sessionNameInputEl = document.getElementById('sessionNameInput');
+  const campaignSelectEl = document.getElementById('campaignSelect');
+  const recordingSelectedCampaignEl = document.getElementById('recording-selected-campaign');
+  const recordingActiveCampaignEl = document.getElementById('recording-active-campaign');
   const chunkCounterEl = document.getElementById('chunkCounter');
   const countdownEl = document.getElementById('countdown');
 
@@ -492,11 +536,10 @@
   const latestChunkLinkEl = document.getElementById('latestChunkLink');
   const partyMetaEl = document.getElementById('partyMeta');
   const partyRosterBodyEl = document.getElementById('partyRosterBody');
-  const partyAddMemberBtn = document.getElementById('partyAddMemberBtn');
+  const partyLoadCampaignBtn = document.getElementById('partyLoadCampaignBtn');
+  const partyAddPlayerBtn = document.getElementById('partyAddPlayerBtn');
+  const partyAddNpcBtn = document.getElementById('partyAddNpcBtn');
   const partyAddDmBtn = document.getElementById('partyAddDmBtn');
-  const partySaveBtn = document.getElementById('partySaveBtn');
-  const partyLoadBtn = document.getElementById('partyLoadBtn');
-  const partyClearBtn = document.getElementById('partyClearBtn');
   const partyMetaStatusEl = document.getElementById('partyMetaStatus');
   const showPlaybackEl = document.getElementById('showPlayback');
   const micSelectEl = document.getElementById('micSelect');
@@ -521,9 +564,6 @@
   let meterAnalyser = null;
   let meterRaf = null;
 
-  const PARTY_META_STORAGE_KEY = 'dnd-audio-party-meta-v1';
-  const PARTY_META_SAVED_AT_KEY = 'dnd-audio-party-meta-saved-at-v1';
-  const PARTY_ROSTER_STORAGE_KEY = 'dnd-audio-party-roster-v1';
   const DEFAULT_MIC_OPTION_VALUE = '__browser_default__';
   let partyRoster = [];
 
@@ -539,29 +579,51 @@
     if (partyMetaStatusEl) partyMetaStatusEl.textContent = msg || '';
   }
 
-  function defaultRosterRow(role = 'Player') {
-    if (role === 'DM') {
-      return {
-        role: 'DM',
-        playerName: '',
-        characterName: 'DM',
-        className: '',
-        race: '',
-        aliases: 'DM, GM, Dungeon Master'
-      };
+  function selectedCampaignLabel() {
+    const selected = campaignSelectEl?.selectedOptions?.[0];
+    const label = String(selected?.textContent || '').trim();
+    return label || String(campaignSelectEl?.value || 'default').trim() || 'default';
+  }
+
+  function updateRecordingCampaignState(activeCampaignName = '') {
+    const selectedLabel = selectedCampaignLabel();
+    if (recordingSelectedCampaignEl) recordingSelectedCampaignEl.textContent = selectedLabel;
+    if (recordingActiveCampaignEl) {
+      if (activeCampaignName) {
+        recordingActiveCampaignEl.textContent = activeCampaignName;
+      } else if (sessionId) {
+        recordingActiveCampaignEl.textContent = selectedLabel;
+      } else {
+        recordingActiveCampaignEl.textContent = '(not started)';
+      }
     }
-    return {
-      role: 'Player',
+  }
+
+  function defaultRosterRow(role = 'Player') {
+    const normalizedRole = String(role || 'Player').trim();
+    const base = {
+      included: true,
+      role: normalizedRole,
       playerName: '',
       characterName: '',
       className: '',
       race: '',
       aliases: ''
     };
+    if (normalizedRole == 'DM') {
+      base.characterName = 'DM';
+      base.aliases = 'DM, GM, Dungeon Master';
+    }
+    return base;
   }
 
-  function escapeHtml(s) {
-    return String(s || '')
+  function normalizeIncludeFlag(value) {
+    const s = String(value == null ? 'yes' : value).trim().toLowerCase();
+    return !['false', '0', 'no', 'off', 'n', 'exclude', 'excluded'].includes(s);
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
@@ -571,6 +633,7 @@
   function rosterToPartyMetaText(rows) {
     const lines = (rows || [])
       .map((r) => ({
+        included: Boolean(r.included),
         role: String(r.role || 'Player').trim(),
         playerName: String(r.playerName || '').trim(),
         characterName: String(r.characterName || '').trim(),
@@ -578,6 +641,7 @@
         race: String(r.race || '').trim(),
         aliases: String(r.aliases || '').trim()
       }))
+      .filter((r) => r.included)
       .filter((r) => r.playerName || r.characterName || r.role === 'DM');
 
     if (!lines.length) return '';
@@ -595,6 +659,61 @@
     }).join('\n');
   }
 
+  function parsePartyMetaText(raw) {
+    return String(raw || '')
+      .split(/\r?\n/)
+      .map((line) => String(line || '').trim())
+      .filter(Boolean)
+      .map((line) => {
+        const row = defaultRosterRow('Player');
+        line.split('|').forEach((part) => {
+          const [rawKey, ...rest] = String(part || '').split('=');
+          const key = String(rawKey || '').trim().toLowerCase();
+          const value = rest.join('=').trim();
+          if (!key) return;
+          if (key === 'role') {
+            const upper = value.toUpperCase();
+            row.role = upper === 'DM' ? 'DM' : (upper === 'NPC' ? 'NPC' : 'Player');
+          }
+          if (key === 'player') row.playerName = value;
+          if (key === 'character') row.characterName = value;
+          if (key === 'class') row.className = value;
+          if (key === 'race') row.race = value;
+          if (key === 'aliases') row.aliases = value;
+          if (key === 'include' || key === 'included') row.included = normalizeIncludeFlag(value);
+        });
+        if (row.role === 'DM') {
+          if (!row.characterName) row.characterName = 'DM';
+          if (!row.aliases) row.aliases = 'DM, GM, Dungeon Master';
+        }
+        return row;
+      });
+  }
+
+  function applyCampaignPartyToRecording(rawParty, campaignName = '') {
+    partyRoster = parsePartyMetaText(rawParty);
+    renderPartyRoster();
+    if (partyRoster.length) {
+      const label = campaignName ? ` from ${campaignName}` : '';
+      setPartyMetaStatus(`Loaded participants${label}. Adjust Include for absent players or add NPCs for this session.`);
+    } else {
+      setPartyMetaStatus('Selected campaign has no saved party roster. Add participants for this session.');
+    }
+  }
+
+  async function loadSelectedCampaignPartyIntoRecording() {
+    const campaignId = String(campaignSelectEl?.value || 'default').trim() || 'default';
+    setPartyMetaStatus(`Loading saved roster from ${campaignId}...`);
+    try {
+      const res = await fetch(`/api/campaign/get?campaignId=${encodeURIComponent(campaignId)}&_t=${Date.now()}`, { cache: 'no-store' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      applyCampaignPartyToRecording(json?.campaign?.party || '', json?.campaign?.name || campaignId);
+    } catch (err) {
+      setPartyMetaStatus(`Failed to load saved roster: ${err.message}`);
+    }
+  }
+
   function syncPartyMetaFromRoster() {
     if (!partyMetaEl) return;
     partyMetaEl.value = rosterToPartyMetaText(partyRoster);
@@ -608,9 +727,11 @@
     partyRoster.forEach((row, index) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
+        <td class="text-center"><input type="checkbox" class="form-check-input" data-roster-field="included" data-roster-index="${index}" ${row.included ? 'checked' : ''}></td>
         <td>
           <select class="form-select form-select-sm" data-roster-field="role" data-roster-index="${index}">
-            <option value="Player" ${row.role === 'DM' ? '' : 'selected'}>Player</option>
+            <option value="Player" ${row.role === 'Player' ? 'selected' : ''}>Player</option>
+            <option value="NPC" ${row.role === 'NPC' ? 'selected' : ''}>NPC</option>
             <option value="DM" ${row.role === 'DM' ? 'selected' : ''}>DM</option>
           </select>
         </td>
@@ -632,13 +753,12 @@
     renderPartyRoster();
   }
 
-  function bindPartyRosterEvents() {
-    if (partyAddMemberBtn) {
-      partyAddMemberBtn.addEventListener('click', () => addPartyRosterRow('Player'));
-    }
-    if (partyAddDmBtn) {
-      partyAddDmBtn.addEventListener('click', () => addPartyRosterRow('DM'));
-    }
+  function bindPartyMetaEvents() {
+    if (partyLoadCampaignBtn) partyLoadCampaignBtn.addEventListener('click', () => loadSelectedCampaignPartyIntoRecording());
+    if (partyAddPlayerBtn) partyAddPlayerBtn.addEventListener('click', () => addPartyRosterRow('Player'));
+    if (partyAddNpcBtn) partyAddNpcBtn.addEventListener('click', () => addPartyRosterRow('NPC'));
+    if (partyAddDmBtn) partyAddDmBtn.addEventListener('click', () => addPartyRosterRow('DM'));
+
     if (partyRosterBodyEl) {
       partyRosterBodyEl.addEventListener('input', (evt) => {
         const target = evt.target;
@@ -646,21 +766,36 @@
         const field = target.getAttribute('data-roster-field');
         const idx = Number(target.getAttribute('data-roster-index'));
         if (!field || !Number.isInteger(idx) || !partyRoster[idx]) return;
-        partyRoster[idx][field] = target.value;
+        if (field === 'included' && target instanceof HTMLInputElement) {
+          partyRoster[idx].included = Boolean(target.checked);
+        } else {
+          partyRoster[idx][field] = target.value;
+        }
         syncPartyMetaFromRoster();
       });
+
       partyRosterBodyEl.addEventListener('change', (evt) => {
         const target = evt.target;
         if (!(target instanceof HTMLElement)) return;
         const field = target.getAttribute('data-roster-field');
         const idx = Number(target.getAttribute('data-roster-index'));
-        if (field === 'role' && Number.isInteger(idx) && partyRoster[idx]) {
-          if (target.value === 'DM' && !partyRoster[idx].characterName) partyRoster[idx].characterName = 'DM';
-          if (target.value === 'DM' && !partyRoster[idx].aliases) partyRoster[idx].aliases = 'DM, GM, Dungeon Master';
-          renderPartyRoster();
+        if (!field || !Number.isInteger(idx) || !partyRoster[idx]) return;
+        if (field === 'included' && target instanceof HTMLInputElement) {
+          partyRoster[idx].included = Boolean(target.checked);
+          syncPartyMetaFromRoster();
           return;
         }
+        if (field === 'role') {
+          const role = target.value === 'DM' ? 'DM' : (target.value === 'NPC' ? 'NPC' : 'Player');
+          partyRoster[idx].role = role;
+          if (role === 'DM') {
+            if (!partyRoster[idx].characterName) partyRoster[idx].characterName = 'DM';
+            if (!partyRoster[idx].aliases) partyRoster[idx].aliases = 'DM, GM, Dungeon Master';
+          }
+          renderPartyRoster();
+        }
       });
+
       partyRosterBodyEl.addEventListener('click', (evt) => {
         const target = evt.target;
         if (!(target instanceof HTMLElement)) return;
@@ -672,115 +807,11 @@
         renderPartyRoster();
       });
     }
-  }
 
-  function savePartyMetaLocal() {
-    if (!partyMetaEl) return;
-    const value = partyMetaEl.value || '';
-    localStorage.setItem(PARTY_ROSTER_STORAGE_KEY, JSON.stringify(partyRoster || []));
-    localStorage.setItem(PARTY_META_STORAGE_KEY, value);
-    localStorage.setItem(PARTY_META_SAVED_AT_KEY, String(Date.now()));
-    const ts = new Date().toLocaleString();
-    setPartyMetaStatus(`Saved locally (${ts})`);
-    log('Saved party metadata locally (browser storage).');
-  }
-
-  function loadPartyMetaLocal() {
-    if (!partyMetaEl) return;
-    const rosterRaw = localStorage.getItem(PARTY_ROSTER_STORAGE_KEY);
-    const value = localStorage.getItem(PARTY_META_STORAGE_KEY);
-    const savedAt = localStorage.getItem(PARTY_META_SAVED_AT_KEY);
-    if (rosterRaw) {
-      try {
-        const parsed = JSON.parse(rosterRaw);
-        if (Array.isArray(parsed)) {
-          partyRoster = parsed.map((r) => ({
-            role: String(r.role || 'Player'),
-            playerName: String(r.playerName || ''),
-            characterName: String(r.characterName || ''),
-            className: String(r.className || ''),
-            race: String(r.race || ''),
-            aliases: String(r.aliases || ''),
-          }));
-          renderPartyRoster();
-        }
-      } catch (_) {}
-    }
-    if (value == null) {
-      setPartyMetaStatus('No saved party data found in this browser.');
-      return;
-    }
-    partyMetaEl.value = value;
-    if (savedAt) {
-      const ts = new Date(Number(savedAt)).toLocaleString();
-      setPartyMetaStatus(`Loaded locally saved party (${ts})`);
-    } else {
-      setPartyMetaStatus('Loaded locally saved party.');
-    }
-    log('Loaded party metadata from browser storage.');
-  }
-
-  function clearPartyMetaLocal() {
     partyRoster = [];
     renderPartyRoster();
-    localStorage.removeItem(PARTY_ROSTER_STORAGE_KEY);
-    localStorage.removeItem(PARTY_META_STORAGE_KEY);
-    localStorage.removeItem(PARTY_META_SAVED_AT_KEY);
-    setPartyMetaStatus('Cleared saved party data from this browser.');
-    log('Cleared locally saved party metadata.');
-  }
-
-  function bindPartyMetaEvents() {
-    if (partySaveBtn) {
-      partySaveBtn.addEventListener('click', savePartyMetaLocal);
-    }
-    if (partyLoadBtn) {
-      partyLoadBtn.addEventListener('click', loadPartyMetaLocal);
-    }
-    if (partyClearBtn) {
-      partyClearBtn.addEventListener('click', clearPartyMetaLocal);
-    }
-
-    bindPartyRosterEvents();
-
-    let rosterLoaded = false;
-    const rosterRaw = localStorage.getItem(PARTY_ROSTER_STORAGE_KEY);
-    if (rosterRaw) {
-      try {
-        const parsed = JSON.parse(rosterRaw);
-        if (Array.isArray(parsed)) {
-          partyRoster = parsed.map((r) => ({
-            role: String(r.role || 'Player'),
-            playerName: String(r.playerName || ''),
-            characterName: String(r.characterName || ''),
-            className: String(r.className || ''),
-            race: String(r.race || ''),
-            aliases: String(r.aliases || ''),
-          }));
-          rosterLoaded = true;
-        }
-      } catch (_) {}
-    }
-    if (!rosterLoaded && partyRoster.length === 0) {
-      partyRoster = [
-        defaultRosterRow('DM'),
-        defaultRosterRow('Player')
-      ];
-    }
-    renderPartyRoster();
-
-    const existing = localStorage.getItem(PARTY_META_STORAGE_KEY);
-    const savedAt = localStorage.getItem(PARTY_META_SAVED_AT_KEY);
-    if (existing != null && partyMetaEl && !partyMetaEl.value.trim()) {
-      partyMetaEl.value = existing;
-      if (savedAt) {
-        setPartyMetaStatus(`Auto-loaded saved party (${new Date(Number(savedAt)).toLocaleString()})`);
-      } else {
-        setPartyMetaStatus('Auto-loaded saved party.');
-      }
-    } else if (existing != null && savedAt) {
-      setPartyMetaStatus(`Saved party available (${new Date(Number(savedAt)).toLocaleString()})`);
-    }
+    if (partyMetaEl) partyMetaEl.value = '';
+    setPartyMetaStatus('Select a campaign to load its roster, then add session-specific NPCs or uncheck absent participants.');
   }
 
   function setStatus(state) {
@@ -1199,10 +1230,11 @@ async function postMetaOnce() {
       // Create session folder + status.json immediately
       log('Initializing session on server…');
       const requestedSessionName = (sessionNameInputEl?.value || '').trim();
+      const selectedCampaignId = String(campaignSelectEl?.value || 'default').trim() || 'default';
       const startRes = await fetch('/api/session/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, sessionName: requestedSessionName })
+        body: JSON.stringify({ sessionId, sessionName: requestedSessionName, campaignId: selectedCampaignId })
       });
       const startJson = await startRes.json().catch(() => ({}));
       if (!startRes.ok || !startJson.ok) {
@@ -1214,6 +1246,7 @@ async function postMetaOnce() {
       if (sessionNameInputEl && startJson?.sessionName) {
         sessionNameInputEl.value = startJson.sessionName;
       }
+      updateRecordingCampaignState(startJson?.campaignName || selectedCampaignId);
       chunkCounterEl.textContent = String(chunkIndex);
 
       latestChunkLinkEl.style.display = 'none';
@@ -1258,6 +1291,15 @@ async function postMetaOnce() {
       stopBtn.disabled = true;
     }
   });
+
+  window.updateRecordingCampaignState = updateRecordingCampaignState;
+  window.applyCampaignPartyToRecording = applyCampaignPartyToRecording;
+
+
+  if (campaignSelectEl) {
+    campaignSelectEl.addEventListener('change', () => updateRecordingCampaignState());
+  }
+  updateRecordingCampaignState();
 
   // ================================
   // PAUSE BUTTON HANDLER
@@ -1459,6 +1501,7 @@ async function postMetaOnce() {
   const tabTrackerEl = document.getElementById("tab-tracker");
   const sessionIdEl = document.getElementById("sessionId");
   const sessionsSelectEl = document.getElementById("sessions-select");
+  const campaignSelectEl = document.getElementById("campaignSelect");
   const trackerSessionLabelEl = document.getElementById("tracker-session-label");
   const trackerStatusEl = document.getElementById("tracker-status");
   const trackerPartyEl = document.getElementById("tracker-party");
@@ -1469,6 +1512,7 @@ async function postMetaOnce() {
 
   let trackerState = { party: [], monsters: [] };
   let trackerSessionId = "";
+  let trackerPreviewCampaignName = "";
 
   function setTrackerStatus(msg) {
     if (trackerStatusEl) trackerStatusEl.textContent = msg || "";
@@ -1477,9 +1521,11 @@ async function postMetaOnce() {
   function activeSessionId() {
     const live = String(sessionIdEl?.textContent || "").trim();
     if (/^\d{8,20}$/.test(live)) return live;
-    const selected = String(sessionsSelectEl?.value || "").trim();
-    if (/^\d{8,20}$/.test(selected)) return selected;
     return "";
+  }
+
+  function selectedCampaignId() {
+    return String(campaignSelectEl?.value || "default").trim() || "default";
   }
 
   function fmtLastAction(entity) {
@@ -1505,6 +1551,53 @@ async function postMetaOnce() {
     return list.find((x) => String(x.entityId) === String(entityId)) || null;
   }
 
+  function slugifyTrackerName(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'party';
+  }
+
+  function parseCampaignPartyPreview(raw) {
+    const used = new Map();
+    const isIncluded = (value) => !['false', '0', 'no', 'off', 'n', 'exclude', 'excluded'].includes(String(value == null ? 'yes' : value).trim().toLowerCase());
+    return String(raw || '')
+      .split(/\r?\n/)
+      .map((line) => String(line || '').trim())
+      .filter(Boolean)
+      .map((line) => {
+        const row = {};
+        line.split('|').forEach((part) => {
+          const [rawKey, ...rest] = String(part || '').split('=');
+          const key = String(rawKey || '').trim().toLowerCase();
+          const value = rest.join('=').trim();
+          if (key) row[key] = value;
+        });
+        return row;
+      })
+      .filter((row) => isIncluded(row.include ?? row.included ?? 'yes'))
+      .filter((row) => ['player', 'npc'].includes(String(row.role || 'Player').trim().toLowerCase()))
+      .map((row) => {
+        const role = String(row.role || 'Player').trim().toUpperCase() === 'NPC' ? 'NPC' : 'Player';
+        const name = String(row.character || row.player || '').trim();
+        if (!name) return null;
+        const base = slugifyTrackerName(name);
+        const count = used.get(base) || 0;
+        used.set(base, count + 1);
+        return {
+          entityId: count === 0 ? base : `${base}-${count + 1}`,
+          name,
+          role,
+          entityType: 'party',
+          hp: 0,
+          note: '',
+          lastAction: '',
+        };
+      })
+      .filter(Boolean);
+  }
+
   function applyLocal(entityType, entityId, action, payload = {}) {
     const entity = findEntity(entityType, entityId);
     if (!entity) return;
@@ -1516,48 +1609,50 @@ async function postMetaOnce() {
     else entity.lastAction = action;
   }
 
-  function cardHtml(entity) {
+  function cardHtml(entity, readOnly = false) {
     const id = String(entity.entityId || "");
     const type = String(entity.entityType || "party");
     const note = String(entity.note || "");
     const hp = parseNum(entity.hp, 0);
     const name = escapeAttr(String(entity.name || id));
+    const disabled = readOnly ? 'disabled' : '';
+    const readOnlyNote = readOnly ? 'readonly' : '';
     return `
       <div class="card tracker-card mb-2" data-entity-id="${id}" data-entity-type="${type}">
         <div class="card-body p-2">
           <div class="d-flex justify-content-between align-items-start">
             <div>
               <div><strong>${name}</strong></div>
-              <div class="small text-muted">${type}</div>
+              <div class="small text-muted">${type === 'party' ? String(entity.role || 'party').toLowerCase() : type}${readOnly ? ' preview' : ''}</div>
             </div>
-            ${type === "monster" ? '<button class="btn btn-outline-danger btn-sm" data-action="remove-monster">Remove</button>' : ""}
+            ${type === "monster" ? `<button class="btn btn-outline-danger btn-sm" data-action="remove-monster" ${disabled}>Remove</button>` : ""}
           </div>
           <div class="mt-2">HP: <span class="hp-value">${hp}</span></div>
           <div class="d-flex flex-wrap gap-1 mt-2">
-            <button class="btn btn-outline-danger btn-sm" data-action="quick-damage" data-delta="1">-1</button>
-            <button class="btn btn-outline-danger btn-sm" data-action="quick-damage" data-delta="5">-5</button>
-            <button class="btn btn-outline-danger btn-sm" data-action="quick-damage" data-delta="10">-10</button>
-            <button class="btn btn-outline-success btn-sm" data-action="quick-heal" data-delta="1">+1</button>
-            <button class="btn btn-outline-success btn-sm" data-action="quick-heal" data-delta="5">+5</button>
-            <button class="btn btn-outline-success btn-sm" data-action="quick-heal" data-delta="10">+10</button>
+            <button class="btn btn-outline-danger btn-sm" data-action="quick-damage" data-delta="1" ${disabled}>-1</button>
+            <button class="btn btn-outline-danger btn-sm" data-action="quick-damage" data-delta="5" ${disabled}>-5</button>
+            <button class="btn btn-outline-danger btn-sm" data-action="quick-damage" data-delta="10" ${disabled}>-10</button>
+            <button class="btn btn-outline-success btn-sm" data-action="quick-heal" data-delta="1" ${disabled}>+1</button>
+            <button class="btn btn-outline-success btn-sm" data-action="quick-heal" data-delta="5" ${disabled}>+5</button>
+            <button class="btn btn-outline-success btn-sm" data-action="quick-heal" data-delta="10" ${disabled}>+10</button>
           </div>
           <div class="row g-1 mt-2">
-            <div class="col-4"><input class="form-control form-control-sm" type="number" data-input="damage" placeholder="Damage"></div>
-            <div class="col-2"><button class="btn btn-outline-danger btn-sm w-100" data-action="typed-damage">Apply</button></div>
-            <div class="col-4"><input class="form-control form-control-sm" type="number" data-input="heal" placeholder="Heal"></div>
-            <div class="col-2"><button class="btn btn-outline-success btn-sm w-100" data-action="typed-heal">Apply</button></div>
+            <div class="col-4"><input class="form-control form-control-sm" type="number" data-input="damage" placeholder="Damage" ${disabled}></div>
+            <div class="col-2"><button class="btn btn-outline-danger btn-sm w-100" data-action="typed-damage" ${disabled}>Apply</button></div>
+            <div class="col-4"><input class="form-control form-control-sm" type="number" data-input="heal" placeholder="Heal" ${disabled}></div>
+            <div class="col-2"><button class="btn btn-outline-success btn-sm w-100" data-action="typed-heal" ${disabled}>Apply</button></div>
           </div>
           <div class="row g-1 mt-1">
-            <div class="col-8"><input class="form-control form-control-sm" type="number" data-input="sethp" placeholder="Set HP"></div>
-            <div class="col-4"><button class="btn btn-outline-secondary btn-sm w-100" data-action="set-hp">Set</button></div>
+            <div class="col-8"><input class="form-control form-control-sm" type="number" data-input="sethp" placeholder="Set HP" ${disabled}></div>
+            <div class="col-4"><button class="btn btn-outline-secondary btn-sm w-100" data-action="set-hp" ${disabled}>Set</button></div>
           </div>
           <div class="row g-1 mt-1">
-            <div class="col-9"><input class="form-control form-control-sm" type="text" data-input="note" placeholder="Note" value="${escapeAttr(note)}"></div>
-            <div class="col-3"><button class="btn btn-outline-secondary btn-sm w-100" data-action="save-note">Save</button></div>
+            <div class="col-9"><input class="form-control form-control-sm" type="text" data-input="note" placeholder="Note" value="${escapeAttr(note)}" ${readOnlyNote} ${disabled}></div>
+            <div class="col-3"><button class="btn btn-outline-secondary btn-sm w-100" data-action="save-note" ${disabled}>Save</button></div>
           </div>
           <div class="d-flex justify-content-between align-items-center mt-2">
-            <button class="btn btn-outline-dark btn-sm" data-action="undo">Undo last</button>
-            <span class="small text-muted">${fmtLastAction(entity)}</span>
+            <button class="btn btn-outline-dark btn-sm" data-action="undo" ${disabled}>Undo last</button>
+            <span class="small text-muted">${readOnly ? 'Preview only until session start.' : fmtLastAction(entity)}</span>
           </div>
         </div>
       </div>
@@ -1567,28 +1662,76 @@ async function postMetaOnce() {
   function renderTracker() {
     const sid = trackerSessionId;
     if (trackerSessionLabelEl) {
-      trackerSessionLabelEl.textContent = sid ? `Session: ${sid}` : "No active session selected.";
+      if (sid) trackerSessionLabelEl.textContent = `Session: ${sid}`;
+      else if (trackerPreviewCampaignName) trackerSessionLabelEl.textContent = `Campaign preview: ${trackerPreviewCampaignName}`;
+      else trackerSessionLabelEl.textContent = "No active session selected.";
     }
     if (!sid) {
-      if (trackerPartyEl) trackerPartyEl.innerHTML = '<div class="small text-muted">Start recording or select a session.</div>';
-      if (trackerMonstersEl) trackerMonstersEl.innerHTML = '<div class="small text-muted">Start recording or select a session.</div>';
       if (trackerAddMonsterBtn) trackerAddMonsterBtn.disabled = true;
+      if (trackerMonsterNameEl) trackerMonsterNameEl.disabled = true;
+      if (trackerMonsterHpEl) trackerMonsterHpEl.disabled = true;
+      const party = Array.isArray(trackerState.party) ? trackerState.party : [];
+      if (trackerPartyEl) trackerPartyEl.innerHTML = party.length ? party.map((entity) => cardHtml(entity, true)).join("") : '<div class="small text-muted">Select a campaign to preview the party before starting a session.</div>';
+      if (trackerMonstersEl) trackerMonstersEl.innerHTML = '<div class="small text-muted">Monster tracking unlocks when a session is running.</div>';
       return;
     }
     if (trackerAddMonsterBtn) trackerAddMonsterBtn.disabled = false;
+    if (trackerMonsterNameEl) trackerMonsterNameEl.disabled = false;
+    if (trackerMonsterHpEl) trackerMonsterHpEl.disabled = false;
     const party = Array.isArray(trackerState.party) ? trackerState.party : [];
     const monsters = Array.isArray(trackerState.monsters) ? trackerState.monsters : [];
-    if (trackerPartyEl) trackerPartyEl.innerHTML = party.length ? party.map(cardHtml).join("") : '<div class="small text-muted">No party members loaded from roster.</div>';
-    if (trackerMonstersEl) trackerMonstersEl.innerHTML = monsters.length ? monsters.map(cardHtml).join("") : '<div class="small text-muted">No monsters yet.</div>';
+    if (trackerPartyEl) trackerPartyEl.innerHTML = party.length ? party.map((entity) => cardHtml(entity, false)).join("") : '<div class="small text-muted">No party members loaded from roster.</div>';
+    if (trackerMonstersEl) trackerMonstersEl.innerHTML = monsters.length ? monsters.map((entity) => cardHtml(entity, false)).join("") : '<div class="small text-muted">No monsters yet.</div>';
+  }
+
+  async function loadTrackerPreview() {
+    trackerSessionId = "";
+    trackerPreviewCampaignName = "";
+    const campaignId = selectedCampaignId();
+    const previewLabel = String(campaignSelectEl?.selectedOptions?.[0]?.textContent || campaignId || '').trim() || 'campaign';
+    const liveRosterText = String(document.getElementById('partyMeta')?.value || '').trim();
+    if (liveRosterText) {
+      trackerPreviewCampaignName = previewLabel;
+      trackerState = {
+        party: parseCampaignPartyPreview(liveRosterText),
+        monsters: [],
+      };
+      renderTracker();
+      setTrackerStatus(trackerState.party.length ? 'Preview only. Start a session to enable HP and healing updates.' : 'No included players or NPCs in the current session roster preview.');
+      return;
+    }
+    if (!campaignId) {
+      trackerState = { party: [], monsters: [] };
+      renderTracker();
+      setTrackerStatus('Select a campaign to preview the party.');
+      return;
+    }
+    try {
+      setTrackerStatus(`Loading tracker preview for ${campaignId}...`);
+      const res = await fetch(`/api/campaign/get?campaignId=${encodeURIComponent(campaignId)}&_t=${Date.now()}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      trackerPreviewCampaignName = String(json?.campaign?.name || campaignId);
+      trackerState = {
+        party: parseCampaignPartyPreview(json?.campaign?.party || ''),
+        monsters: [],
+      };
+      renderTracker();
+      setTrackerStatus(trackerState.party.length ? 'Preview only. Start a session to enable HP and healing updates.' : 'Selected campaign has no included players or NPCs to preview.');
+    } catch (e) {
+      trackerState = { party: [], monsters: [] };
+      renderTracker();
+      setTrackerStatus(`Tracker preview error: ${e.message}`);
+    }
   }
 
   async function fetchTrackingState() {
     trackerSessionId = activeSessionId();
     if (!trackerSessionId) {
-      trackerState = { party: [], monsters: [] };
-      renderTracker();
+      await loadTrackerPreview();
       return;
     }
+    trackerPreviewCampaignName = "";
     try {
       setTrackerStatus(`Loading tracker for ${trackerSessionId}...`);
       const res = await fetch(`/api/tracking/state?sessionId=${encodeURIComponent(trackerSessionId)}&_t=${Date.now()}`);
@@ -1777,6 +1920,11 @@ async function postMetaOnce() {
       if (tabTrackerEl?.classList.contains("active")) fetchTrackingState();
     });
   }
+  if (campaignSelectEl) {
+    campaignSelectEl.addEventListener("change", () => {
+      if (tabTrackerEl?.classList.contains("active") && !activeSessionId()) fetchTrackingState();
+    });
+  }
   if (sessionIdEl) {
     const obs = new MutationObserver(() => {
       if (tabTrackerEl?.classList.contains("active")) fetchTrackingState();
@@ -1788,22 +1936,35 @@ async function postMetaOnce() {
 
 <script>
 // ================================
-// PREP CONTEXT MODULE
+// PREP / CAMPAIGN MODULE
 // ================================
 (() => {
   const tabPrepEl = document.getElementById("tab-prep");
   const sessionIdEl = document.getElementById("sessionId");
   const sessionsSelectEl = document.getElementById("sessions-select");
+  const campaignSelectEl = document.getElementById("campaignSelect");
   const prepSessionLabelEl = document.getElementById("prep-session-label");
   const prepFileInputEl = document.getElementById("prep-file-input");
   const prepImportBtn = document.getElementById("prep-import-btn");
   const prepLoadBtn = document.getElementById("prep-load-btn");
   const prepSaveBtn = document.getElementById("prep-save-btn");
+  const prepRefreshContextBtn = document.getElementById("prep-refresh-context-btn");
   const prepStatusEl = document.getElementById("prep-status");
   const prepSummaryEl = document.getElementById("prep-summary");
   const prepJsonEl = document.getElementById("prep-json");
+  const campaignNameEl = document.getElementById("campaignName");
+  const campaignPartyEl = document.getElementById("campaignParty");
+  const campaignSummaryEl = document.getElementById("campaignSummary");
+  const campaignSessionSummariesEl = document.getElementById("campaignSessionSummaries");
+  let campaignDirty = false;
+  let lastLoadedCampaignId = '';
+  let suppressCampaignChange = false;
 
-  function getActiveSessionId() {
+  function setPrepStatus(msg) {
+    if (prepStatusEl) prepStatusEl.textContent = msg || "";
+  }
+
+  function activeSessionId() {
     const live = String(sessionIdEl?.textContent || "").trim();
     if (/^\d{8,20}$/.test(live)) return live;
     const selected = String(sessionsSelectEl?.value || "").trim();
@@ -1811,93 +1972,212 @@ async function postMetaOnce() {
     return "";
   }
 
-  function setPrepStatus(msg) {
-    if (prepStatusEl) prepStatusEl.textContent = msg || "";
+  function selectedCampaignId() {
+    const value = String(campaignSelectEl?.value || "").trim();
+    return value || "default";
   }
 
-  async function loadPrep() {
-    const sid = getActiveSessionId();
-    if (prepSessionLabelEl) prepSessionLabelEl.textContent = sid ? `Session: ${sid}` : "No active session selected.";
-    if (!sid) {
-      if (prepJsonEl) prepJsonEl.value = "";
-      if (prepSummaryEl) prepSummaryEl.textContent = "";
-      setPrepStatus("Start recording or select a session first.");
-      return;
+  function campaignIdFromName(name) {
+    return String(name || "").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'default';
+  }
+
+  function parseSessionSummaryEntries(raw) {
+    return String(raw || "")
+      .split(/\n\s*\n+/)
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .map((text) => ({ text }));
+  }
+
+  function setCampaignDirty(isDirty, message = '') {
+    campaignDirty = Boolean(isDirty);
+    if (campaignDirty) {
+      setPrepStatus(message || 'Unsaved campaign changes.');
+    } else if (message) {
+      setPrepStatus(message);
     }
+  }
+
+  function markCampaignDirty() {
+    setCampaignDirty(true, 'Unsaved campaign changes. Save to keep them.');
+  }
+
+  function renderCampaign(campaign, preview) {
+    if (campaignNameEl) campaignNameEl.value = campaign?.name || selectedCampaignId();
+    if (campaignPartyEl) campaignPartyEl.value = campaign?.party || "";
+    window.applyCampaignPartyToRecording?.(campaign?.party || '', campaign?.name || selectedCampaignId());
+    if (campaignSummaryEl) campaignSummaryEl.value = campaign?.campaignSummary || "";
+    if (campaignSessionSummariesEl) {
+      const items = Array.isArray(campaign?.sessionSummaries) ? campaign.sessionSummaries : [];
+      campaignSessionSummariesEl.value = items.map((item) => String(item?.text || "").trim()).filter(Boolean).join("\n\n");
+    }
+    if (prepJsonEl) prepJsonEl.value = JSON.stringify(campaign?.dungeonMakerJson || {}, null, 2);
+    if (prepSummaryEl) prepSummaryEl.textContent = preview || "(no compiled context yet)";
+    lastLoadedCampaignId = String(campaign?.campaignId || selectedCampaignId() || 'default');
+    setCampaignDirty(false);
+    if (prepSessionLabelEl) {
+      const sid = activeSessionId();
+      prepSessionLabelEl.textContent = sid ? `Session: ${sid} | Campaign: ${campaign?.name || selectedCampaignId()}` : `Campaign: ${campaign?.name || selectedCampaignId()}`;
+    }
+  }
+
+  async function loadCampaignList(preferred = "") {
     try {
-      setPrepStatus(`Loading prep for ${sid}...`);
-      const res = await fetch(`/api/prep/get?sessionId=${encodeURIComponent(sid)}&_t=${Date.now()}`);
+      const res = await fetch('/api/campaigns/list?limit=200');
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
-      if (prepJsonEl) prepJsonEl.value = JSON.stringify(json.prepContext || {}, null, 2);
-      if (prepSummaryEl) prepSummaryEl.textContent = json.prepContextText || "(no prep context saved)";
-      setPrepStatus("");
+      const campaigns = Array.isArray(json.campaigns) ? json.campaigns : [];
+      if (campaignSelectEl) {
+        const current = preferred || String(campaignSelectEl.value || '').trim() || 'default';
+        campaignSelectEl.innerHTML = '';
+        const ids = new Set();
+        const addOption = (value, label) => {
+          if (ids.has(value)) return;
+          ids.add(value);
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = label;
+          campaignSelectEl.appendChild(opt);
+        };
+        addOption('default', 'default');
+        campaigns.forEach((c) => addOption(String(c.campaignId || ''), String(c.name || c.campaignId || 'campaign')));
+        if (!ids.has(current)) addOption(current, current);
+        campaignSelectEl.value = current;
+        window.updateRecordingCampaignState?.();
+      }
     } catch (e) {
-      setPrepStatus(`Prep load failed: ${e.message}`);
+      setPrepStatus(`Failed to load campaigns: ${e.message}`);
     }
   }
 
-  async function savePrep(endpoint = "/api/prep/save") {
-    const sid = getActiveSessionId();
-    if (!sid) {
-      setPrepStatus("No active session.");
-      return;
-    }
+  async function loadCampaign() {
+    const campaignId = selectedCampaignId();
     try {
-      const raw = String(prepJsonEl?.value || "{}").trim() || "{}";
-      const prepContext = JSON.parse(raw);
-      if (typeof prepContext !== "object" || prepContext === null || Array.isArray(prepContext)) {
-        throw new Error("Prep JSON must be an object.");
+      setPrepStatus(`Loading campaign ${campaignId}...`);
+      const res = await fetch(`/api/campaign/get?campaignId=${encodeURIComponent(campaignId)}&_t=${Date.now()}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      renderCampaign(json.campaign || {}, json.contextPreview || '');
+      setPrepStatus('');
+    } catch (e) {
+      setPrepStatus(`Campaign load failed: ${e.message}`);
+    }
+  }
+
+  async function saveCampaign() {
+    try {
+      const campaignId = campaignIdFromName(campaignNameEl?.value || selectedCampaignId());
+      const dungeonMakerJson = JSON.parse(String(prepJsonEl?.value || '{}').trim() || '{}');
+      if (typeof dungeonMakerJson !== 'object' || dungeonMakerJson === null || Array.isArray(dungeonMakerJson)) {
+        throw new Error('Dungeon Maker JSON must be an object.');
       }
-      setPrepStatus(`Saving prep to ${sid}...`);
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: sid, prepContext }),
+      setPrepStatus(`Saving campaign ${campaignId}...`);
+      const res = await fetch('/api/campaign/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId,
+          name: campaignNameEl?.value || campaignId,
+          party: campaignPartyEl?.value || '',
+          campaignSummary: campaignSummaryEl?.value || '',
+          dungeonMakerJson,
+          sessionSummaries: parseSessionSummaryEntries(campaignSessionSummariesEl?.value || ''),
+        }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
-      if (prepJsonEl) prepJsonEl.value = JSON.stringify(json.prepContext || {}, null, 2);
-      if (prepSummaryEl) prepSummaryEl.textContent = json.prepContextText || "(saved)";
-      setPrepStatus("Prep saved.");
+      await loadCampaignList(json.campaign?.campaignId || campaignId);
+      renderCampaign(json.campaign || {}, json.contextPreview || '');
+      setCampaignDirty(false, 'Campaign saved.');
     } catch (e) {
-      setPrepStatus(`Prep save failed: ${e.message}`);
+      setPrepStatus(`Campaign save failed: ${e.message}`);
     }
   }
 
-  async function importFromFile() {
+  async function importDungeonJson() {
     try {
+      const campaignId = selectedCampaignId();
       const file = prepFileInputEl?.files?.[0];
       if (!file) {
-        setPrepStatus("Choose a JSON file first.");
+        setPrepStatus('Choose a JSON file first.');
         return;
       }
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        throw new Error("Imported JSON must be an object.");
+      const parsed = JSON.parse(await file.text());
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new Error('Imported JSON must be an object.');
       }
-      if (prepJsonEl) prepJsonEl.value = JSON.stringify(parsed, null, 2);
-      await savePrep("/api/prep/import");
+      setPrepStatus(`Importing JSON into ${campaignId}...`);
+      const res = await fetch('/api/campaign/import-dungeon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId, dungeonMakerJson: parsed }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      renderCampaign(json.campaign || {}, json.contextPreview || '');
+      setCampaignDirty(false, 'Dungeon Maker JSON imported.');
     } catch (e) {
       setPrepStatus(`Import failed: ${e.message}`);
     }
   }
 
-  if (tabPrepEl) tabPrepEl.addEventListener("shown.bs.tab", loadPrep);
-  if (prepLoadBtn) prepLoadBtn.addEventListener("click", loadPrep);
-  if (prepSaveBtn) prepSaveBtn.addEventListener("click", () => savePrep("/api/prep/save"));
-  if (prepImportBtn) prepImportBtn.addEventListener("click", importFromFile);
-  if (sessionsSelectEl) {
-    sessionsSelectEl.addEventListener("change", () => {
-      if (tabPrepEl?.classList.contains("active")) loadPrep();
-    });
+  async function refreshSessionContext() {
+    const sid = activeSessionId();
+    if (!sid) {
+      setPrepStatus('Start recording or select a session first.');
+      return;
+    }
+    try {
+      setPrepStatus(`Refreshing session context for ${sid}...`);
+      const res = await fetch('/api/session/context/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid, campaignId: selectedCampaignId() }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      if (prepSummaryEl) prepSummaryEl.textContent = json.contextSnapshot?.contextText || '(no compiled context yet)';
+      setPrepStatus(`Session ${sid} now uses ${json.campaignName || json.campaignId}.`);
+    } catch (e) {
+      setPrepStatus(`Refresh failed: ${e.message}`);
+    }
   }
-})();
-</script>
 
-<script>
-// ================================
+  if (tabPrepEl) tabPrepEl.addEventListener('shown.bs.tab', async () => {
+    await loadCampaignList();
+    if (!campaignDirty) {
+      await loadCampaign();
+    } else {
+      setPrepStatus('Unsaved campaign changes are still in the form.');
+    }
+  });
+  if (campaignSelectEl) campaignSelectEl.addEventListener('change', async () => {
+    if (suppressCampaignChange) return;
+    const nextId = selectedCampaignId();
+    if (campaignDirty && lastLoadedCampaignId && nextId !== lastLoadedCampaignId) {
+      suppressCampaignChange = true;
+      campaignSelectEl.value = lastLoadedCampaignId;
+      suppressCampaignChange = false;
+      setPrepStatus('Save or load before switching campaigns.');
+      return;
+    }
+    await loadCampaign();
+  });
+  if (prepLoadBtn) prepLoadBtn.addEventListener('click', loadCampaign);
+  if (prepSaveBtn) prepSaveBtn.addEventListener('click', saveCampaign);
+  if (prepImportBtn) prepImportBtn.addEventListener('click', importDungeonJson);
+  if (prepRefreshContextBtn) prepRefreshContextBtn.addEventListener('click', refreshSessionContext);
+
+  [campaignNameEl, campaignPartyEl, campaignSummaryEl, campaignSessionSummariesEl, prepJsonEl].forEach((el) => {
+    if (el) {
+      el.addEventListener('input', markCampaignDirty);
+      el.addEventListener('change', markCampaignDirty);
+    }
+  });
+
+  loadCampaignList().then(loadCampaign);
+})();
+
 // TEST NOTES MODULE
 // ================================
 (() => {
@@ -2076,6 +2356,8 @@ async function postMetaOnce() {
   const sessionsWindowInputEl = document.getElementById("sessions-window-input");
   const sessionsNameInputEl = document.getElementById("sessions-name-input");
   const sessionsSaveNameEl = document.getElementById("sessions-save-name");
+  const sessionsCampaignSelectEl = document.getElementById("sessions-campaign-select");
+  const sessionsAssignCampaignEl = document.getElementById("sessions-assign-campaign");
   const sessionsInfoEl = document.getElementById("sessions-info");
   const sessionsTranscriptEl = document.getElementById("sessions-transcript");
   const sessionsNotesEl = document.getElementById("sessions-notes");
@@ -2086,6 +2368,7 @@ async function postMetaOnce() {
   const sessionsReprocessEl = document.getElementById("sessions-reprocess");
   const sessionsGenerateSummaryEl = document.getElementById("sessions-generate-summary");
   const sessionsGenerateNarrativeEl = document.getElementById("sessions-generate-narrative");
+  const sessionsNarrativeGuidanceEl = document.getElementById("sessions-narrative-guidance");
   const sessionsGameSummaryEl = document.getElementById("sessions-game-summary");
   const sessionsGameNarrativeEl = document.getElementById("sessions-game-narrative");
   const copySessionsGameSummaryEl = document.getElementById("copy-sessions-game-summary");
@@ -2121,10 +2404,38 @@ async function postMetaOnce() {
     }
   }
 
+  async function loadSessionCampaignOptions(preferred = '') {
+    try {
+      if (!sessionsCampaignSelectEl) return;
+      const res = await fetch('/api/campaigns/list?limit=200');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      const campaigns = Array.isArray(json.campaigns) ? json.campaigns : [];
+      const current = preferred || String(sessionsCampaignSelectEl.value || '').trim() || 'default';
+      sessionsCampaignSelectEl.innerHTML = '';
+      const ids = new Set();
+      const addOption = (value, label) => {
+        if (ids.has(value)) return;
+        ids.add(value);
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = label;
+        sessionsCampaignSelectEl.appendChild(opt);
+      };
+      addOption('default', 'default');
+      campaigns.forEach((c) => addOption(String(c.campaignId || ''), String(c.name || c.campaignId || 'campaign')));
+      if (!ids.has(current)) addOption(current, current);
+      sessionsCampaignSelectEl.value = current;
+    } catch (e) {
+      if (sessionsInfoEl) sessionsInfoEl.textContent = `Failed to load campaigns: ${e.message}`;
+    }
+  }
+
   async function loadSessions() {
     try {
       if (sessionsSelectEl) sessionsSelectEl.innerHTML = '';
       if (sessionsInfoEl) sessionsInfoEl.textContent = 'Loading...';
+      await loadSessionCampaignOptions();
       const res = await fetch('/api/sessions/list?limit=100');
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
@@ -2163,8 +2474,9 @@ async function postMetaOnce() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
 
-      if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId}`;
+      if (sessionsInfoEl) sessionsInfoEl.textContent = 'Session ' + sessionId + (json.campaignName ? ` | Campaign: ${json.campaignName}` : '');
       if (sessionsNameInputEl) sessionsNameInputEl.value = json.sessionName || '';
+      await loadSessionCampaignOptions(json.campaignId || 'default');
       if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = json.gameSummary || '(no game summary yet)';
       if (sessionsGameNarrativeEl) sessionsGameNarrativeEl.textContent = json.gameNarrative || '(no narrative yet)';
       if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = json.cleanTranscript || json.transcript || '(no transcript)';
@@ -2237,6 +2549,32 @@ async function postMetaOnce() {
       loadSessions();
     });
   }
+  if (sessionsAssignCampaignEl) {
+    sessionsAssignCampaignEl.addEventListener('click', async () => {
+      const sessionId = sessionsSelectEl?.value || '';
+      const campaignId = sessionsCampaignSelectEl?.value || '';
+      if (!sessionId || !campaignId) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = 'Select a session and campaign first.';
+        return;
+      }
+      try {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Assigning ${sessionId} to ${campaignId}...`;
+        const res = await fetch('/api/session/assign-campaign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, campaignId })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        await loadSessions();
+        if (sessionsSelectEl) sessionsSelectEl.value = sessionId;
+        await loadSessionDetail(sessionId);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} assigned to ${json.campaignName || json.campaignId}.`;
+      } catch (e) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
+      }
+    });
+  }
   if (sessionsGenerateSummaryEl) {
     sessionsGenerateSummaryEl.addEventListener('click', async () => {
       const sessionId = sessionsSelectEl?.value || '';
@@ -2270,17 +2608,19 @@ async function postMetaOnce() {
         return;
       }
       try {
-        if (sessionsInfoEl) sessionsInfoEl.textContent = `Generating narrative for ${sessionId}...`;
+        const narrativeGuidance = String(sessionsNarrativeGuidanceEl?.value || '').trim();
+        const guidanceNote = narrativeGuidance ? ' with guidance' : '';
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Generating narrative for ${sessionId}${guidanceNote}...`;
         if (sessionsGameNarrativeEl) sessionsGameNarrativeEl.textContent = 'Generating narrative...';
         const res = await fetch('/api/narrative/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId })
+          body: JSON.stringify({ sessionId, narrativeGuidance })
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
         if (sessionsGameNarrativeEl) sessionsGameNarrativeEl.textContent = json.gameNarrative || '(empty narrative)';
-        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (narrative updated)`;
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (narrative updated${guidanceNote})`;
       } catch (e) {
         if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
         if (sessionsGameNarrativeEl) sessionsGameNarrativeEl.textContent = `Error: ${e.message}`;
@@ -2416,3 +2756,15 @@ async function postMetaOnce() {
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
