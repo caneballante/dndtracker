@@ -31,32 +31,107 @@
     .tall-pane {
       max-height: 68vh;
     }
-    .tracker-columns {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(320px, 1fr));
-      gap: 12px;
+    .workspace-hero {
+      border: 1px solid #d7e3dc;
+      border-radius: 18px;
+      padding: 20px 22px;
+      background:
+        radial-gradient(circle at top right, rgba(96, 141, 113, 0.18), transparent 30%),
+        linear-gradient(135deg, #f5f1e8 0%, #eef4f0 100%);
     }
-    .tracker-column {
-      min-height: 52vh;
+    .workspace-launcher {
+      border: 1px solid #d7e3dc;
+      border-radius: 18px;
+      padding: 24px;
+      background: #fdfcf8;
+    }
+    .workspace-anchor {
+      border: 1px solid #e0e8e3;
+      border-radius: 16px;
+      padding: 16px 18px;
+      background: #f7faf8;
+    }
+    .section-card {
       border: 1px solid #e9ecef;
-      border-radius: 10px;
-      padding: 10px;
-      background: #fcfcfd;
+      border-radius: 14px;
+      padding: 16px;
+      background: #fcfcfb;
+    }
+    .soft-label {
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.73rem;
+      color: #6c757d;
+    }
+    .help-callout {
+      border: 1px solid #dce6df;
+      border-radius: 14px;
+      background: #f6faf7;
+      padding: 14px 16px;
+    }
+    .help-callout p:last-child,
+    .help-callout ul:last-child {
+      margin-bottom: 0;
+    }
+    .faq-section + .faq-section {
+      margin-top: 1.5rem;
+    }
+    .timeline-pane {
+      background: #f5f5f5;
+      padding: 12px;
+      border-radius: 8px;
       overflow: auto;
     }
-    .tracker-card .hp-value {
-      font-size: 1.4rem;
-      font-weight: 700;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    .timeline-item {
+      border: 1px solid #dfe5e1;
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px 12px;
     }
-    @media (max-width: 991px) {
-      .tracker-columns {
-        grid-template-columns: 1fr;
-      }
-      .tracker-column {
-        min-height: auto;
-        max-height: 45vh;
-      }
+    .timeline-item + .timeline-item {
+      margin-top: 10px;
+    }
+    .timeline-item.promoted {
+      border-color: #8ab58f;
+      background: #f6fcf6;
+    }
+    .timeline-item.downplayed {
+      border-color: #d9d9d9;
+      background: #fafafa;
+    }
+    .timeline-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .timeline-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .timeline-tag {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.72rem;
+      border: 1px solid #d3ddd6;
+      background: #f7faf8;
+      color: #496057;
+    }
+    .timeline-text {
+      white-space: pre-wrap;
+      margin-bottom: 10px;
+    }
+    .timeline-editor {
+      margin-top: 10px;
+    }
+    .hidden-shell {
+      display: none;
     }
   </style>
 </head>
@@ -68,54 +143,103 @@
 
         <div class="card shadow-sm">
           <div class="card-body p-4">
-            <div class="d-flex align-items-start justify-content-between gap-3">
-              <div>
-                <h1 class="h4 mb-1">🎙️ Session Recorder v.7</h1>
-                <div class="text-muted">
-                  Records audio in chunks and uploads to <span class="mono">server.py</span> endpoints
+            <div class="workspace-hero mb-4">
+              <div class="d-flex align-items-start justify-content-between gap-3">
+                <div>
+                  <div class="soft-label mb-2">DnD Tracker</div>
+                  <h1 class="h3 mb-1">Campaign Session Workspace</h1>
+                  <div class="text-muted">
+                    Start inside one campaign, record there, and review only that campaign's history.
+                  </div>
+                  <div class="small mono text-secondary mt-2">Build: campaign-refactor-1</div>
                 </div>
-                <div class="small mono text-secondary">Build: campaign-refactor-1</div>
-              </div>
-              <div class="text-end">
-                <div class="small text-muted">Session ID</div>
-                <div class="mono" id="sessionId">(not started)</div>
-                <div class="small text-muted mt-2">Session Name</div>
-                <input id="sessionNameInput" type="text" class="form-control form-control-sm" placeholder="Optional (e.g. Avernus - Session 12)" style="min-width:260px;">
-                <div class="small text-muted mt-2">Campaign</div>
-                <select id="campaignSelect" class="form-select form-select-sm" style="min-width:260px;">
-                  <option value="default">default</option>
-                </select>
+                <div class="text-end">
+                  <div class="soft-label">Current Session</div>
+                  <div class="mono fs-6" id="sessionId">(not started)</div>
+                  <button class="btn btn-outline-dark btn-sm mt-2" type="button" data-bs-toggle="modal" data-bs-target="#helpModal">Help / FAQ</button>
+                </div>
               </div>
             </div>
 
-            <hr class="my-3">
+            <select id="campaignSelect" class="form-select form-select-sm d-none" style="min-width:260px;">
+              <option value="default">default</option>
+            </select>
+
+            <div id="workspaceLauncher" class="workspace-launcher mb-4">
+              <div class="row g-3 align-items-end">
+                <div class="col-12 col-lg-6">
+                  <div class="soft-label mb-2">Step 1</div>
+                  <h2 class="h5 mb-1">Open A Campaign</h2>
+                  <div class="text-muted small mb-3">Choose the campaign you want to work in. Session recording and history stay scoped to that campaign.</div>
+                  <label class="form-label small mb-1" for="workspaceCampaignSelect">Campaign</label>
+                  <select id="workspaceCampaignSelect" class="form-select"></select>
+                </div>
+                <div class="col-12 col-lg-6">
+                  <div class="soft-label mb-2">Step 2</div>
+                  <h2 class="h5 mb-1">Or Create A Campaign</h2>
+                  <div class="text-muted small mb-3">Create a fresh campaign workspace before you start recording.</div>
+                  <label class="form-label small mb-1" for="workspaceNewCampaignName">New campaign name</label>
+                  <input id="workspaceNewCampaignName" class="form-control" placeholder="e.g. Garagos">
+                </div>
+                <div class="col-12">
+                  <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <button id="workspaceOpenCampaignBtn" class="btn btn-primary">Open Campaign</button>
+                    <button id="workspaceCreateCampaignBtn" class="btn btn-outline-primary">Create Campaign</button>
+                    <div id="workspaceLauncherStatus" class="small text-muted"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="workspaceMain" class="hidden-shell">
+            <div class="workspace-anchor mb-3">
+              <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                <div>
+                  <div class="soft-label mb-1">Active Campaign</div>
+                  <div id="workspaceCampaignTitle" class="h4 mb-1">Campaign</div>
+                  <div id="workspaceCampaignSubtitle" class="text-muted small">Load or create a campaign to begin.</div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                  <button id="workspaceSwitchCampaignBtn" class="btn btn-outline-dark btn-sm">Switch Campaign</button>
+                </div>
+              </div>
+            </div>
 
             <ul class="nav nav-tabs" id="sessionTabs" role="tablist">
               <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tab-recording" data-bs-toggle="tab" data-bs-target="#pane-recording" type="button" role="tab">Recording</button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-transcript" data-bs-toggle="tab" data-bs-target="#pane-transcript" type="button" role="tab">Transcript</button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-notes" data-bs-toggle="tab" data-bs-target="#pane-notes" type="button" role="tab">DM Notes</button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-tracker" data-bs-toggle="tab" data-bs-target="#pane-tracker" type="button" role="tab">Tracker</button>
+                <button class="nav-link active" id="tab-recording" data-bs-toggle="tab" data-bs-target="#pane-recording" type="button" role="tab">Session</button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="tab-prep" data-bs-toggle="tab" data-bs-target="#pane-prep" type="button" role="tab">Campaign</button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-test" data-bs-toggle="tab" data-bs-target="#pane-test" type="button" role="tab">Test</button>
+                <button class="nav-link" id="tab-sessions" data-bs-toggle="tab" data-bs-target="#pane-sessions" type="button" role="tab">History</button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-sessions" data-bs-toggle="tab" data-bs-target="#pane-sessions" type="button" role="tab">Sessions</button>
+                <button class="nav-link" id="tab-test" data-bs-toggle="tab" data-bs-target="#pane-test" type="button" role="tab">Notes Lab</button>
               </li>
             </ul>
 
             <div class="tab-content border border-top-0 rounded-bottom p-3 bg-white">
               <div class="tab-pane fade show active" id="pane-recording" role="tabpanel">
+                <div class="row g-3 mb-3">
+                  <div class="col-12 col-lg-4">
+                    <div class="section-card h-100">
+                      <div class="soft-label mb-1">Session Setup</div>
+                      <label class="form-label small mb-1">Session Name</label>
+                      <input id="sessionNameInput" type="text" class="form-control form-control-sm" placeholder="Optional (e.g. Garagos - Session 3)">
+                      <div class="small text-muted mt-2">This name applies only to the next or selected session.</div>
+                    </div>
+                  </div>
+                  <div class="col-12 col-lg-8">
+                    <div class="section-card h-100">
+                      <div class="soft-label mb-1">Campaign Context</div>
+                      <div class="small text-muted mb-2">Use this preview to confirm the loaded campaign before you hit Start.</div>
+                      <pre id="recordingCampaignContextPreview" style="background:#f5f5f5; padding:12px; border-radius:10px; max-height:180px; overflow:auto; white-space: pre-wrap; margin-bottom:0;"></pre>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="d-flex align-items-center mb-3">
                   <span id="statusDot" class="status-dot dot-idle"></span>
                   <div>
@@ -127,7 +251,7 @@
                 </div>
 
                 <div class="alert alert-secondary py-2 px-3 mb-3">
-                  <div class="small"><strong>New session campaign:</strong> <span id="recording-selected-campaign" class="mono">default</span></div>
+                  <div class="small"><strong>Loaded campaign:</strong> <span id="recording-selected-campaign" class="mono">default</span></div>
                   <div class="small text-muted">Current session campaign: <span id="recording-active-campaign" class="mono">(not started)</span></div>
                 </div>
 
@@ -183,6 +307,7 @@
                       <button id="partyAddPlayerBtn" type="button" class="btn btn-outline-primary btn-sm">Add Player</button>
                       <button id="partyAddNpcBtn" type="button" class="btn btn-outline-primary btn-sm">Add NPC</button>
                       <button id="partyAddDmBtn" type="button" class="btn btn-outline-secondary btn-sm">Add DM</button>
+                      <button id="partySaveSessionBtn" type="button" class="btn btn-primary btn-sm">Save To Session</button>
                     </div>
                     <div class="table-responsive">
                       <table class="table table-sm align-middle" id="partyRosterTable">
@@ -220,58 +345,34 @@
                 <pre id="status-json"
                   style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:240px; overflow:auto;">
                 </pre>
-              </div>
-
-              <div class="tab-pane fade" id="pane-transcript" role="tabpanel">
-                <div class="small text-muted mb-2">Live transcript (cleaned for readability, updates per chunk)</div>
-                <div id="transcript-meta" class="small text-muted mb-2"></div>
-                <pre id="transcript-text"
-                  class="tall-pane"
-                  style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;">
-                </pre>
-              </div>
-
-              <div class="tab-pane fade" id="pane-notes" role="tabpanel">
-                <div class="small text-muted mb-2">DM notes timeline + tracked state (loot, spells, hp, quests)</div>
-                <div id="notes-meta" class="small text-muted mb-2"></div>
-                <div id="notes-summary" class="small mb-2"></div>
-                <pre id="notes-state"
-                  style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:180px; overflow:auto; white-space: pre-wrap;"></pre>
-                <pre id="notes-text"
-                  class="tall-pane"
-                  style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;">
-                </pre>
-              </div>
-
-              <div class="tab-pane fade" id="pane-tracker" role="tabpanel">
-                <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
-                  <div>
-                    <div class="small text-muted">Combat tracker (authoritative HP/damage)</div>
-                    <div id="tracker-session-label" class="small"></div>
-                  </div>
-                  <div class="d-flex flex-wrap gap-2 align-items-end">
-                    <div>
-                      <label class="form-label small mb-1">Monster name</label>
-                      <input id="tracker-monster-name" type="text" class="form-control form-control-sm" placeholder="e.g. Orc 1">
+                <details class="mt-4">
+                  <summary class="mb-3">Diagnostics</summary>
+                  <div class="row g-3">
+                    <div class="col-12 col-xl-6">
+                      <div class="section-card h-100">
+                        <div class="small text-muted mb-2">Live transcript (cleaned for readability, updates per chunk)</div>
+                        <div id="transcript-meta" class="small text-muted mb-2"></div>
+                        <pre id="transcript-text"
+                          class="tall-pane"
+                          style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;">
+                        </pre>
+                      </div>
                     </div>
-                    <div>
-                      <label class="form-label small mb-1">Start HP</label>
-                      <input id="tracker-monster-hp" type="number" class="form-control form-control-sm" value="10" style="width:100px;">
+                    <div class="col-12 col-xl-6">
+                      <div class="section-card h-100">
+                        <div class="small text-muted mb-2">DM notes timeline + tracked state (loot, spells, hp, quests)</div>
+                        <div id="notes-meta" class="small text-muted mb-2"></div>
+                        <div id="notes-summary" class="small mb-2"></div>
+                        <pre id="notes-state"
+                          style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:180px; overflow:auto; white-space: pre-wrap;"></pre>
+                        <pre id="notes-text"
+                          class="tall-pane"
+                          style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;">
+                        </pre>
+                      </div>
                     </div>
-                    <button id="tracker-add-monster" class="btn btn-outline-primary btn-sm">Add Monster</button>
                   </div>
-                </div>
-                <div id="tracker-status" class="small text-muted mb-2"></div>
-                <div class="tracker-columns">
-                  <div>
-                    <div class="small text-muted mb-1">Party</div>
-                    <div id="tracker-party" class="tracker-column"></div>
-                  </div>
-                  <div>
-                    <div class="small text-muted mb-1">Monsters</div>
-                    <div id="tracker-monsters" class="tracker-column"></div>
-                  </div>
-                </div>
+                </details>
               </div>
 
               <div class="tab-pane fade" id="pane-prep" role="tabpanel">
@@ -298,8 +399,32 @@
                     <input id="campaignName" class="form-control" placeholder="e.g. Fort Aelwind">
                   </div>
                   <div class="col-12 col-md-8">
-                    <label class="form-label small mb-1">Party roster</label>
-                    <textarea id="campaignParty" class="form-control mono" rows="3" placeholder="Rubin - Ghedorim - monk"></textarea>
+                    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                      <label class="form-label small mb-0">Campaign roster</label>
+                      <button id="campaignAddPlayerBtn" type="button" class="btn btn-outline-primary btn-sm">Add Player</button>
+                      <button id="campaignAddNpcBtn" type="button" class="btn btn-outline-primary btn-sm">Add NPC</button>
+                      <button id="campaignAddDmBtn" type="button" class="btn btn-outline-secondary btn-sm">Add DM</button>
+                    </div>
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle" id="campaignRosterTable">
+                        <thead>
+                          <tr>
+                            <th style="width:90px;">Include</th>
+                            <th style="min-width:90px;">Role</th>
+                            <th style="min-width:130px;">Player / Controller</th>
+                            <th style="min-width:130px;">Character / NPC</th>
+                            <th style="min-width:110px;">Class</th>
+                            <th style="min-width:110px;">Race</th>
+                            <th style="min-width:150px;">Aliases</th>
+                            <th style="width:1%;"></th>
+                          </tr>
+                        </thead>
+                        <tbody id="campaignRosterBody"></tbody>
+                      </table>
+                    </div>
+                    <label class="form-label small mt-2" for="campaignParty">Generated campaign roster text</label>
+                    <textarea id="campaignParty" class="form-control mono" rows="4" readonly placeholder="Campaign roster text is generated from the table above."></textarea>
+                    <div id="campaignPartyStatus" class="small text-muted mt-1"></div>
                   </div>
                 </div>
                 <div class="row g-2 mb-2">
@@ -325,7 +450,17 @@
                 </div>
               </div>
               <div class="tab-pane fade" id="pane-test" role="tabpanel">
-                <div class="small text-muted mb-2">Post-session notes test harness (session-based).</div>
+                <div class="help-callout mb-3">
+                  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                    <div>
+                      <div class="soft-label mb-1">Notes Lab</div>
+                      <div class="small text-muted">
+                        Use this to experiment upstream before changing the real rebuild path. You can edit the notes system prompt, limit the run to a chunk span, and compare shorter runs for repetition.
+                      </div>
+                    </div>
+                    <button id="test-load-history-session" class="btn btn-outline-primary btn-sm">Load Selected History Session</button>
+                  </div>
+                </div>
                 <div class="row g-2">
                   <div class="col-12 col-md-6">
                     <label class="form-label small mb-1">Source session</label>
@@ -352,15 +487,18 @@
                     <input id="test-chunk-to" type="number" class="form-control" placeholder="e.g. 28">
                   </div>
                   <div class="col-12">
+                    <div class="form-text">If you set <code>From chunk</code> and <code>To chunk</code>, the lab runs only that inclusive chunk span. This is useful for testing repetition on a smaller part of the session.</div>
+                  </div>
+                  <div class="col-12">
                     <div class="form-check">
                       <input class="form-check-input" type="checkbox" id="test-use-context" checked>
                       <label class="form-check-label small" for="test-use-context">Use prior context (summary + rolling context)</label>
                     </div>
                   </div>
                   <div class="col-12">
-                    <label class="form-label small mb-1">Last session game summary (context)</label>
+                    <label class="form-label small mb-1">Rolling summary seed (optional)</label>
                     <textarea id="test-last-summary" class="form-control" rows="3"
-                      placeholder="Optional context from previous session summary..."></textarea>
+                      placeholder="Optional prior rolling summary to feed into the next notes pass..."></textarea>
                   </div>
                   <div class="col-12">
                     <label class="form-label small mb-1">Party data (optional)</label>
@@ -368,13 +506,22 @@
                       placeholder="Jon — Pippin — Bard"></textarea>
                   </div>
                   <div class="col-12">
-                    <label class="form-label small mb-1">Prompt override (preloaded with default)</label>
+                    <label class="form-label small mb-1">Campaign and session context</label>
+                    <textarea id="test-prep-context" class="form-control" rows="5"
+                      placeholder="Compiled campaign summary, recent session summaries, and DungeonMaker prep context."></textarea>
+                  </div>
+                  <div class="col-12">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-1">
+                      <label class="form-label small mb-0">Notes system prompt (editable)</label>
+                      <button id="test-reload-default-prompt" class="btn btn-outline-secondary btn-sm">Reload Default Prompt</button>
+                    </div>
                     <textarea id="test-prompt" class="form-control" rows="4"
                       placeholder=""></textarea>
                   </div>
                 </div>
                 <div class="d-flex gap-2 mt-3">
                   <button id="test-run" class="btn btn-primary btn-sm">Generate notes</button>
+                  <button id="test-save-markdown" class="btn btn-outline-secondary btn-sm">Save Run To Markdown</button>
                 </div>
                 <div id="test-status" class="small text-muted mt-2"></div>
                 <div class="row g-2 mt-2">
@@ -407,15 +554,30 @@
               </div>
 
               <div class="tab-pane fade" id="pane-sessions" role="tabpanel">
+                <div class="help-callout mb-3">
+                  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                    <div>
+                      <div class="soft-label mb-1">History Help</div>
+                      <div class="small text-muted">
+                        This page is for reviewing and repairing a finished session. <strong>Notes context window</strong> controls how many recent transcript chunks are included each time the app rebuilds DM notes.
+                        It helps with continuity, but it does <strong>not</strong> change the original recording or raw chunk files.
+                      </div>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#helpModal">Open full help</button>
+                  </div>
+                </div>
                 <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-                  <div class="small text-muted">Browse past sessions</div>
+                  <div class="small text-muted">Campaign history</div>
                   <label class="small text-muted mb-0" for="sessions-window-input">Notes context window</label>
                   <input id="sessions-window-input" type="number" class="form-control form-control-sm" value="2" min="1" max="20" style="width:90px;">
                   <button id="sessions-refresh" class="btn btn-outline-secondary btn-sm">Refresh</button>
+                  <button id="sessions-backfill-transcripts" class="btn btn-outline-secondary btn-sm">Backfill Missing Audio</button>
                   <button id="sessions-clean-transcript" class="btn btn-outline-secondary btn-sm">Rebuild Clean Transcript</button>
                   <button id="sessions-reprocess" class="btn btn-outline-primary btn-sm">Rebuild Notes + Summary</button>
+                  <button id="sessions-stop-reprocess" class="btn btn-outline-danger btn-sm" disabled>Stop / Clear Rebuild</button>
                   <button id="sessions-generate-summary" class="btn btn-primary btn-sm">Generate Game Summary</button>
                   <button id="sessions-generate-narrative" class="btn btn-primary btn-sm">Generate Narrative</button>
+                  <button id="sessions-open-notes-lab" class="btn btn-outline-dark btn-sm">Open Notes Lab</button>
                 </div>
                 <div class="row g-2">
                   <div class="col-12 col-md-4">
@@ -442,6 +604,43 @@
                   </div>
                 </div>
                 <div class="row g-2 mt-2">
+                  <div class="col-12">
+                    <div class="section-card">
+                      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                        <div>
+                          <div class="small text-muted mb-1">Session Roster For This History Session</div>
+                          <div class="small text-muted">Load and edit the roster attached to this finished session before you rebuild notes, summary, or clean transcript.</div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                          <button id="sessions-roster-load-session" class="btn btn-outline-secondary btn-sm">Reload Saved Session Roster</button>
+                          <button id="sessions-roster-add-player" class="btn btn-outline-primary btn-sm">Add Player</button>
+                          <button id="sessions-roster-add-npc" class="btn btn-outline-primary btn-sm">Add NPC</button>
+                          <button id="sessions-roster-add-dm" class="btn btn-outline-secondary btn-sm">Add DM</button>
+                          <button id="sessions-roster-save" class="btn btn-primary btn-sm">Save To Selected Session</button>
+                        </div>
+                      </div>
+                      <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                          <thead>
+                            <tr>
+                              <th style="width:90px;">Include</th>
+                              <th style="min-width:90px;">Role</th>
+                              <th style="min-width:130px;">Player / Controller</th>
+                              <th style="min-width:130px;">Character / NPC</th>
+                              <th style="min-width:110px;">Class</th>
+                              <th style="min-width:110px;">Race</th>
+                              <th style="min-width:150px;">Aliases</th>
+                              <th style="width:1%;"></th>
+                            </tr>
+                          </thead>
+                          <tbody id="sessions-roster-body"></tbody>
+                        </table>
+                      </div>
+                      <label class="form-label small mt-2" for="sessions-party-meta">Generated session roster text</label>
+                      <textarea id="sessions-party-meta" class="form-control mono" rows="4" readonly placeholder="Session roster text is generated from the table above."></textarea>
+                      <div id="sessions-party-status" class="small text-muted mt-1"></div>
+                    </div>
+                  </div>
                   <div class="col-12 col-md-3">
                     <label class="form-label small mb-1" for="sessions-narrative-word-count">Narrative target words</label>
                     <input id="sessions-narrative-word-count" type="number" class="form-control" value="600" min="150" max="5000" step="50">
@@ -479,21 +678,114 @@
                   </div>
                   <div class="col-12 col-md-6">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                      <div class="small text-muted">DM Notes</div>
-                      <button id="copy-sessions-notes" class="btn btn-outline-secondary btn-sm">Copy</button>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <div id="sessions-notes-summary" class="small mb-1"></div>
+                      <div class="small text-muted">Rolling Notes Summary</div>
                       <button id="copy-sessions-notes-summary" class="btn btn-outline-secondary btn-sm">Copy Summary</button>
                     </div>
+                    <div id="sessions-notes-summary" class="small mb-3"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; white-space: pre-wrap;"></div>
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                      <div class="small text-muted">Tracked State</div>
+                      <div class="small text-muted">Tracked State Snapshot</div>
                       <button id="copy-sessions-notes-state" class="btn btn-outline-secondary btn-sm">Copy State</button>
                     </div>
                     <pre id="sessions-notes-state"
                       style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:180px; overflow:auto; white-space: pre-wrap;"></pre>
-                    <pre id="sessions-notes" class="tall-pane"
-                      style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;"></pre>
+                    <div class="d-flex justify-content-between align-items-center mb-1 mt-3">
+                      <div class="small text-muted">DM Notes Timeline</div>
+                      <div class="d-flex gap-2">
+                        <button id="copy-sessions-notes" class="btn btn-outline-secondary btn-sm">Copy Timeline</button>
+                        <button id="open-sessions-timeline-editor" class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#timelineEditorModal">Open Timeline Editor</button>
+                      </div>
+                    </div>
+                    <div class="small text-muted mb-1">Use the timeline editor to correct attribution, promote key moments, and downplay noisy entries before regenerating summaries.</div>
+                    <div class="help-callout">
+                      <div class="small text-muted">
+                        The full DM Notes Timeline now opens in a dedicated editor so you can review the whole session in one scrollable workspace.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+
+            <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+              <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h2 class="modal-title h5 mb-0" id="helpModalLabel">DnD Tracker Help &amp; Cheat Sheet</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="faq-section">
+                      <div class="soft-label mb-2">Fast Flow</div>
+                      <p class="small text-muted mb-2">Use this mental model: <strong>Campaign = canon</strong>, <strong>Session = live recording</strong>, <strong>History = repair and post-processing</strong>.</p>
+                      <ol class="small mb-0">
+                        <li>Open or create a campaign.</li>
+                        <li>On <strong>Session</strong>, confirm the campaign context and participant roster.</li>
+                        <li>Press <strong>Start</strong> to record.</li>
+                        <li>Press <strong>Stop</strong> when the game ends.</li>
+                        <li>Go to <strong>History</strong> to review transcript, notes, summary, and narrative for that campaign.</li>
+                        <li>Use <strong>Campaign</strong> to update the canonical roster, summaries, and prep for next time.</li>
+                      </ol>
+                    </div>
+
+                    <div class="faq-section">
+                      <div class="soft-label mb-2">Session Page</div>
+                      <ul class="small mb-0">
+                        <li><strong>Session Name</strong> labels one session. It does not change the campaign name.</li>
+                        <li><strong>Campaign Context</strong> previews the campaign data that will be used for notes and summaries.</li>
+                        <li><strong>Chunk length (minutes)</strong> controls how often live audio is cut into uploaded chunks during recording.</li>
+                        <li><strong>Session Participants</strong> is the roster snapshot for this one session. Load from the campaign, then adjust for absences or guests.</li>
+                      </ul>
+                    </div>
+
+                    <div class="faq-section">
+                      <div class="soft-label mb-2">History Page</div>
+                      <ul class="small mb-0">
+                        <li><strong>Notes context window</strong> affects only <strong>Rebuild Notes + Summary</strong>. It sets how many recent transcript chunks the app includes in each notes-generation step.</li>
+                        <li>A smaller notes window keeps the prompt tighter and more local. A larger window gives more surrounding context, which can help continuity but can also make the notes drift.</li>
+                        <li><strong>Backfill Missing Audio</strong> retranscribes saved audio chunks that exist on disk but are missing from the transcript, such as chunks recorded while you were offline.</li>
+                        <li><strong>Rebuild Clean Transcript</strong> rewrites the readable transcript from the raw transcript entries. It does not recover missing audio on its own.</li>
+                        <li><strong>Rebuild Notes + Summary</strong> regenerates DM notes and the rolling notes summary from the transcript.</li>
+                        <li><strong>Generate Game Summary</strong> and <strong>Generate Narrative</strong> are best run after transcript and notes look correct.</li>
+                      </ul>
+                    </div>
+
+                    <div class="faq-section">
+                      <div class="soft-label mb-2">Recommended Repair Order</div>
+                      <ol class="small mb-0">
+                        <li>If transcript chunks are missing, run <strong>Backfill Missing Audio</strong> first.</li>
+                        <li>If the transcript is present but messy, run <strong>Rebuild Clean Transcript</strong>.</li>
+                        <li>Run <strong>Rebuild Notes + Summary</strong> after transcript recovery or cleanup.</li>
+                        <li>Then regenerate <strong>Game Summary</strong> or <strong>Narrative</strong> if needed.</li>
+                      </ol>
+                    </div>
+
+                    <div class="faq-section">
+                      <div class="soft-label mb-2">What To Edit Where</div>
+                      <ul class="small mb-0">
+                        <li>Use <strong>Campaign</strong> for the party roster, campaign summary, previous session summaries, and DungeonMaker JSON.</li>
+                        <li>Use <strong>History</strong> to inspect and regenerate one session’s outputs.</li>
+                        <li>If a generated output is wrong, correct campaign canon on the <strong>Campaign</strong> page so the next session starts from the right context.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal fade" id="timelineEditorModal" tabindex="-1" aria-labelledby="timelineEditorModalLabel" aria-hidden="true">
+              <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <div>
+                      <h2 class="modal-title h5 mb-1" id="timelineEditorModalLabel">DM Notes Timeline Editor</h2>
+                      <div class="small text-muted">Edit attribution or wording, promote important moments, and downplay low-signal items before regenerating summaries.</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div id="sessions-notes" class="timeline-pane tall-pane"></div>
                   </div>
                 </div>
               </div>
@@ -545,6 +837,7 @@
   const partyAddPlayerBtn = document.getElementById('partyAddPlayerBtn');
   const partyAddNpcBtn = document.getElementById('partyAddNpcBtn');
   const partyAddDmBtn = document.getElementById('partyAddDmBtn');
+  const partySaveSessionBtn = document.getElementById('partySaveSessionBtn');
   const partyMetaStatusEl = document.getElementById('partyMetaStatus');
   const showPlaybackEl = document.getElementById('showPlayback');
   const micSelectEl = document.getElementById('micSelect');
@@ -697,6 +990,7 @@
 
   function applyCampaignPartyToRecording(rawParty, campaignName = '') {
     partyRoster = parsePartyMetaText(rawParty);
+    metaPosted = false;
     renderPartyRoster();
     if (partyRoster.length) {
       const label = campaignName ? ` from ${campaignName}` : '';
@@ -753,9 +1047,56 @@
     syncPartyMetaFromRoster();
   }
 
+  function activeRecordingSessionId() {
+    const raw = String(sessionIdEl?.textContent || '').trim();
+    return /^\d{8,20}$/.test(raw) ? raw : '';
+  }
+
+  async function saveSessionPartyNow(options = {}) {
+    const quiet = Boolean(options.quiet);
+    const currentSessionId = activeRecordingSessionId();
+    const meta = (partyMetaEl?.value || '').trim();
+    if (!currentSessionId) {
+      setPartyMetaStatus('This roster will be attached when you start a session.');
+      return false;
+    }
+    if (!meta) {
+      setPartyMetaStatus('Add at least one included participant before saving this session roster.');
+      return false;
+    }
+
+    if (!quiet) {
+      setPartyMetaStatus(`Saving roster to session ${currentSessionId}...`);
+    }
+
+    const res = await fetch('/api/meta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: currentSessionId,
+        party: meta
+      })
+    });
+
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) {
+      throw new Error(json?.error || `Session roster save failed (${res.status})`);
+    }
+
+    metaPosted = true;
+    if (!quiet) {
+      setPartyMetaStatus(`Saved session roster for ${currentSessionId}.`);
+    }
+    return true;
+  }
+
   function addPartyRosterRow(role = 'Player') {
     partyRoster.push(defaultRosterRow(role));
+    metaPosted = false;
     renderPartyRoster();
+    setPartyMetaStatus(activeRecordingSessionId()
+      ? 'Session roster changed. Save To Session, or it will be attached on the next upload.'
+      : 'Session roster changed. It will be attached when you start the session.');
   }
 
   function bindPartyMetaEvents() {
@@ -763,6 +1104,15 @@
     if (partyAddPlayerBtn) partyAddPlayerBtn.addEventListener('click', () => addPartyRosterRow('Player'));
     if (partyAddNpcBtn) partyAddNpcBtn.addEventListener('click', () => addPartyRosterRow('NPC'));
     if (partyAddDmBtn) partyAddDmBtn.addEventListener('click', () => addPartyRosterRow('DM'));
+    if (partySaveSessionBtn) {
+      partySaveSessionBtn.addEventListener('click', async () => {
+        try {
+          await saveSessionPartyNow();
+        } catch (err) {
+          setPartyMetaStatus(`Failed to save session roster: ${err.message}`);
+        }
+      });
+    }
 
     if (partyRosterBodyEl) {
       partyRosterBodyEl.addEventListener('input', (evt) => {
@@ -776,7 +1126,11 @@
         } else {
           partyRoster[idx][field] = target.value;
         }
+        metaPosted = false;
         syncPartyMetaFromRoster();
+        setPartyMetaStatus(activeRecordingSessionId()
+          ? 'Session roster changed. Save To Session, or it will be attached on the next upload.'
+          : 'Session roster changed. It will be attached when you start the session.');
       });
 
       partyRosterBodyEl.addEventListener('change', (evt) => {
@@ -787,7 +1141,11 @@
         if (!field || !Number.isInteger(idx) || !partyRoster[idx]) return;
         if (field === 'included' && target instanceof HTMLInputElement) {
           partyRoster[idx].included = Boolean(target.checked);
+          metaPosted = false;
           syncPartyMetaFromRoster();
+          setPartyMetaStatus(activeRecordingSessionId()
+            ? 'Session roster changed. Save To Session, or it will be attached on the next upload.'
+            : 'Session roster changed. It will be attached when you start the session.');
           return;
         }
         if (field === 'role') {
@@ -797,7 +1155,11 @@
             if (!partyRoster[idx].characterName) partyRoster[idx].characterName = 'DM';
             if (!partyRoster[idx].aliases) partyRoster[idx].aliases = 'DM, GM, Dungeon Master';
           }
+          metaPosted = false;
           renderPartyRoster();
+          setPartyMetaStatus(activeRecordingSessionId()
+            ? 'Session roster changed. Save To Session, or it will be attached on the next upload.'
+            : 'Session roster changed. It will be attached when you start the session.');
         }
       });
 
@@ -809,7 +1171,11 @@
         const idx = Number(rawIdx);
         if (!Number.isInteger(idx)) return;
         partyRoster.splice(idx, 1);
+        metaPosted = false;
         renderPartyRoster();
+        setPartyMetaStatus(activeRecordingSessionId()
+          ? 'Session roster changed. Save To Session, or it will be attached on the next upload.'
+          : 'Session roster changed. It will be attached when you start the session.');
       });
     }
 
@@ -1236,10 +1602,11 @@ async function postMetaOnce() {
       log('Initializing session on server…');
       const requestedSessionName = (sessionNameInputEl?.value || '').trim();
       const selectedCampaignId = String(campaignSelectEl?.value || 'default').trim() || 'default';
+      const requestedParty = (partyMetaEl?.value || '').trim();
       const startRes = await fetch('/api/session/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, sessionName: requestedSessionName, campaignId: selectedCampaignId })
+        body: JSON.stringify({ sessionId, sessionName: requestedSessionName, campaignId: selectedCampaignId, party: requestedParty })
       });
       const startJson = await startRes.json().catch(() => ({}));
       if (!startRes.ok || !startJson.ok) {
@@ -1250,6 +1617,10 @@ async function postMetaOnce() {
       sessionIdEl.textContent = sessionId;
       if (sessionNameInputEl && startJson?.sessionName) {
         sessionNameInputEl.value = startJson.sessionName;
+      }
+      metaPosted = Boolean(requestedParty);
+      if (requestedParty) {
+        setPartyMetaStatus(`Session roster saved for ${sessionId}.`);
       }
       updateRecordingCampaignState(startJson?.campaignName || selectedCampaignId);
       chunkCounterEl.textContent = String(chunkIndex);
@@ -1299,6 +1670,10 @@ async function postMetaOnce() {
 
   window.updateRecordingCampaignState = updateRecordingCampaignState;
   window.applyCampaignPartyToRecording = applyCampaignPartyToRecording;
+  window.defaultRosterRow = defaultRosterRow;
+  window.escapeHtml = escapeHtml;
+  window.rosterToPartyMetaText = rosterToPartyMetaText;
+  window.parsePartyMetaText = parsePartyMetaText;
 
 
   if (campaignSelectEl) {
@@ -1500,454 +1875,27 @@ async function postMetaOnce() {
 
 <script>
 // ================================
-// TRACKER MODULE
-// ================================
-(() => {
-  const tabTrackerEl = document.getElementById("tab-tracker");
-  const sessionIdEl = document.getElementById("sessionId");
-  const sessionsSelectEl = document.getElementById("sessions-select");
-  const campaignSelectEl = document.getElementById("campaignSelect");
-  const trackerSessionLabelEl = document.getElementById("tracker-session-label");
-  const trackerStatusEl = document.getElementById("tracker-status");
-  const trackerPartyEl = document.getElementById("tracker-party");
-  const trackerMonstersEl = document.getElementById("tracker-monsters");
-  const trackerMonsterNameEl = document.getElementById("tracker-monster-name");
-  const trackerMonsterHpEl = document.getElementById("tracker-monster-hp");
-  const trackerAddMonsterBtn = document.getElementById("tracker-add-monster");
-
-  let trackerState = { party: [], monsters: [] };
-  let trackerSessionId = "";
-  let trackerPreviewCampaignName = "";
-
-  function setTrackerStatus(msg) {
-    if (trackerStatusEl) trackerStatusEl.textContent = msg || "";
-  }
-
-  function activeSessionId() {
-    const live = String(sessionIdEl?.textContent || "").trim();
-    if (/^\d{8,20}$/.test(live)) return live;
-    return "";
-  }
-
-  function selectedCampaignId() {
-    return String(campaignSelectEl?.value || "default").trim() || "default";
-  }
-
-  function fmtLastAction(entity) {
-    const txt = String(entity?.lastAction || "").trim();
-    return txt ? `Last: ${txt}` : "Last: (none)";
-  }
-
-  function escapeAttr(v) {
-    return String(v || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
-
-  function parseNum(v, fallback = 0) {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : fallback;
-  }
-
-  function findEntity(entityType, entityId) {
-    const list = entityType === "monster" ? (trackerState.monsters || []) : (trackerState.party || []);
-    return list.find((x) => String(x.entityId) === String(entityId)) || null;
-  }
-
-  function slugifyTrackerName(value) {
-    return String(value || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'party';
-  }
-
-  function parseCampaignPartyPreview(raw) {
-    const used = new Map();
-    const isIncluded = (value) => !['false', '0', 'no', 'off', 'n', 'exclude', 'excluded'].includes(String(value == null ? 'yes' : value).trim().toLowerCase());
-    return String(raw || '')
-      .split(/\r?\n/)
-      .map((line) => String(line || '').trim())
-      .filter(Boolean)
-      .map((line) => {
-        const row = {};
-        line.split('|').forEach((part) => {
-          const [rawKey, ...rest] = String(part || '').split('=');
-          const key = String(rawKey || '').trim().toLowerCase();
-          const value = rest.join('=').trim();
-          if (key) row[key] = value;
-        });
-        return row;
-      })
-      .filter((row) => isIncluded(row.include ?? row.included ?? 'yes'))
-      .filter((row) => ['player', 'npc'].includes(String(row.role || 'Player').trim().toLowerCase()))
-      .map((row) => {
-        const role = String(row.role || 'Player').trim().toUpperCase() === 'NPC' ? 'NPC' : 'Player';
-        const name = String(row.character || row.player || '').trim();
-        if (!name) return null;
-        const base = slugifyTrackerName(name);
-        const count = used.get(base) || 0;
-        used.set(base, count + 1);
-        return {
-          entityId: count === 0 ? base : `${base}-${count + 1}`,
-          name,
-          role,
-          entityType: 'party',
-          hp: 0,
-          note: '',
-          lastAction: '',
-        };
-      })
-      .filter(Boolean);
-  }
-
-  function applyLocal(entityType, entityId, action, payload = {}) {
-    const entity = findEntity(entityType, entityId);
-    if (!entity) return;
-    if (action === "damage") entity.hp = parseNum(entity.hp) - Math.abs(parseNum(payload.delta, 0));
-    if (action === "heal") entity.hp = parseNum(entity.hp) + Math.abs(parseNum(payload.delta, 0));
-    if (action === "hp_set") entity.hp = parseNum(payload.hp, parseNum(entity.hp));
-    if (action === "note") entity.note = String(payload.note || "");
-    if (action === "undo") entity.lastAction = "undo";
-    else entity.lastAction = action;
-  }
-
-  function cardHtml(entity, readOnly = false) {
-    const id = String(entity.entityId || "");
-    const type = String(entity.entityType || "party");
-    const note = String(entity.note || "");
-    const hp = parseNum(entity.hp, 0);
-    const name = escapeAttr(String(entity.name || id));
-    const disabled = readOnly ? 'disabled' : '';
-    const readOnlyNote = readOnly ? 'readonly' : '';
-    return `
-      <div class="card tracker-card mb-2" data-entity-id="${id}" data-entity-type="${type}">
-        <div class="card-body p-2">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <div><strong>${name}</strong></div>
-              <div class="small text-muted">${type === 'party' ? String(entity.role || 'party').toLowerCase() : type}${readOnly ? ' preview' : ''}</div>
-            </div>
-            ${type === "monster" ? `<button class="btn btn-outline-danger btn-sm" data-action="remove-monster" ${disabled}>Remove</button>` : ""}
-          </div>
-          <div class="mt-2">HP: <span class="hp-value">${hp}</span></div>
-          <div class="d-flex flex-wrap gap-1 mt-2">
-            <button class="btn btn-outline-danger btn-sm" data-action="quick-damage" data-delta="1" ${disabled}>-1</button>
-            <button class="btn btn-outline-danger btn-sm" data-action="quick-damage" data-delta="5" ${disabled}>-5</button>
-            <button class="btn btn-outline-danger btn-sm" data-action="quick-damage" data-delta="10" ${disabled}>-10</button>
-            <button class="btn btn-outline-success btn-sm" data-action="quick-heal" data-delta="1" ${disabled}>+1</button>
-            <button class="btn btn-outline-success btn-sm" data-action="quick-heal" data-delta="5" ${disabled}>+5</button>
-            <button class="btn btn-outline-success btn-sm" data-action="quick-heal" data-delta="10" ${disabled}>+10</button>
-          </div>
-          <div class="row g-1 mt-2">
-            <div class="col-4"><input class="form-control form-control-sm" type="number" data-input="damage" placeholder="Damage" ${disabled}></div>
-            <div class="col-2"><button class="btn btn-outline-danger btn-sm w-100" data-action="typed-damage" ${disabled}>Apply</button></div>
-            <div class="col-4"><input class="form-control form-control-sm" type="number" data-input="heal" placeholder="Heal" ${disabled}></div>
-            <div class="col-2"><button class="btn btn-outline-success btn-sm w-100" data-action="typed-heal" ${disabled}>Apply</button></div>
-          </div>
-          <div class="row g-1 mt-1">
-            <div class="col-8"><input class="form-control form-control-sm" type="number" data-input="sethp" placeholder="Set HP" ${disabled}></div>
-            <div class="col-4"><button class="btn btn-outline-secondary btn-sm w-100" data-action="set-hp" ${disabled}>Set</button></div>
-          </div>
-          <div class="row g-1 mt-1">
-            <div class="col-9"><input class="form-control form-control-sm" type="text" data-input="note" placeholder="Note" value="${escapeAttr(note)}" ${readOnlyNote} ${disabled}></div>
-            <div class="col-3"><button class="btn btn-outline-secondary btn-sm w-100" data-action="save-note" ${disabled}>Save</button></div>
-          </div>
-          <div class="d-flex justify-content-between align-items-center mt-2">
-            <button class="btn btn-outline-dark btn-sm" data-action="undo" ${disabled}>Undo last</button>
-            <span class="small text-muted">${readOnly ? 'Preview only until session start.' : fmtLastAction(entity)}</span>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderTracker() {
-    const sid = trackerSessionId;
-    if (trackerSessionLabelEl) {
-      if (sid) trackerSessionLabelEl.textContent = `Session: ${sid}`;
-      else if (trackerPreviewCampaignName) trackerSessionLabelEl.textContent = `Campaign preview: ${trackerPreviewCampaignName}`;
-      else trackerSessionLabelEl.textContent = "No active session selected.";
-    }
-    if (!sid) {
-      if (trackerAddMonsterBtn) trackerAddMonsterBtn.disabled = true;
-      if (trackerMonsterNameEl) trackerMonsterNameEl.disabled = true;
-      if (trackerMonsterHpEl) trackerMonsterHpEl.disabled = true;
-      const party = Array.isArray(trackerState.party) ? trackerState.party : [];
-      if (trackerPartyEl) trackerPartyEl.innerHTML = party.length ? party.map((entity) => cardHtml(entity, true)).join("") : '<div class="small text-muted">Select a campaign to preview the party before starting a session.</div>';
-      if (trackerMonstersEl) trackerMonstersEl.innerHTML = '<div class="small text-muted">Monster tracking unlocks when a session is running.</div>';
-      return;
-    }
-    if (trackerAddMonsterBtn) trackerAddMonsterBtn.disabled = false;
-    if (trackerMonsterNameEl) trackerMonsterNameEl.disabled = false;
-    if (trackerMonsterHpEl) trackerMonsterHpEl.disabled = false;
-    const party = Array.isArray(trackerState.party) ? trackerState.party : [];
-    const monsters = Array.isArray(trackerState.monsters) ? trackerState.monsters : [];
-    if (trackerPartyEl) trackerPartyEl.innerHTML = party.length ? party.map((entity) => cardHtml(entity, false)).join("") : '<div class="small text-muted">No party members loaded from roster.</div>';
-    if (trackerMonstersEl) trackerMonstersEl.innerHTML = monsters.length ? monsters.map((entity) => cardHtml(entity, false)).join("") : '<div class="small text-muted">No monsters yet.</div>';
-  }
-
-  async function loadTrackerPreview() {
-    trackerSessionId = "";
-    trackerPreviewCampaignName = "";
-    const campaignId = selectedCampaignId();
-    const previewLabel = String(campaignSelectEl?.selectedOptions?.[0]?.textContent || campaignId || '').trim() || 'campaign';
-    const liveRosterText = String(document.getElementById('partyMeta')?.value || '').trim();
-    if (liveRosterText) {
-      trackerPreviewCampaignName = previewLabel;
-      trackerState = {
-        party: parseCampaignPartyPreview(liveRosterText),
-        monsters: [],
-      };
-      renderTracker();
-      setTrackerStatus(trackerState.party.length ? 'Preview only. Start a session to enable HP and healing updates.' : 'No included players or NPCs in the current session roster preview.');
-      return;
-    }
-    if (!campaignId) {
-      trackerState = { party: [], monsters: [] };
-      renderTracker();
-      setTrackerStatus('Select a campaign to preview the party.');
-      return;
-    }
-    try {
-      setTrackerStatus(`Loading tracker preview for ${campaignId}...`);
-      const res = await fetch(`/api/campaign/get?campaignId=${encodeURIComponent(campaignId)}&_t=${Date.now()}`);
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
-      trackerPreviewCampaignName = String(json?.campaign?.name || campaignId);
-      trackerState = {
-        party: parseCampaignPartyPreview(json?.campaign?.party || ''),
-        monsters: [],
-      };
-      renderTracker();
-      setTrackerStatus(trackerState.party.length ? 'Preview only. Start a session to enable HP and healing updates.' : 'Selected campaign has no included players or NPCs to preview.');
-    } catch (e) {
-      trackerState = { party: [], monsters: [] };
-      renderTracker();
-      setTrackerStatus(`Tracker preview error: ${e.message}`);
-    }
-  }
-
-  async function fetchTrackingState() {
-    trackerSessionId = activeSessionId();
-    if (!trackerSessionId) {
-      await loadTrackerPreview();
-      return;
-    }
-    trackerPreviewCampaignName = "";
-    try {
-      setTrackerStatus(`Loading tracker for ${trackerSessionId}...`);
-      const res = await fetch(`/api/tracking/state?sessionId=${encodeURIComponent(trackerSessionId)}&_t=${Date.now()}`);
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
-      trackerState = json.trackingState || { party: [], monsters: [] };
-      renderTracker();
-      setTrackerStatus("");
-    } catch (e) {
-      setTrackerStatus(`Tracker load error: ${e.message}`);
-    }
-  }
-
-  async function postTracker(path, payload) {
-    const res = await fetch(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
-    return json;
-  }
-
-  async function sendEventWithOptimistic(entityType, entityId, eventType, payload = {}) {
-    const sid = trackerSessionId || activeSessionId();
-    if (!sid) {
-      setTrackerStatus("No active session.");
-      return;
-    }
-    const entity = findEntity(entityType, entityId);
-    if (!entity) return;
-    const prev = JSON.parse(JSON.stringify(trackerState));
-    applyLocal(entityType, entityId, eventType, payload);
-    renderTracker();
-    try {
-      const json = await postTracker("/api/tracking/event", {
-        sessionId: sid,
-        entityType,
-        entityId,
-        entityName: entity.name,
-        eventType,
-        ...payload,
-      });
-      trackerState = json.trackingState || trackerState;
-      renderTracker();
-      setTrackerStatus("");
-    } catch (e) {
-      trackerState = prev;
-      renderTracker();
-      setTrackerStatus(`Tracker update failed: ${e.message}`);
-    }
-  }
-
-  async function sendUndo(entityType, entityId) {
-    const sid = trackerSessionId || activeSessionId();
-    if (!sid) return;
-    const prev = JSON.parse(JSON.stringify(trackerState));
-    applyLocal(entityType, entityId, "undo", {});
-    renderTracker();
-    try {
-      const json = await postTracker("/api/tracking/undo", { sessionId: sid, entityId });
-      trackerState = json.trackingState || trackerState;
-      renderTracker();
-      setTrackerStatus("");
-    } catch (e) {
-      trackerState = prev;
-      renderTracker();
-      setTrackerStatus(`Undo failed: ${e.message}`);
-    }
-  }
-
-  async function addMonster() {
-    const sid = trackerSessionId || activeSessionId();
-    if (!sid) {
-      setTrackerStatus("No active session.");
-      return;
-    }
-    const name = String(trackerMonsterNameEl?.value || "").trim();
-    const hp = parseNum(trackerMonsterHpEl?.value, NaN);
-    if (!name) {
-      setTrackerStatus("Enter a monster name.");
-      return;
-    }
-    if (!Number.isFinite(hp)) {
-      setTrackerStatus("Enter a valid monster HP.");
-      return;
-    }
-    try {
-      const json = await postTracker("/api/tracking/monster/add", { sessionId: sid, name, hp: Math.trunc(hp) });
-      trackerState = json.trackingState || trackerState;
-      if (trackerMonsterNameEl) trackerMonsterNameEl.value = "";
-      renderTracker();
-      setTrackerStatus("");
-    } catch (e) {
-      setTrackerStatus(`Add monster failed: ${e.message}`);
-    }
-  }
-
-  async function removeMonster(entityId) {
-    const sid = trackerSessionId || activeSessionId();
-    if (!sid) return;
-    const prev = JSON.parse(JSON.stringify(trackerState));
-    trackerState.monsters = (trackerState.monsters || []).filter((m) => String(m.entityId) !== String(entityId));
-    renderTracker();
-    try {
-      const json = await postTracker("/api/tracking/monster/remove", { sessionId: sid, entityId });
-      trackerState = json.trackingState || trackerState;
-      renderTracker();
-      setTrackerStatus("");
-    } catch (e) {
-      trackerState = prev;
-      renderTracker();
-      setTrackerStatus(`Remove failed: ${e.message}`);
-    }
-  }
-
-  function handleCardAction(evt) {
-    const target = evt.target;
-    if (!(target instanceof HTMLElement)) return;
-    const action = target.getAttribute("data-action");
-    if (!action) return;
-    const card = target.closest("[data-entity-id]");
-    if (!card) return;
-    const entityId = card.getAttribute("data-entity-id") || "";
-    const entityType = card.getAttribute("data-entity-type") || "party";
-    if (!entityId) return;
-
-    if (action === "quick-damage") {
-      const delta = Math.abs(parseNum(target.getAttribute("data-delta"), 0));
-      if (delta > 0) sendEventWithOptimistic(entityType, entityId, "damage", { delta });
-      return;
-    }
-    if (action === "quick-heal") {
-      const delta = Math.abs(parseNum(target.getAttribute("data-delta"), 0));
-      if (delta > 0) sendEventWithOptimistic(entityType, entityId, "heal", { delta });
-      return;
-    }
-    if (action === "typed-damage") {
-      const inp = card.querySelector('[data-input="damage"]');
-      const delta = Math.abs(parseNum(inp?.value, 0));
-      if (!delta) return;
-      if (inp) inp.value = "";
-      sendEventWithOptimistic(entityType, entityId, "damage", { delta });
-      return;
-    }
-    if (action === "typed-heal") {
-      const inp = card.querySelector('[data-input="heal"]');
-      const delta = Math.abs(parseNum(inp?.value, 0));
-      if (!delta) return;
-      if (inp) inp.value = "";
-      sendEventWithOptimistic(entityType, entityId, "heal", { delta });
-      return;
-    }
-    if (action === "set-hp") {
-      const inp = card.querySelector('[data-input="sethp"]');
-      const hp = parseNum(inp?.value, NaN);
-      if (!Number.isFinite(hp)) return;
-      if (inp) inp.value = "";
-      sendEventWithOptimistic(entityType, entityId, "hp_set", { hp: Math.trunc(hp) });
-      return;
-    }
-    if (action === "save-note") {
-      const inp = card.querySelector('[data-input="note"]');
-      const note = String(inp?.value || "");
-      sendEventWithOptimistic(entityType, entityId, "note", { note });
-      return;
-    }
-    if (action === "undo") {
-      sendUndo(entityType, entityId);
-      return;
-    }
-    if (action === "remove-monster") {
-      removeMonster(entityId);
-    }
-  }
-
-  if (trackerPartyEl) trackerPartyEl.addEventListener("click", handleCardAction);
-  if (trackerMonstersEl) trackerMonstersEl.addEventListener("click", handleCardAction);
-  if (trackerAddMonsterBtn) trackerAddMonsterBtn.addEventListener("click", addMonster);
-  if (tabTrackerEl) {
-    tabTrackerEl.addEventListener("shown.bs.tab", fetchTrackingState);
-  }
-  if (sessionsSelectEl) {
-    sessionsSelectEl.addEventListener("change", () => {
-      if (tabTrackerEl?.classList.contains("active")) fetchTrackingState();
-    });
-  }
-  if (campaignSelectEl) {
-    campaignSelectEl.addEventListener("change", () => {
-      if (tabTrackerEl?.classList.contains("active") && !activeSessionId()) fetchTrackingState();
-    });
-  }
-  if (sessionIdEl) {
-    const obs = new MutationObserver(() => {
-      if (tabTrackerEl?.classList.contains("active")) fetchTrackingState();
-    });
-    obs.observe(sessionIdEl, { childList: true, subtree: true, characterData: true });
-  }
-})();
-</script>
-
-<script>
-// ================================
 // PREP / CAMPAIGN MODULE
 // ================================
 (() => {
+  const defaultRosterRow = window.defaultRosterRow;
+  const escapeHtml = window.escapeHtml;
+  const rosterToPartyMetaText = window.rosterToPartyMetaText;
+  const parsePartyMetaText = window.parsePartyMetaText;
   const tabPrepEl = document.getElementById("tab-prep");
   const sessionIdEl = document.getElementById("sessionId");
   const sessionsSelectEl = document.getElementById("sessions-select");
   const campaignSelectEl = document.getElementById("campaignSelect");
+  const workspaceLauncherEl = document.getElementById("workspaceLauncher");
+  const workspaceMainEl = document.getElementById("workspaceMain");
+  const workspaceCampaignSelectEl = document.getElementById("workspaceCampaignSelect");
+  const workspaceNewCampaignNameEl = document.getElementById("workspaceNewCampaignName");
+  const workspaceOpenCampaignBtn = document.getElementById("workspaceOpenCampaignBtn");
+  const workspaceCreateCampaignBtn = document.getElementById("workspaceCreateCampaignBtn");
+  const workspaceLauncherStatusEl = document.getElementById("workspaceLauncherStatus");
+  const workspaceCampaignTitleEl = document.getElementById("workspaceCampaignTitle");
+  const workspaceCampaignSubtitleEl = document.getElementById("workspaceCampaignSubtitle");
+  const workspaceSwitchCampaignBtn = document.getElementById("workspaceSwitchCampaignBtn");
   const prepSessionLabelEl = document.getElementById("prep-session-label");
   const prepFileInputEl = document.getElementById("prep-file-input");
   const prepImportBtn = document.getElementById("prep-import-btn");
@@ -1959,14 +1907,71 @@ async function postMetaOnce() {
   const prepJsonEl = document.getElementById("prep-json");
   const campaignNameEl = document.getElementById("campaignName");
   const campaignPartyEl = document.getElementById("campaignParty");
+  const campaignRosterBodyEl = document.getElementById("campaignRosterBody");
+  const campaignAddPlayerBtn = document.getElementById("campaignAddPlayerBtn");
+  const campaignAddNpcBtn = document.getElementById("campaignAddNpcBtn");
+  const campaignAddDmBtn = document.getElementById("campaignAddDmBtn");
+  const campaignPartyStatusEl = document.getElementById("campaignPartyStatus");
   const campaignSummaryEl = document.getElementById("campaignSummary");
   const campaignSessionSummariesEl = document.getElementById("campaignSessionSummaries");
+  const recordingCampaignContextPreviewEl = document.getElementById("recordingCampaignContextPreview");
   let campaignDirty = false;
   let lastLoadedCampaignId = '';
   let suppressCampaignChange = false;
+  let workspaceActive = false;
+  let campaignPartyRoster = [];
 
   function setPrepStatus(msg) {
     if (prepStatusEl) prepStatusEl.textContent = msg || "";
+  }
+
+  function setWorkspaceStatus(msg) {
+    if (workspaceLauncherStatusEl) workspaceLauncherStatusEl.textContent = msg || "";
+  }
+
+  function setCampaignPartyStatus(msg) {
+    if (campaignPartyStatusEl) campaignPartyStatusEl.textContent = msg || "";
+  }
+
+  function showWorkspace(active) {
+    workspaceActive = Boolean(active);
+    if (workspaceLauncherEl) {
+      workspaceLauncherEl.style.display = workspaceActive ? "none" : "";
+    }
+    if (workspaceMainEl) {
+      workspaceMainEl.classList.toggle("hidden-shell", !workspaceActive);
+      workspaceMainEl.style.display = workspaceActive ? "" : "none";
+    }
+  }
+
+  function activateTab(buttonId) {
+    const btn = document.getElementById(buttonId);
+    if (!btn || !window.bootstrap?.Tab) return;
+    window.bootstrap.Tab.getOrCreateInstance(btn).show();
+  }
+
+  function syncWorkspaceCampaignSelect(preferred = "") {
+    if (!workspaceCampaignSelectEl || !campaignSelectEl) return;
+    const current = preferred || String(campaignSelectEl.value || "").trim() || "default";
+    workspaceCampaignSelectEl.innerHTML = campaignSelectEl.innerHTML;
+    if (Array.from(workspaceCampaignSelectEl.options).some((opt) => opt.value === current)) {
+      workspaceCampaignSelectEl.value = current;
+    }
+  }
+
+  function updateWorkspaceHeader(campaign = {}, preview = "") {
+    const campaignName = String(campaign?.name || selectedCampaignId() || "Campaign").trim() || "Campaign";
+    const campaignId = String(campaign?.campaignId || selectedCampaignId() || "default").trim() || "default";
+    const contextPreview = String(preview || "").trim();
+    if (workspaceCampaignTitleEl) workspaceCampaignTitleEl.textContent = campaignName;
+    if (workspaceCampaignSubtitleEl) {
+      workspaceCampaignSubtitleEl.textContent = contextPreview
+        ? `${campaignId} • ${contextPreview.slice(0, 180)}${contextPreview.length > 180 ? "..." : ""}`
+        : `${campaignId} • no compiled context yet`;
+    }
+    if (recordingCampaignContextPreviewEl) {
+      recordingCampaignContextPreviewEl.textContent = contextPreview || "(no compiled context yet)";
+    }
   }
 
   function activeSessionId() {
@@ -1997,8 +2002,10 @@ async function postMetaOnce() {
   function setCampaignDirty(isDirty, message = '') {
     campaignDirty = Boolean(isDirty);
     if (campaignDirty) {
+      setCampaignPartyStatus('Campaign roster has unsaved changes.');
       setPrepStatus(message || 'Unsaved campaign changes.');
     } else if (message) {
+      setCampaignPartyStatus('');
       setPrepStatus(message);
     }
   }
@@ -2007,9 +2014,114 @@ async function postMetaOnce() {
     setCampaignDirty(true, 'Unsaved campaign changes. Save to keep them.');
   }
 
+  function syncCampaignPartyFromRoster(markDirty = false) {
+    if (campaignPartyEl) {
+      campaignPartyEl.value = rosterToPartyMetaText(campaignPartyRoster);
+    }
+    if (markDirty) {
+      markCampaignDirty();
+      setCampaignPartyStatus('Campaign roster updated. Save Campaign to make it canonical.');
+    }
+  }
+
+  function renderCampaignRoster() {
+    if (!campaignRosterBodyEl) return;
+    campaignRosterBodyEl.innerHTML = '';
+    if (!Array.isArray(campaignPartyRoster)) campaignPartyRoster = [];
+
+    campaignPartyRoster.forEach((row, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="text-center"><input type="checkbox" class="form-check-input" data-campaign-roster-field="included" data-campaign-roster-index="${index}" ${row.included ? 'checked' : ''}></td>
+        <td>
+          <select class="form-select form-select-sm" data-campaign-roster-field="role" data-campaign-roster-index="${index}">
+            <option value="Player" ${row.role === 'Player' ? 'selected' : ''}>Player</option>
+            <option value="NPC" ${row.role === 'NPC' ? 'selected' : ''}>NPC</option>
+            <option value="DM" ${row.role === 'DM' ? 'selected' : ''}>DM</option>
+          </select>
+        </td>
+        <td><input class="form-control form-control-sm" data-campaign-roster-field="playerName" data-campaign-roster-index="${index}" value="${escapeHtml(row.playerName)}"></td>
+        <td><input class="form-control form-control-sm" data-campaign-roster-field="characterName" data-campaign-roster-index="${index}" value="${escapeHtml(row.characterName)}"></td>
+        <td><input class="form-control form-control-sm" data-campaign-roster-field="className" data-campaign-roster-index="${index}" value="${escapeHtml(row.className)}"></td>
+        <td><input class="form-control form-control-sm" data-campaign-roster-field="race" data-campaign-roster-index="${index}" value="${escapeHtml(row.race)}"></td>
+        <td><input class="form-control form-control-sm" data-campaign-roster-field="aliases" data-campaign-roster-index="${index}" value="${escapeHtml(row.aliases)}"></td>
+        <td><button type="button" class="btn btn-outline-danger btn-sm" data-campaign-roster-remove="${index}">Remove</button></td>
+      `;
+      campaignRosterBodyEl.appendChild(tr);
+    });
+
+    syncCampaignPartyFromRoster(false);
+  }
+
+  function addCampaignRosterRow(role = 'Player') {
+    campaignPartyRoster.push(defaultRosterRow(role));
+    renderCampaignRoster();
+    syncCampaignPartyFromRoster(true);
+  }
+
+  function bindCampaignRosterEvents() {
+    if (campaignAddPlayerBtn) campaignAddPlayerBtn.addEventListener('click', () => addCampaignRosterRow('Player'));
+    if (campaignAddNpcBtn) campaignAddNpcBtn.addEventListener('click', () => addCampaignRosterRow('NPC'));
+    if (campaignAddDmBtn) campaignAddDmBtn.addEventListener('click', () => addCampaignRosterRow('DM'));
+
+    if (campaignRosterBodyEl) {
+      campaignRosterBodyEl.addEventListener('input', (evt) => {
+        const target = evt.target;
+        if (!(target instanceof HTMLElement)) return;
+        const field = target.getAttribute('data-campaign-roster-field');
+        const idx = Number(target.getAttribute('data-campaign-roster-index'));
+        if (!field || !Number.isInteger(idx) || !campaignPartyRoster[idx]) return;
+        if (field === 'included' && target instanceof HTMLInputElement) {
+          campaignPartyRoster[idx].included = Boolean(target.checked);
+        } else {
+          campaignPartyRoster[idx][field] = target.value;
+        }
+        syncCampaignPartyFromRoster(true);
+      });
+
+      campaignRosterBodyEl.addEventListener('change', (evt) => {
+        const target = evt.target;
+        if (!(target instanceof HTMLElement)) return;
+        const field = target.getAttribute('data-campaign-roster-field');
+        const idx = Number(target.getAttribute('data-campaign-roster-index'));
+        if (!field || !Number.isInteger(idx) || !campaignPartyRoster[idx]) return;
+        if (field === 'included' && target instanceof HTMLInputElement) {
+          campaignPartyRoster[idx].included = Boolean(target.checked);
+          syncCampaignPartyFromRoster(true);
+          return;
+        }
+        if (field === 'role') {
+          const role = target.value === 'DM' ? 'DM' : (target.value === 'NPC' ? 'NPC' : 'Player');
+          campaignPartyRoster[idx].role = role;
+          if (role === 'DM') {
+            if (!campaignPartyRoster[idx].characterName) campaignPartyRoster[idx].characterName = 'DM';
+            if (!campaignPartyRoster[idx].aliases) campaignPartyRoster[idx].aliases = 'DM, GM, Dungeon Master';
+          }
+          renderCampaignRoster();
+          syncCampaignPartyFromRoster(true);
+        }
+      });
+
+      campaignRosterBodyEl.addEventListener('click', (evt) => {
+        const target = evt.target;
+        if (!(target instanceof HTMLElement)) return;
+        const rawIdx = target.getAttribute('data-campaign-roster-remove');
+        if (rawIdx == null) return;
+        const idx = Number(rawIdx);
+        if (!Number.isInteger(idx)) return;
+        campaignPartyRoster.splice(idx, 1);
+        renderCampaignRoster();
+        syncCampaignPartyFromRoster(true);
+      });
+    }
+  }
+
   function renderCampaign(campaign, preview) {
     if (campaignNameEl) campaignNameEl.value = campaign?.name || selectedCampaignId();
+    campaignPartyRoster = parsePartyMetaText(campaign?.party || "");
+    renderCampaignRoster();
     if (campaignPartyEl) campaignPartyEl.value = campaign?.party || "";
+    setCampaignPartyStatus(campaignPartyRoster.length ? 'Campaign roster loaded.' : 'No saved campaign roster yet.');
     window.applyCampaignPartyToRecording?.(campaign?.party || '', campaign?.name || selectedCampaignId());
     if (campaignSummaryEl) campaignSummaryEl.value = campaign?.campaignSummary || "";
     if (campaignSessionSummariesEl) {
@@ -2020,6 +2132,7 @@ async function postMetaOnce() {
     if (prepSummaryEl) prepSummaryEl.textContent = preview || "(no compiled context yet)";
     lastLoadedCampaignId = String(campaign?.campaignId || selectedCampaignId() || 'default');
     setCampaignDirty(false);
+    updateWorkspaceHeader(campaign, preview);
     if (prepSessionLabelEl) {
       const sid = activeSessionId();
       prepSessionLabelEl.textContent = sid ? `Session: ${sid} | Campaign: ${campaign?.name || selectedCampaignId()}` : `Campaign: ${campaign?.name || selectedCampaignId()}`;
@@ -2048,24 +2161,35 @@ async function postMetaOnce() {
         campaigns.forEach((c) => addOption(String(c.campaignId || ''), String(c.name || c.campaignId || 'campaign')));
         if (!ids.has(current)) addOption(current, current);
         campaignSelectEl.value = current;
+        syncWorkspaceCampaignSelect(current);
         window.updateRecordingCampaignState?.();
       }
     } catch (e) {
       setPrepStatus(`Failed to load campaigns: ${e.message}`);
+      setWorkspaceStatus(`Failed to load campaigns: ${e.message}`);
     }
   }
 
-  async function loadCampaign() {
-    const campaignId = selectedCampaignId();
+  async function loadCampaign(campaignIdOverride = "") {
+    const campaignId = String(campaignIdOverride || selectedCampaignId()).trim() || "default";
     try {
+      if (campaignSelectEl) campaignSelectEl.value = campaignId;
+      syncWorkspaceCampaignSelect(campaignId);
       setPrepStatus(`Loading campaign ${campaignId}...`);
       const res = await fetch(`/api/campaign/get?campaignId=${encodeURIComponent(campaignId)}&_t=${Date.now()}`);
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
       renderCampaign(json.campaign || {}, json.contextPreview || '');
       setPrepStatus('');
+      setWorkspaceStatus('');
+      showWorkspace(true);
+      try { localStorage.setItem('dndtracker.activeCampaignId', campaignId); } catch (_) {}
+      window.refreshSessionsForActiveCampaign?.();
+      return json.campaign || {};
     } catch (e) {
       setPrepStatus(`Campaign load failed: ${e.message}`);
+      setWorkspaceStatus(`Campaign load failed: ${e.message}`);
+      throw e;
     }
   }
 
@@ -2094,8 +2218,52 @@ async function postMetaOnce() {
       await loadCampaignList(json.campaign?.campaignId || campaignId);
       renderCampaign(json.campaign || {}, json.contextPreview || '');
       setCampaignDirty(false, 'Campaign saved.');
+      try { localStorage.setItem('dndtracker.activeCampaignId', json.campaign?.campaignId || campaignId); } catch (_) {}
+      showWorkspace(true);
+      window.refreshSessionsForActiveCampaign?.();
     } catch (e) {
       setPrepStatus(`Campaign save failed: ${e.message}`);
+    }
+  }
+
+  async function activateWorkspaceCampaign(campaignId, targetTab = "tab-recording") {
+    const cid = String(campaignId || "").trim();
+    if (!cid) {
+      setWorkspaceStatus("Choose a campaign first.");
+      return;
+    }
+    await loadCampaign(cid);
+    activateTab(targetTab);
+  }
+
+  async function createWorkspaceCampaign() {
+    const name = String(workspaceNewCampaignNameEl?.value || "").trim();
+    if (!name) {
+      setWorkspaceStatus("Enter a campaign name first.");
+      return;
+    }
+    try {
+      setWorkspaceStatus(`Creating ${name}...`);
+      const campaignId = campaignIdFromName(name);
+      const res = await fetch('/api/campaign/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId,
+          name,
+          party: '',
+          campaignSummary: '',
+          dungeonMakerJson: {},
+          sessionSummaries: [],
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      if (workspaceNewCampaignNameEl) workspaceNewCampaignNameEl.value = '';
+      await loadCampaignList(json.campaign?.campaignId || campaignId);
+      await activateWorkspaceCampaign(json.campaign?.campaignId || campaignId, "tab-prep");
+    } catch (e) {
+      setWorkspaceStatus(`Create campaign failed: ${e.message}`);
     }
   }
 
@@ -2150,7 +2318,7 @@ async function postMetaOnce() {
 
   if (tabPrepEl) tabPrepEl.addEventListener('shown.bs.tab', async () => {
     await loadCampaignList();
-    if (!campaignDirty) {
+    if (!campaignDirty && workspaceActive) {
       await loadCampaign();
     } else {
       setPrepStatus('Unsaved campaign changes are still in the form.');
@@ -2172,6 +2340,18 @@ async function postMetaOnce() {
   if (prepSaveBtn) prepSaveBtn.addEventListener('click', saveCampaign);
   if (prepImportBtn) prepImportBtn.addEventListener('click', importDungeonJson);
   if (prepRefreshContextBtn) prepRefreshContextBtn.addEventListener('click', refreshSessionContext);
+  if (workspaceOpenCampaignBtn) workspaceOpenCampaignBtn.addEventListener('click', () => activateWorkspaceCampaign(workspaceCampaignSelectEl?.value || '', "tab-recording"));
+  if (workspaceCreateCampaignBtn) workspaceCreateCampaignBtn.addEventListener('click', createWorkspaceCampaign);
+  if (workspaceSwitchCampaignBtn) workspaceSwitchCampaignBtn.addEventListener('click', () => {
+    if (campaignDirty) {
+      setPrepStatus('Save or load campaign changes before switching.');
+      return;
+    }
+    showWorkspace(false);
+    syncWorkspaceCampaignSelect(selectedCampaignId());
+    setWorkspaceStatus('Choose another campaign.');
+  });
+  bindCampaignRosterEvents();
 
   [campaignNameEl, campaignPartyEl, campaignSummaryEl, campaignSessionSummariesEl, prepJsonEl].forEach((el) => {
     if (el) {
@@ -2180,14 +2360,25 @@ async function postMetaOnce() {
     }
   });
 
-  loadCampaignList().then(loadCampaign);
+  window.refreshSessionsForActiveCampaign = () => {};
+  loadCampaignList().then(() => {
+    const remembered = (() => {
+      try { return localStorage.getItem('dndtracker.activeCampaignId') || ''; } catch (_) { return ''; }
+    })();
+    syncWorkspaceCampaignSelect(remembered || selectedCampaignId());
+    showWorkspace(false);
+    updateWorkspaceHeader({ campaignId: remembered || '', name: remembered || '' }, '');
+  });
 })();
 
 // TEST NOTES MODULE
 // ================================
 (() => {
+  const tabTestEl = document.getElementById("tab-test");
   const testSessionSelectEl = document.getElementById("test-session-select");
   const testLoadSessionBtn = document.getElementById("test-load-session");
+  const testLoadHistorySessionBtn = document.getElementById("test-load-history-session");
+  const testReloadDefaultPromptBtn = document.getElementById("test-reload-default-prompt");
   const testTranscriptEl = document.getElementById("test-transcript");
   const testWindowEl = document.getElementById("test-window");
   const testChunkFromEl = document.getElementById("test-chunk-from");
@@ -2195,6 +2386,7 @@ async function postMetaOnce() {
   const testUseContextEl = document.getElementById("test-use-context");
   const testLastSummaryEl = document.getElementById("test-last-summary");
   const testPartyEl = document.getElementById("test-party");
+  const testPrepContextEl = document.getElementById("test-prep-context");
   const testPromptEl = document.getElementById("test-prompt");
   const testStatusEl = document.getElementById("test-status");
   const testOutputSummaryEl = document.getElementById("test-output-summary");
@@ -2203,6 +2395,10 @@ async function postMetaOnce() {
   const testOutputCompiledEl = document.getElementById("test-output-compiled");
   const testOutputRawEl = document.getElementById("test-output-raw");
   const testRunBtn = document.getElementById("test-run");
+  const testSaveMarkdownBtn = document.getElementById("test-save-markdown");
+  let lastTestRunPayload = null;
+  let lastTestRunResult = null;
+  let lastTestRunSessionMeta = {};
 
   function setTestStatus(msg) {
     if (testStatusEl) testStatusEl.textContent = msg || "";
@@ -2284,11 +2480,18 @@ async function postMetaOnce() {
 
       if (testTranscriptEl) testTranscriptEl.value = json.transcript || "";
       if (testPartyEl) testPartyEl.value = json.party || "";
+      if (testPrepContextEl) testPrepContextEl.value = json.contextSnapshot?.contextText || "";
       // Keep this empty by default: this field is for prior-session context,
       // not the currently loaded session's summary.
       if (testLastSummaryEl) testLastSummaryEl.value = "";
       if (testChunkFromEl) testChunkFromEl.value = "";
       if (testChunkToEl) testChunkToEl.value = "";
+      lastTestRunSessionMeta = {
+        sessionId: sid,
+        sessionName: json.sessionName || "",
+        campaignId: json.campaignId || "",
+        campaignName: json.campaignName || "",
+      };
       setTestStatus(`Loaded session ${sid}.`);
     } catch (e) {
       setTestStatus(`Failed to load session: ${e.message}`);
@@ -2300,7 +2503,7 @@ async function postMetaOnce() {
       const res = await fetch("/api/notes/default-prompt");
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
-      if (testPromptEl && !String(testPromptEl.value || "").trim()) {
+      if (testPromptEl) {
         testPromptEl.value = json.prompt || "";
       }
     } catch (e) {
@@ -2308,8 +2511,38 @@ async function postMetaOnce() {
     }
   }
 
+  async function openNotesLabForSession(sessionId) {
+    const sid = String(sessionId || "").trim();
+    if (!sid) {
+      setTestStatus("Select a History session first.");
+      return;
+    }
+    if (testSessionSelectEl) {
+      const existing = Array.from(testSessionSelectEl.options || []).find((opt) => opt.value === sid);
+      if (!existing) {
+        await loadTestSessions();
+      }
+      if (Array.from(testSessionSelectEl.options || []).some((opt) => opt.value === sid)) {
+        testSessionSelectEl.value = sid;
+      }
+    }
+    if (tabTestEl && window.bootstrap?.Tab) {
+      window.bootstrap.Tab.getOrCreateInstance(tabTestEl).show();
+    }
+    await loadTestSessionData();
+  }
+
   if (testLoadSessionBtn) {
     testLoadSessionBtn.addEventListener("click", loadTestSessionData);
+  }
+  if (testLoadHistorySessionBtn) {
+    testLoadHistorySessionBtn.addEventListener("click", async () => {
+      const sid = String(document.getElementById("sessions-select")?.value || "").trim();
+      await openNotesLabForSession(sid);
+    });
+  }
+  if (testReloadDefaultPromptBtn) {
+    testReloadDefaultPromptBtn.addEventListener("click", loadDefaultPrompt);
   }
 
   if (testRunBtn) {
@@ -2326,6 +2559,7 @@ async function postMetaOnce() {
           useContext: Boolean(testUseContextEl?.checked),
           summary: testLastSummaryEl?.value || "",
           party: testPartyEl?.value || "",
+          prepContextText: testPrepContextEl?.value || "",
           prompt: testPromptEl?.value || "",
         };
 
@@ -2338,6 +2572,8 @@ async function postMetaOnce() {
         if (!res.ok || !json.ok) {
           throw new Error(json?.error || `HTTP ${res.status}`);
         }
+        lastTestRunPayload = payload;
+        lastTestRunResult = json;
         renderTestOutput(json);
         const runs = Array.isArray(json.runs) ? json.runs.length : 0;
         setTestStatus(`Generated ${runs} notes call(s). Mode=${json.mode}, window=${json.window}.`);
@@ -2347,8 +2583,35 @@ async function postMetaOnce() {
     });
   }
 
+  if (testSaveMarkdownBtn) {
+    testSaveMarkdownBtn.addEventListener("click", async () => {
+      if (!lastTestRunPayload || !lastTestRunResult) {
+        setTestStatus("Run Notes Lab once before saving a markdown record.");
+        return;
+      }
+      try {
+        setTestStatus("Saving Notes Lab run to markdown...");
+        const res = await fetch("/api/notes/test/save-markdown", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionMeta: lastTestRunSessionMeta || {},
+            payload: lastTestRunPayload,
+            result: lastTestRunResult,
+          })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        setTestStatus(`Saved Notes Lab run to ${json.relativePath || json.path || 'notes-lab-runs'}.`);
+      } catch (e) {
+        setTestStatus(`Failed to save markdown run: ${e.message}`);
+      }
+    });
+  }
+
   loadTestSessions();
   loadDefaultPrompt();
+  window.openNotesLabForSession = openNotesLabForSession;
 })();
 </script>
 
@@ -2357,6 +2620,10 @@ async function postMetaOnce() {
 // SESSIONS BROWSER MODULE
 // ================================
 (() => {
+  const defaultRosterRow = window.defaultRosterRow;
+  const parsePartyMetaText = window.parsePartyMetaText;
+  const rosterToPartyMetaText = window.rosterToPartyMetaText;
+  const tabSessionsEl = document.getElementById("tab-sessions");
   const sessionsSelectEl = document.getElementById("sessions-select");
   const sessionsWindowInputEl = document.getElementById("sessions-window-input");
   const sessionsNameInputEl = document.getElementById("sessions-name-input");
@@ -2369,14 +2636,25 @@ async function postMetaOnce() {
   const sessionsNotesSummaryEl = document.getElementById("sessions-notes-summary");
   const sessionsNotesStateEl = document.getElementById("sessions-notes-state");
   const sessionsRefreshEl = document.getElementById("sessions-refresh");
+  const sessionsBackfillTranscriptsEl = document.getElementById("sessions-backfill-transcripts");
   const sessionsCleanTranscriptEl = document.getElementById("sessions-clean-transcript");
   const sessionsReprocessEl = document.getElementById("sessions-reprocess");
+  const sessionsStopReprocessEl = document.getElementById("sessions-stop-reprocess");
   const sessionsGenerateSummaryEl = document.getElementById("sessions-generate-summary");
   const sessionsGenerateNarrativeEl = document.getElementById("sessions-generate-narrative");
+  const sessionsOpenNotesLabEl = document.getElementById("sessions-open-notes-lab");
   const sessionsNarrativeWordCountEl = document.getElementById("sessions-narrative-word-count");
   const sessionsNarrativeGuidanceEl = document.getElementById("sessions-narrative-guidance");
   const sessionsGameSummaryEl = document.getElementById("sessions-game-summary");
   const sessionsGameNarrativeEl = document.getElementById("sessions-game-narrative");
+  const sessionsRosterBodyEl = document.getElementById("sessions-roster-body");
+  const sessionsPartyMetaEl = document.getElementById("sessions-party-meta");
+  const sessionsPartyStatusEl = document.getElementById("sessions-party-status");
+  const sessionsRosterLoadSessionEl = document.getElementById("sessions-roster-load-session");
+  const sessionsRosterAddPlayerEl = document.getElementById("sessions-roster-add-player");
+  const sessionsRosterAddNpcEl = document.getElementById("sessions-roster-add-npc");
+  const sessionsRosterAddDmEl = document.getElementById("sessions-roster-add-dm");
+  const sessionsRosterSaveEl = document.getElementById("sessions-roster-save");
   const copySessionsGameSummaryEl = document.getElementById("copy-sessions-game-summary");
   const copySessionsGameNarrativeEl = document.getElementById("copy-sessions-game-narrative");
   const copySessionsTranscriptEl = document.getElementById("copy-sessions-transcript");
@@ -2384,6 +2662,113 @@ async function postMetaOnce() {
   const copySessionsNotesSummaryEl = document.getElementById("copy-sessions-notes-summary");
   const copySessionsNotesStateEl = document.getElementById("copy-sessions-notes-state");
   let reprocessPollTimer = null;
+  let cleanTranscriptPollTimer = null;
+  let transcriptBackfillPollTimer = null;
+  let currentReprocessStatus = {};
+  let currentTranscriptBackfillStatus = {};
+  let currentMissingTranscriptChunks = [];
+  let currentNotesTimeline = [];
+  let currentNotesTimelineText = '';
+  let editingTimelineItemId = '';
+  let timelineSavePending = false;
+  let reprocessStartPending = false;
+  let cleanTranscriptStartPending = false;
+  let transcriptBackfillStartPending = false;
+  let sessionsPartyRoster = [];
+  let sessionsPartyDirty = false;
+
+  function setSessionsPartyStatus(msg) {
+    if (sessionsPartyStatusEl) sessionsPartyStatusEl.textContent = msg || '';
+  }
+
+  function currentHistorySessionId() {
+    const raw = String(sessionsSelectEl?.value || '').trim();
+    return /^\d{8,20}$/.test(raw) ? raw : '';
+  }
+
+  function syncSessionsPartyMeta(markDirty = false) {
+    if (sessionsPartyMetaEl) sessionsPartyMetaEl.value = rosterToPartyMetaText(sessionsPartyRoster);
+    if (markDirty) sessionsPartyDirty = true;
+  }
+
+  function renderSessionsRoster() {
+    if (!sessionsRosterBodyEl) return;
+    sessionsRosterBodyEl.innerHTML = '';
+    if (!Array.isArray(sessionsPartyRoster)) sessionsPartyRoster = [];
+
+    sessionsPartyRoster.forEach((row, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="text-center"><input type="checkbox" class="form-check-input" data-sessions-roster-field="included" data-sessions-roster-index="${index}" ${row.included ? 'checked' : ''}></td>
+        <td>
+          <select class="form-select form-select-sm" data-sessions-roster-field="role" data-sessions-roster-index="${index}">
+            <option value="Player" ${row.role === 'Player' ? 'selected' : ''}>Player</option>
+            <option value="NPC" ${row.role === 'NPC' ? 'selected' : ''}>NPC</option>
+            <option value="DM" ${row.role === 'DM' ? 'selected' : ''}>DM</option>
+          </select>
+        </td>
+        <td><input class="form-control form-control-sm" data-sessions-roster-field="playerName" data-sessions-roster-index="${index}" value="${escapeHtml(row.playerName)}"></td>
+        <td><input class="form-control form-control-sm" data-sessions-roster-field="characterName" data-sessions-roster-index="${index}" value="${escapeHtml(row.characterName)}"></td>
+        <td><input class="form-control form-control-sm" data-sessions-roster-field="className" data-sessions-roster-index="${index}" value="${escapeHtml(row.className)}"></td>
+        <td><input class="form-control form-control-sm" data-sessions-roster-field="race" data-sessions-roster-index="${index}" value="${escapeHtml(row.race)}"></td>
+        <td><input class="form-control form-control-sm" data-sessions-roster-field="aliases" data-sessions-roster-index="${index}" value="${escapeHtml(row.aliases)}"></td>
+        <td><button type="button" class="btn btn-outline-danger btn-sm" data-sessions-roster-remove="${index}">Remove</button></td>
+      `;
+      sessionsRosterBodyEl.appendChild(tr);
+    });
+
+    syncSessionsPartyMeta(false);
+  }
+
+  function setSessionsRosterFromText(rawParty, message = '') {
+    sessionsPartyRoster = parsePartyMetaText(rawParty || '');
+    sessionsPartyDirty = false;
+    renderSessionsRoster();
+    setSessionsPartyStatus(message || (sessionsPartyRoster.length
+      ? 'Loaded saved session roster.'
+      : 'No saved roster found for this session.'));
+  }
+
+  function addSessionsRosterRow(role = 'Player') {
+    sessionsPartyRoster.push(defaultRosterRow(role));
+    sessionsPartyDirty = true;
+    renderSessionsRoster();
+    setSessionsPartyStatus('History roster updated. Save To Selected Session before rebuilding.');
+  }
+
+  async function saveHistoryRosterToSession() {
+    const sessionId = currentHistorySessionId();
+    const party = String(sessionsPartyMetaEl?.value || '').trim();
+    if (!sessionId) {
+      setSessionsPartyStatus('Select a session first.');
+      return false;
+    }
+    if (!party) {
+      setSessionsPartyStatus('Add at least one included participant before saving.');
+      return false;
+    }
+    setSessionsPartyStatus(`Saving roster to session ${sessionId}...`);
+    const res = await fetch('/api/meta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, party })
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) {
+      throw new Error(json?.error || `Session roster save failed (${res.status})`);
+    }
+    sessionsPartyDirty = false;
+    setSessionsPartyStatus(`Saved roster to session ${sessionId}. Rebuild notes or clean transcript when ready.`);
+    return true;
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
 
   function formatState(state) {
     if (!state || typeof state !== "object") return "(no tracked state yet)";
@@ -2394,6 +2779,239 @@ async function postMetaOnce() {
       out.push(`${k.toUpperCase()}: ${items.length ? items.join(" | ") : "(none)"}`);
     });
     return out.join("\n");
+  }
+
+  function timelineTextFromItems(items) {
+    return (Array.isArray(items) ? items : [])
+      .map((item) => {
+        const chunkIndex = Number(item?.chunkIndex ?? -1);
+        const text = String(item?.text || '').trim();
+        if (!text) return '';
+        return `[${String(Number.isFinite(chunkIndex) ? chunkIndex : -1).padStart(4, '0')}] ${text}`;
+      })
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  function setNotesTimeline(items, explicitText = '') {
+    currentNotesTimeline = Array.isArray(items) ? items.slice() : [];
+    currentNotesTimelineText = String(explicitText || '').trim() || timelineTextFromItems(currentNotesTimeline);
+    renderNotesTimeline();
+  }
+
+  function timelinePriorityTag(priority) {
+    if (Number(priority) > 0) return '<span class="timeline-tag">Promoted</span>';
+    if (Number(priority) < 0) return '<span class="timeline-tag">Downplayed</span>';
+    return '';
+  }
+
+  function renderNotesTimeline() {
+    if (!sessionsNotesEl) return;
+    const items = Array.isArray(currentNotesTimeline) ? currentNotesTimeline : [];
+    if (!items.length) {
+      sessionsNotesEl.innerHTML = '<div class="text-muted small">(no DM notes timeline yet)</div>';
+      return;
+    }
+    sessionsNotesEl.innerHTML = items.map((item) => {
+      const itemId = String(item?.id || '');
+      const chunkIndex = Number(item?.chunkIndex ?? -1);
+      const text = String(item?.text || '').trim();
+      const originalText = String(item?.originalText || '').trim();
+      const editedText = String(item?.editedText || '').trim();
+      const isEdited = Boolean(item?.isEdited);
+      const priority = Number(item?.priority || 0);
+      const isEditing = editingTimelineItemId === itemId;
+      const classes = ['timeline-item'];
+      if (priority > 0) classes.push('promoted');
+      if (priority < 0) classes.push('downplayed');
+      const editTag = isEdited ? '<span class="timeline-tag">Edited</span>' : '';
+      const priorityTag = timelinePriorityTag(priority);
+      const originalBlock = isEdited ? `<div class="small text-muted mt-2"><strong>Original:</strong> ${escapeHtml(originalText)}</div>` : '';
+      const editorBlock = isEditing ? `
+        <div class="timeline-editor">
+          <label class="form-label form-label-sm small mb-1">Corrected timeline text</label>
+          <textarea class="form-control form-control-sm timeline-edit-text" data-item-id="${escapeHtml(itemId)}" rows="3">${escapeHtml(editedText || text)}</textarea>
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            <button class="btn btn-primary btn-sm" data-action="save-edit" data-item-id="${escapeHtml(itemId)}"${timelineSavePending ? ' disabled' : ''}>Save Edit</button>
+            <button class="btn btn-outline-secondary btn-sm" data-action="cancel-edit" data-item-id="${escapeHtml(itemId)}"${timelineSavePending ? ' disabled' : ''}>Cancel</button>
+            <button class="btn btn-outline-danger btn-sm" data-action="clear-edit" data-item-id="${escapeHtml(itemId)}"${timelineSavePending ? ' disabled' : ''}>Clear Edit</button>
+          </div>
+        </div>` : '';
+      return `
+        <div class="${classes.join(' ')}" data-item-id="${escapeHtml(itemId)}">
+          <div class="timeline-meta">
+            <div class="timeline-tags">
+              <span class="timeline-tag mono">[${String(Number.isFinite(chunkIndex) ? chunkIndex : -1).padStart(4, '0')}]</span>
+              ${editTag}
+              ${priorityTag}
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <button class="btn btn-outline-secondary btn-sm" data-action="edit" data-item-id="${escapeHtml(itemId)}"${timelineSavePending ? ' disabled' : ''}>Edit</button>
+              <button class="btn btn-outline-success btn-sm" data-action="promote" data-item-id="${escapeHtml(itemId)}"${timelineSavePending ? ' disabled' : ''}>+</button>
+              <button class="btn btn-outline-warning btn-sm" data-action="downplay" data-item-id="${escapeHtml(itemId)}"${timelineSavePending ? ' disabled' : ''}>-</button>
+              <button class="btn btn-outline-dark btn-sm" data-action="neutral" data-item-id="${escapeHtml(itemId)}"${timelineSavePending ? ' disabled' : ''}>Clear Weight</button>
+            </div>
+          </div>
+          <div class="timeline-text">${escapeHtml(text)}</div>
+          ${originalBlock}
+          ${editorBlock}
+        </div>
+      `;
+    }).join('');
+  }
+
+  function updateReprocessControls(rep) {
+    currentReprocessStatus = rep && typeof rep === 'object' ? rep : {};
+    const backfillRunning = Boolean(currentTranscriptBackfillStatus?.running);
+    if (sessionsReprocessEl) sessionsReprocessEl.disabled = Boolean(reprocessStartPending || currentReprocessStatus.running || backfillRunning);
+    if (sessionsCleanTranscriptEl) {
+      const cleanStatus = window.__currentCleanTranscriptStatus || {};
+      sessionsCleanTranscriptEl.disabled = Boolean(cleanTranscriptStartPending || cleanStatus.running || currentReprocessStatus.running || backfillRunning);
+    }
+    if (!sessionsStopReprocessEl) return;
+    const phase = String(currentReprocessStatus.phase || '').trim();
+    const canAct = Boolean(currentReprocessStatus.running || phase === 'stale');
+    sessionsStopReprocessEl.disabled = !canAct;
+    sessionsStopReprocessEl.textContent = phase === 'stale' ? 'Clear Stale Rebuild' : 'Stop Rebuild';
+  }
+
+  function updateCleanTranscriptControls(cleanStatus) {
+    window.__currentCleanTranscriptStatus = cleanStatus && typeof cleanStatus === 'object' ? cleanStatus : {};
+    if (sessionsCleanTranscriptEl) {
+      sessionsCleanTranscriptEl.disabled = Boolean(
+        cleanTranscriptStartPending ||
+        window.__currentCleanTranscriptStatus.running ||
+        currentReprocessStatus.running ||
+        currentTranscriptBackfillStatus.running
+      );
+    }
+  }
+
+  function updateTranscriptBackfillControls(status, missingChunks = currentMissingTranscriptChunks) {
+    currentTranscriptBackfillStatus = status && typeof status === 'object' ? status : {};
+    currentMissingTranscriptChunks = Array.isArray(missingChunks) ? missingChunks.slice() : [];
+    if (!sessionsBackfillTranscriptsEl) return;
+    const missingCount = currentMissingTranscriptChunks.length;
+    const isRunning = Boolean(currentTranscriptBackfillStatus.running);
+    sessionsBackfillTranscriptsEl.disabled = Boolean(
+      transcriptBackfillStartPending ||
+      isRunning ||
+      currentReprocessStatus.running ||
+      window.__currentCleanTranscriptStatus?.running ||
+      missingCount <= 0
+    );
+    sessionsBackfillTranscriptsEl.textContent = missingCount > 0
+      ? `Backfill Missing Audio (${missingCount})`
+      : 'Backfill Missing Audio';
+  }
+
+  function reprocessStatusMessage(sessionId, rep, fallback = '') {
+    const phase = String(rep?.phase || '').trim();
+    const processed = Number(rep?.processed || 0);
+    const total = Number(rep?.total || 0);
+    const window = Number(rep?.window || 0);
+    const heartbeatAge = Number(rep?.stallSeconds || rep?.heartbeatAgeSec || 0);
+    const w = window > 0 ? `, window=${window}` : '';
+    if (rep?.running) {
+      if (phase === 'stop_requested') return `Session ${sessionId} (rebuild stop requested, waiting for current step to finish${w})`;
+      if (rep?.stalled) return `Session ${sessionId} (rebuild appears stalled: ${phase} ${processed}/${total || '?'}${w}, no heartbeat for ${heartbeatAge}s)`;
+      return `Session ${sessionId} (rebuild running: ${phase} ${processed}/${total || '?'}${w})`;
+    }
+    if (phase === 'stale') return `Session ${sessionId} (stale rebuild detected: ${rep?.error || 'worker is no longer active'})`;
+    if (phase === 'error') return `Session ${sessionId} (rebuild error: ${rep?.error || 'unknown error'})`;
+    if (phase === 'stopped') return `Session ${sessionId} (rebuild stopped)`;
+    if (phase === 'done') return `Session ${sessionId} (rebuild complete: ${processed}/${total || processed})`;
+    return fallback || `Session ${sessionId}`;
+  }
+
+  function cleanTranscriptStatusMessage(sessionId, status, fallback = '') {
+    const phase = String(status?.phase || '').trim();
+    const processed = Number(status?.processed || 0);
+    const total = Number(status?.total || 0);
+    if (status?.running) return `Session ${sessionId} (clean transcript rebuilding: ${processed}/${total || '?'})`;
+    if (phase === 'error') return `Session ${sessionId} (clean transcript error: ${status?.error || 'unknown error'})`;
+    if (phase === 'done') return `Session ${sessionId} (clean transcript rebuilt: ${processed}/${total || processed} chunks)`;
+    return fallback || `Session ${sessionId}`;
+  }
+
+  function transcriptBackfillStatusMessage(sessionId, status, missingChunks = currentMissingTranscriptChunks, fallback = '') {
+    const phase = String(status?.phase || '').trim();
+    const processed = Number(status?.processed || 0);
+    const total = Number(status?.total || 0);
+    const missingCount = Array.isArray(missingChunks) ? missingChunks.length : 0;
+    if (status?.running) return `Session ${sessionId} (recovering missing audio transcripts: ${processed}/${total || '?'})`;
+    if (phase === 'error') return `Session ${sessionId} (transcript backfill error: ${status?.error || 'unknown error'})`;
+    if (phase === 'stale') return `Session ${sessionId} (transcript backfill stale: ${status?.error || 'worker is no longer active'})`;
+    if (phase === 'done') return `Session ${sessionId} (transcript backfill complete: ${processed}/${total || processed}; rebuild notes next)`;
+    if (missingCount > 0) return `Session ${sessionId} (${missingCount} saved audio chunk${missingCount === 1 ? '' : 's'} missing from transcript)`;
+    return fallback || `Session ${sessionId}`;
+  }
+
+  function statusUpdatedAt(status) {
+    if (!status || typeof status !== 'object') return 0;
+    const candidates = [
+      Number(status.updatedAt || 0),
+      Number(status.finishedAt || 0),
+      Number(status.heartbeatAt || 0),
+      Number(status.startedAt || 0)
+    ];
+    return Math.max(...candidates.filter((n) => Number.isFinite(n)));
+  }
+
+  function historyStatusText(sessionId, rep, cleanStatus, backfillStatus, missingChunks, fallback = '') {
+    if (rep?.running) return reprocessStatusMessage(sessionId, rep, fallback);
+    if (cleanStatus?.running) return cleanTranscriptStatusMessage(sessionId, cleanStatus, fallback);
+    if (backfillStatus?.running) return transcriptBackfillStatusMessage(sessionId, backfillStatus, missingChunks, fallback);
+
+    const statuses = [
+      { kind: 'reprocess', status: rep, updatedAt: statusUpdatedAt(rep) },
+      { kind: 'clean', status: cleanStatus, updatedAt: statusUpdatedAt(cleanStatus) },
+      { kind: 'backfill', status: backfillStatus, updatedAt: statusUpdatedAt(backfillStatus) },
+    ].filter((item) => {
+      const phase = String(item?.status?.phase || '').trim();
+      return Boolean(phase) && phase !== 'starting';
+    }).sort((a, b) => b.updatedAt - a.updatedAt);
+
+    const latest = statuses[0];
+    if (latest?.kind === 'reprocess') return reprocessStatusMessage(sessionId, rep, fallback);
+    if (latest?.kind === 'clean') return cleanTranscriptStatusMessage(sessionId, cleanStatus, fallback);
+    if (latest?.kind === 'backfill') return transcriptBackfillStatusMessage(sessionId, backfillStatus, missingChunks, fallback);
+
+    if ((missingChunks || []).length > 0) {
+      return transcriptBackfillStatusMessage(sessionId, backfillStatus, missingChunks, fallback);
+    }
+    return fallback || `Session ${sessionId}`;
+  }
+
+  function sessionTranscriptText(json) {
+    const missingCount = Array.isArray(json?.missingTranscriptChunks) ? json.missingTranscriptChunks.length : 0;
+    const backfillRunning = Boolean(json?.transcriptBackfillStatus?.running);
+    if (backfillRunning || missingCount > 0) {
+      return json?.transcript || json?.cleanTranscript || '(no transcript)';
+    }
+    return json?.cleanTranscript || json?.transcript || '(no transcript)';
+  }
+
+  async function updateTimelineItem(sessionId, itemId, patch, successMessage) {
+    if (!sessionId || !itemId) return;
+    try {
+      timelineSavePending = true;
+      renderNotesTimeline();
+      const res = await fetch('/api/session/notes/timeline/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, itemId, ...patch })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      setNotesTimeline(json.notesTimeline || [], json.notesTimelineText || '');
+      if (sessionsInfoEl) sessionsInfoEl.textContent = successMessage || `Updated timeline item ${itemId}.`;
+    } catch (e) {
+      if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
+    } finally {
+      timelineSavePending = false;
+      renderNotesTimeline();
+    }
   }
 
   async function copyTextToClipboard(text, label) {
@@ -2442,7 +3060,11 @@ async function postMetaOnce() {
       if (sessionsSelectEl) sessionsSelectEl.innerHTML = '';
       if (sessionsInfoEl) sessionsInfoEl.textContent = 'Loading...';
       await loadSessionCampaignOptions();
-      const res = await fetch('/api/sessions/list?limit=100');
+      const activeCampaignId = String(document.getElementById('campaignSelect')?.value || '').trim();
+      const query = activeCampaignId
+        ? `/api/sessions/list?limit=100&campaignId=${encodeURIComponent(activeCampaignId)}`
+        : '/api/sessions/list?limit=100';
+      const res = await fetch(query);
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
       const sessions = json.sessions || [];
@@ -2450,9 +3072,10 @@ async function postMetaOnce() {
       if (sessions.length === 0) {
         const opt = document.createElement('option');
         opt.value = '';
-        opt.textContent = 'No sessions found';
+        opt.textContent = activeCampaignId ? 'No sessions found for this campaign' : 'No sessions found';
         sessionsSelectEl.appendChild(opt);
-        if (sessionsInfoEl) sessionsInfoEl.textContent = '';
+        setSessionsRosterFromText('', 'Select a session to load its saved roster.');
+        if (sessionsInfoEl) sessionsInfoEl.textContent = activeCampaignId ? `No history yet for ${activeCampaignId}.` : '';
         return;
       }
       sessions.forEach((s) => {
@@ -2482,31 +3105,127 @@ async function postMetaOnce() {
 
       if (sessionsInfoEl) sessionsInfoEl.textContent = 'Session ' + sessionId + (json.campaignName ? ` | Campaign: ${json.campaignName}` : '');
       if (sessionsNameInputEl) sessionsNameInputEl.value = json.sessionName || '';
+      setSessionsRosterFromText(json.party || '', json.party ? 'Loaded saved session roster.' : 'No saved roster found for this session.');
       await loadSessionCampaignOptions(json.campaignId || 'default');
       if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = json.gameSummary || '(no game summary yet)';
       if (sessionsGameNarrativeEl) sessionsGameNarrativeEl.textContent = json.gameNarrative || '(no narrative yet)';
-      if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = json.cleanTranscript || json.transcript || '(no transcript)';
-      if (sessionsNotesEl) sessionsNotesEl.textContent = json.notes || '(no notes)';
+      if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = sessionTranscriptText(json);
+      editingTimelineItemId = '';
+      setNotesTimeline(json.notesTimeline || [], json.notesTimelineText || json.notes || '');
       if (sessionsNotesSummaryEl) {
-        sessionsNotesSummaryEl.textContent = json.summary ? `Summary: ${String(json.summary).trim()}` : '';
+        sessionsNotesSummaryEl.textContent = json.summary ? `Rolling Notes Summary: ${String(json.summary).trim()}` : '';
       }
       if (sessionsNotesStateEl) {
         sessionsNotesStateEl.textContent = formatState(json.notesState);
       }
       const rep = json.reprocessStatus || {};
-      if (rep.running && sessionsInfoEl) {
-        const processed = Number(rep.processed || 0);
-        const total = Number(rep.total || 0);
-        const phase = rep.phase || 'notes';
-        const window = Number(rep.window || 0);
-        const w = window > 0 ? `, window=${window}` : '';
-        sessionsInfoEl.textContent = `Session ${sessionId} (rebuild running: ${phase} ${processed}/${total || '?'}${w})`;
-      } else if (rep.phase === 'error' && sessionsInfoEl) {
-        sessionsInfoEl.textContent = `Session ${sessionId} (rebuild error: ${rep.error || 'unknown error'})`;
+      const cleanStatus = json.cleanTranscriptStatus || {};
+      const backfillStatus = json.transcriptBackfillStatus || {};
+      const missingChunks = Array.isArray(json.missingTranscriptChunks) ? json.missingTranscriptChunks : [];
+      updateTranscriptBackfillControls(backfillStatus, missingChunks);
+      updateCleanTranscriptControls(cleanStatus);
+      updateReprocessControls(rep);
+      const fallbackText = 'Session ' + sessionId + (json.campaignName ? ` | Campaign: ${json.campaignName}` : '');
+      if (backfillStatus.running) {
+        stopReprocessPolling();
+        startTranscriptBackfillPolling(sessionId);
+        stopCleanTranscriptPolling();
+        if (sessionsInfoEl) sessionsInfoEl.textContent = historyStatusText(sessionId, rep, cleanStatus, backfillStatus, missingChunks, fallbackText);
+      } else if (cleanStatus.running) {
+        stopReprocessPolling();
+        stopTranscriptBackfillPolling();
+        startCleanTranscriptPolling(sessionId);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = historyStatusText(sessionId, rep, cleanStatus, backfillStatus, missingChunks, fallbackText);
+      } else {
+        stopTranscriptBackfillPolling();
+        stopCleanTranscriptPolling();
+        stopReprocessPolling();
+        if (sessionsInfoEl) sessionsInfoEl.textContent = historyStatusText(sessionId, rep, cleanStatus, backfillStatus, missingChunks, fallbackText);
       }
     } catch (e) {
       if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
     }
+  }
+
+  if (sessionsRosterLoadSessionEl) {
+    sessionsRosterLoadSessionEl.addEventListener('click', async () => {
+      const sessionId = currentHistorySessionId();
+      if (!sessionId) {
+        setSessionsPartyStatus('Select a session first.');
+        return;
+      }
+      await loadSessionDetail(sessionId);
+    });
+  }
+
+  if (sessionsRosterAddPlayerEl) sessionsRosterAddPlayerEl.addEventListener('click', () => addSessionsRosterRow('Player'));
+  if (sessionsRosterAddNpcEl) sessionsRosterAddNpcEl.addEventListener('click', () => addSessionsRosterRow('NPC'));
+  if (sessionsRosterAddDmEl) sessionsRosterAddDmEl.addEventListener('click', () => addSessionsRosterRow('DM'));
+  if (sessionsRosterSaveEl) {
+    sessionsRosterSaveEl.addEventListener('click', async () => {
+      try {
+        await saveHistoryRosterToSession();
+      } catch (e) {
+        setSessionsPartyStatus(`Failed to save session roster: ${e.message}`);
+      }
+    });
+  }
+
+  if (sessionsRosterBodyEl) {
+    sessionsRosterBodyEl.addEventListener('input', (evt) => {
+      const target = evt.target;
+      if (!(target instanceof HTMLElement)) return;
+      const field = target.getAttribute('data-sessions-roster-field');
+      const idx = Number(target.getAttribute('data-sessions-roster-index'));
+      if (!field || !Number.isInteger(idx) || !sessionsPartyRoster[idx]) return;
+      if (field === 'included' && target instanceof HTMLInputElement) {
+        sessionsPartyRoster[idx].included = Boolean(target.checked);
+      } else {
+        sessionsPartyRoster[idx][field] = target.value;
+      }
+      sessionsPartyDirty = true;
+      syncSessionsPartyMeta(true);
+      setSessionsPartyStatus('History roster updated. Save To Selected Session before rebuilding.');
+    });
+
+    sessionsRosterBodyEl.addEventListener('change', (evt) => {
+      const target = evt.target;
+      if (!(target instanceof HTMLElement)) return;
+      const field = target.getAttribute('data-sessions-roster-field');
+      const idx = Number(target.getAttribute('data-sessions-roster-index'));
+      if (!field || !Number.isInteger(idx) || !sessionsPartyRoster[idx]) return;
+      if (field === 'included' && target instanceof HTMLInputElement) {
+        sessionsPartyRoster[idx].included = Boolean(target.checked);
+        sessionsPartyDirty = true;
+        syncSessionsPartyMeta(true);
+        setSessionsPartyStatus('History roster updated. Save To Selected Session before rebuilding.');
+        return;
+      }
+      if (field === 'role') {
+        const role = target.value === 'DM' ? 'DM' : (target.value === 'NPC' ? 'NPC' : 'Player');
+        sessionsPartyRoster[idx].role = role;
+        if (role === 'DM') {
+          if (!sessionsPartyRoster[idx].characterName) sessionsPartyRoster[idx].characterName = 'DM';
+          if (!sessionsPartyRoster[idx].aliases) sessionsPartyRoster[idx].aliases = 'DM, GM, Dungeon Master';
+        }
+        sessionsPartyDirty = true;
+        renderSessionsRoster();
+        setSessionsPartyStatus('History roster updated. Save To Selected Session before rebuilding.');
+      }
+    });
+
+    sessionsRosterBodyEl.addEventListener('click', (evt) => {
+      const target = evt.target;
+      if (!(target instanceof HTMLElement)) return;
+      const rawIdx = target.getAttribute('data-sessions-roster-remove');
+      if (rawIdx == null) return;
+      const idx = Number(rawIdx);
+      if (!Number.isInteger(idx)) return;
+      sessionsPartyRoster.splice(idx, 1);
+      sessionsPartyDirty = true;
+      renderSessionsRoster();
+      setSessionsPartyStatus('History roster updated. Save To Selected Session before rebuilding.');
+    });
   }
 
   function stopReprocessPolling() {
@@ -2514,7 +3233,73 @@ async function postMetaOnce() {
     reprocessPollTimer = null;
   }
 
+  function stopCleanTranscriptPolling() {
+    if (cleanTranscriptPollTimer) clearInterval(cleanTranscriptPollTimer);
+    cleanTranscriptPollTimer = null;
+  }
+
+  function stopTranscriptBackfillPolling() {
+    if (transcriptBackfillPollTimer) clearInterval(transcriptBackfillPollTimer);
+    transcriptBackfillPollTimer = null;
+  }
+
+  function startTranscriptBackfillPolling(sessionId) {
+    stopReprocessPolling();
+    stopCleanTranscriptPolling();
+    stopTranscriptBackfillPolling();
+    transcriptBackfillPollTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/sessions/get?sessionId=${encodeURIComponent(sessionId)}&_t=${Date.now()}`);
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) return;
+        const backfillStatus = json.transcriptBackfillStatus || {};
+        const cleanStatus = json.cleanTranscriptStatus || {};
+        const rep = json.reprocessStatus || {};
+        const missingChunks = Array.isArray(json.missingTranscriptChunks) ? json.missingTranscriptChunks : [];
+        updateTranscriptBackfillControls(backfillStatus, missingChunks);
+        updateCleanTranscriptControls(cleanStatus);
+        updateReprocessControls(rep);
+        if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = sessionTranscriptText(json);
+        if (sessionsInfoEl) {
+          sessionsInfoEl.textContent = transcriptBackfillStatusMessage(sessionId, backfillStatus, missingChunks, sessionsInfoEl.textContent || `Session ${sessionId}`);
+        }
+        if (!backfillStatus.running) {
+          stopTranscriptBackfillPolling();
+          await loadSessionDetail(sessionId);
+        }
+      } catch (_) {}
+    }, 1500);
+  }
+
+  function startCleanTranscriptPolling(sessionId) {
+    stopReprocessPolling();
+    stopTranscriptBackfillPolling();
+    stopCleanTranscriptPolling();
+    cleanTranscriptPollTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/sessions/get?sessionId=${encodeURIComponent(sessionId)}&_t=${Date.now()}`);
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) return;
+        const cleanStatus = json.cleanTranscriptStatus || {};
+        const backfillStatus = json.transcriptBackfillStatus || {};
+        const missingChunks = Array.isArray(json.missingTranscriptChunks) ? json.missingTranscriptChunks : [];
+        updateTranscriptBackfillControls(backfillStatus, missingChunks);
+        updateCleanTranscriptControls(cleanStatus);
+        if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = sessionTranscriptText(json);
+        if (sessionsInfoEl) {
+          sessionsInfoEl.textContent = cleanTranscriptStatusMessage(sessionId, cleanStatus, sessionsInfoEl.textContent || `Session ${sessionId}`);
+        }
+        if (!cleanStatus.running) {
+          stopCleanTranscriptPolling();
+          await loadSessionDetail(sessionId);
+        }
+      } catch (_) {}
+    }, 1500);
+  }
+
   function startReprocessPolling(sessionId) {
+    stopCleanTranscriptPolling();
+    stopTranscriptBackfillPolling();
     stopReprocessPolling();
     reprocessPollTimer = setInterval(async () => {
       try {
@@ -2522,24 +3307,18 @@ async function postMetaOnce() {
         const json = await res.json().catch(() => ({}));
         if (!res.ok || !json.ok) return;
         const rep = json.reprocessStatus || {};
-        const processed = Number(rep.processed || 0);
-        const total = Number(rep.total || 0);
-        const phase = rep.phase || 'notes';
-        const window = Number(rep.window || 0);
-        const w = window > 0 ? `, window=${window}` : '';
-        if (sessionsInfoEl && rep.running) {
-          sessionsInfoEl.textContent = `Session ${sessionId} (rebuild running: ${phase} ${processed}/${total || '?'}${w})`;
+        const cleanStatus = json.cleanTranscriptStatus || {};
+        const backfillStatus = json.transcriptBackfillStatus || {};
+        const missingChunks = Array.isArray(json.missingTranscriptChunks) ? json.missingTranscriptChunks : [];
+        updateTranscriptBackfillControls(backfillStatus, missingChunks);
+        updateCleanTranscriptControls(cleanStatus);
+        updateReprocessControls(rep);
+        if (sessionsInfoEl) {
+          sessionsInfoEl.textContent = reprocessStatusMessage(sessionId, rep, sessionsInfoEl.textContent || `Session ${sessionId}`);
         }
         if (!rep.running) {
           stopReprocessPolling();
           await loadSessionDetail(sessionId);
-          if (sessionsInfoEl) {
-            if (rep.phase === 'error') {
-              sessionsInfoEl.textContent = `Session ${sessionId} (rebuild error: ${rep.error || 'unknown error'})`;
-            } else {
-              sessionsInfoEl.textContent = `Session ${sessionId} (rebuild complete: ${processed}/${total || processed})`;
-            }
-          }
         }
       } catch (_) {}
     }, 2500);
@@ -2547,11 +3326,19 @@ async function postMetaOnce() {
 
   if (sessionsSelectEl) {
     sessionsSelectEl.addEventListener('change', () => {
+      stopTranscriptBackfillPolling();
+      stopCleanTranscriptPolling();
+      editingTimelineItemId = '';
       loadSessionDetail(sessionsSelectEl.value);
     });
   }
   if (sessionsRefreshEl) {
     sessionsRefreshEl.addEventListener('click', () => {
+      loadSessions();
+    });
+  }
+  if (tabSessionsEl) {
+    tabSessionsEl.addEventListener('shown.bs.tab', () => {
       loadSessions();
     });
   }
@@ -2637,6 +3424,64 @@ async function postMetaOnce() {
       }
     });
   }
+  if (sessionsOpenNotesLabEl) {
+    sessionsOpenNotesLabEl.addEventListener('click', async () => {
+      const sessionId = currentHistorySessionId();
+      if (!sessionId) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = 'Select a session first.';
+        return;
+      }
+      try {
+        await window.openNotesLabForSession?.(sessionId);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Opened Notes Lab for ${sessionId}.`;
+      } catch (e) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
+      }
+    });
+  }
+  if (sessionsBackfillTranscriptsEl) {
+    sessionsBackfillTranscriptsEl.addEventListener('click', async () => {
+      const sessionId = sessionsSelectEl?.value || '';
+      if (!sessionId) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = 'Select a session first.';
+        return;
+      }
+      if (transcriptBackfillStartPending) return;
+      try {
+        transcriptBackfillStartPending = true;
+        updateTranscriptBackfillControls(currentTranscriptBackfillStatus || {}, currentMissingTranscriptChunks || []);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Recovering saved audio for ${sessionId}...`;
+        if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = 'Recovering missing audio transcripts...';
+        startTranscriptBackfillPolling(sessionId);
+        const res = await fetch('/api/session/transcripts/backfill/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        const missingChunks = Array.isArray(json.missingTranscriptChunks) ? json.missingTranscriptChunks : [];
+        updateTranscriptBackfillControls(
+          json.started ? { running: true, phase: 'starting' } : (currentTranscriptBackfillStatus || {}),
+          missingChunks.length ? missingChunks : currentMissingTranscriptChunks
+        );
+        if (json.started) {
+          if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (recovering ${missingChunks.length || 'missing'} saved audio chunk transcripts)`;
+        } else {
+          stopTranscriptBackfillPolling();
+          await loadSessionDetail(sessionId);
+          if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (no missing saved audio chunks found)`;
+        }
+      } catch (e) {
+        stopTranscriptBackfillPolling();
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
+        if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = `Error: ${e.message}`;
+      } finally {
+        transcriptBackfillStartPending = false;
+        updateTranscriptBackfillControls(currentTranscriptBackfillStatus || {}, currentMissingTranscriptChunks || []);
+      }
+    });
+  }
   if (sessionsCleanTranscriptEl) {
     sessionsCleanTranscriptEl.addEventListener('click', async () => {
       const sessionId = sessionsSelectEl?.value || '';
@@ -2644,22 +3489,29 @@ async function postMetaOnce() {
         if (sessionsInfoEl) sessionsInfoEl.textContent = 'Select a session first.';
         return;
       }
+      if (cleanTranscriptStartPending) return;
       try {
+        cleanTranscriptStartPending = true;
+        updateCleanTranscriptControls(window.__currentCleanTranscriptStatus || {});
         if (sessionsInfoEl) sessionsInfoEl.textContent = `Rebuilding clean transcript for ${sessionId}...`;
         if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = 'Rebuilding clean transcript...';
-        const partyOverride = document.getElementById('partyMeta')?.value || '';
-        const res = await fetch('/api/session/clean-transcript', {
+        const partyOverride = sessionsPartyMetaEl?.value || '';
+        startCleanTranscriptPolling(sessionId);
+        const res = await fetch('/api/session/clean-transcript/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId, party: partyOverride })
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
-        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (clean transcript rebuilt: ${json.rebuiltChunks || 0} chunks)`;
-        await loadSessionDetail(sessionId);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (clean transcript rebuild started)`;
       } catch (e) {
+        stopCleanTranscriptPolling();
         if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
         if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = `Error: ${e.message}`;
+      } finally {
+        cleanTranscriptStartPending = false;
+        updateCleanTranscriptControls(window.__currentCleanTranscriptStatus || {});
       }
     });
   }
@@ -2670,11 +3522,14 @@ async function postMetaOnce() {
         if (sessionsInfoEl) sessionsInfoEl.textContent = 'Select a session first.';
         return;
       }
+      if (reprocessStartPending) return;
       try {
+        reprocessStartPending = true;
+        updateReprocessControls(currentReprocessStatus || {});
         const windowOverride = Math.max(1, Math.min(20, Number(sessionsWindowInputEl?.value || 2)));
         if (sessionsInfoEl) sessionsInfoEl.textContent = `Starting rebuild for ${sessionId} (window=${windowOverride})...`;
         if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = 'Rebuilding notes and summary...';
-        const partyOverride = document.getElementById('partyMeta')?.value || '';
+        const partyOverride = sessionsPartyMetaEl?.value || '';
         const res = await fetch('/api/session/reprocess/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2692,6 +3547,49 @@ async function postMetaOnce() {
       } catch (e) {
         if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
         if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = `Error: ${e.message}`;
+      } finally {
+        reprocessStartPending = false;
+        updateReprocessControls(currentReprocessStatus || {});
+      }
+    });
+  }
+  if (sessionsStopReprocessEl) {
+    sessionsStopReprocessEl.addEventListener('click', async () => {
+      const sessionId = sessionsSelectEl?.value || '';
+      if (!sessionId) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = 'Select a session first.';
+        return;
+      }
+      const rep = currentReprocessStatus || {};
+      const phase = String(rep.phase || '').trim();
+      if (!(rep.running || phase === 'stale')) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = 'No active or stale rebuild to stop.';
+        return;
+      }
+      const prompt = phase === 'stale'
+        ? 'This rebuild state looks stale. Clear it so you can start again?'
+        : (rep.stalled
+          ? 'This rebuild appears stalled. Request a stop?'
+          : 'Stop the current notes rebuild?');
+      if (!window.confirm(prompt)) return;
+      try {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = phase === 'stale' ? `Clearing stale rebuild for ${sessionId}...` : `Requesting rebuild stop for ${sessionId}...`;
+        const res = await fetch('/api/session/reprocess/stop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        if (json.running) {
+          if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (stop requested; waiting for current step to finish)`;
+          startReprocessPolling(sessionId);
+        } else {
+          stopReprocessPolling();
+          await loadSessionDetail(sessionId);
+        }
+      } catch (e) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
       }
     });
   }
@@ -2725,6 +3623,53 @@ async function postMetaOnce() {
     });
   }
 
+  if (sessionsNotesEl) {
+    sessionsNotesEl.addEventListener('click', async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const action = String(target.dataset.action || '').trim();
+      const itemId = String(target.dataset.itemId || '').trim();
+      const sessionId = sessionsSelectEl?.value || '';
+      if (!action || !itemId || !sessionId) return;
+
+      if (action === 'edit') {
+        editingTimelineItemId = itemId;
+        renderNotesTimeline();
+        return;
+      }
+      if (action === 'cancel-edit') {
+        editingTimelineItemId = '';
+        renderNotesTimeline();
+        return;
+      }
+      if (timelineSavePending) return;
+
+      if (action === 'save-edit') {
+        const textarea = sessionsNotesEl.querySelector(`textarea.timeline-edit-text[data-item-id="${CSS.escape(itemId)}"]`);
+        const editedText = textarea instanceof HTMLTextAreaElement ? textarea.value.trim() : '';
+        editingTimelineItemId = '';
+        await updateTimelineItem(sessionId, itemId, { editedText }, 'Timeline item updated.');
+        return;
+      }
+      if (action === 'clear-edit') {
+        editingTimelineItemId = '';
+        await updateTimelineItem(sessionId, itemId, { editedText: '' }, 'Timeline edit cleared.');
+        return;
+      }
+      if (action === 'promote') {
+        await updateTimelineItem(sessionId, itemId, { priority: 1 }, 'Timeline item promoted for summary and narrative.');
+        return;
+      }
+      if (action === 'downplay') {
+        await updateTimelineItem(sessionId, itemId, { priority: -1 }, 'Timeline item marked low priority.');
+        return;
+      }
+      if (action === 'neutral') {
+        await updateTimelineItem(sessionId, itemId, { priority: 0 }, 'Timeline item priority cleared.');
+      }
+    });
+  }
+
   if (copySessionsGameSummaryEl) {
     copySessionsGameSummaryEl.addEventListener('click', () => {
       copyTextToClipboard(sessionsGameSummaryEl?.textContent || '', 'game summary');
@@ -2742,7 +3687,7 @@ async function postMetaOnce() {
   }
   if (copySessionsNotesEl) {
     copySessionsNotesEl.addEventListener('click', () => {
-      copyTextToClipboard(sessionsNotesEl?.textContent || '', 'DM notes');
+      copyTextToClipboard(currentNotesTimelineText || '', 'DM notes timeline');
     });
   }
   if (copySessionsNotesSummaryEl) {
@@ -2757,6 +3702,10 @@ async function postMetaOnce() {
   }
 
   // Initial load
+  updateTranscriptBackfillControls({}, []);
+  updateCleanTranscriptControls({});
+  updateReprocessControls({});
+  window.refreshSessionsForActiveCampaign = loadSessions;
   loadSessions();
 })();
 </script>

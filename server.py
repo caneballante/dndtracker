@@ -5,6 +5,7 @@ import re
 import time
 import threading
 import uuid
+import hashlib
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
@@ -14,16 +15,27 @@ from urllib.error import URLError, HTTPError
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 CAMPAIGNS_DIR = os.path.join(BASE_DIR, "campaigns")
+NOTES_LAB_RUNS_DIR = os.path.join(BASE_DIR, "notes-lab-runs")
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 OPENAI_API_KEY = None
 NOTES_LOCK = threading.Lock()
 REPROCESS_LOCK = threading.Lock()
 TRACKING_LOCK = threading.Lock()
+STATUS_LOCKS_LOCK = threading.Lock()
+STATUS_LOCKS = {}
+REPROCESS_JOBS = {}
+CLEAN_TRANSCRIPT_LOCK = threading.Lock()
+CLEAN_TRANSCRIPT_JOBS = {}
+TRANSCRIPT_BACKFILL_LOCK = threading.Lock()
+TRANSCRIPT_BACKFILL_JOBS = {}
 NOTES_MODEL_DEFAULT = "gpt-4o-mini"
 NOTES_WINDOW_DEFAULT = 5
+REPROCESS_STALL_SECONDS_DEFAULT = 600
 SUMMARY_MODEL_DEFAULT = "gpt-4o-mini"
 CLEAN_TRANSCRIPT_MODEL_DEFAULT = "gpt-4o-mini"
 NARRATIVE_MODEL_DEFAULT = "gpt-4o-mini"
+SERVER_STARTED_AT = int(time.time())
+CHUNK_AUDIO_RE = re.compile(r"^chunk_(\d+)\.(wav|webm|ogg|mp4|m4a|mp3)$", re.IGNORECASE)
 
 SESSION_ID_RE = re.compile(r"^[0-9]{8,20}$")  # timestamp-ish
 SESSION_NAME_MAX_LEN = 120
@@ -41,6 +53,11 @@ def sanitize_session_name(name: str) -> str:
     s = re.sub(r"\s+", " ", str(name or "").strip())
     return s[:SESSION_NAME_MAX_LEN]
 
+def _safe_filename_part(text: str, default: str = "run", max_len: int = 60) -> str:
+    s = re.sub(r"[^A-Za-z0-9._-]+", "-", str(text or "").strip())
+    s = re.sub(r"-{2,}", "-", s).strip("-._")
+    return (s or default)[:max_len]
+
 def read_json(path: str, default):
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -55,11 +72,193 @@ def read_text(path: str, default: str = "") -> str:
     except FileNotFoundError:
         return default
 
+class ReprocessStopped(Exception):
+    pass
+
+def _reprocess_stall_seconds() -> int:
+    load_env_file(ENV_PATH)
+    raw = (os.environ.get("REPROCESS_STALL_SECONDS") or "").strip()
+    try:
+        return max(60, min(3600, int(raw)))
+    except Exception:
+        return REPROCESS_STALL_SECONDS_DEFAULT
+
+def _openai_retry_delays():
+    return (0.5, 1.0, 2.0)
+
+def _openai_should_retry_http(code: int) -> bool:
+    try:
+        n = int(code)
+    except Exception:
+        return False
+    return n == 429 or 500 <= n < 600
+
+def _urlopen_with_retry(req: Request, timeout: int, read_error_prefix: str = "OpenAI API"):
+    last_err = None
+    attempts = len(_openai_retry_delays()) + 1
+    for attempt in range(attempts):
+        try:
+            with urlopen(req, timeout=timeout) as resp:
+                return resp.read().decode("utf-8")
+        except HTTPError as e:
+            detail = e.read().decode("utf-8", errors="ignore")
+            last_err = RuntimeError(f"{read_error_prefix} error: HTTP {e.code} {detail}")
+            if attempt < attempts - 1 and _openai_should_retry_http(e.code):
+                time.sleep(_openai_retry_delays()[attempt])
+                continue
+            raise last_err
+        except URLError as e:
+            last_err = RuntimeError(f"{read_error_prefix} connection error: {e}")
+            if attempt < attempts - 1:
+                time.sleep(_openai_retry_delays()[attempt])
+                continue
+            raise last_err
+    if last_err is not None:
+        raise last_err
+    raise RuntimeError(f"{read_error_prefix} request failed.")
+
+def _register_reprocess_job(session_id: str, job_id: str, stop_event: threading.Event, thread: threading.Thread):
+    with REPROCESS_LOCK:
+        REPROCESS_JOBS[session_id] = {
+            "jobId": str(job_id or ""),
+            "stopEvent": stop_event,
+            "thread": thread,
+            "registeredAt": int(time.time()),
+        }
+
+def _unregister_reprocess_job(session_id: str, job_id: str = ""):
+    with REPROCESS_LOCK:
+        current = REPROCESS_JOBS.get(session_id)
+        if not current:
+            return
+        if job_id and str(current.get("jobId") or "") != str(job_id):
+            return
+        REPROCESS_JOBS.pop(session_id, None)
+
+def _active_reprocess_job(session_id: str):
+    with REPROCESS_LOCK:
+        current = REPROCESS_JOBS.get(session_id)
+        if not current:
+            return None
+        thread = current.get("thread")
+        if isinstance(thread, threading.Thread) and not thread.is_alive():
+            REPROCESS_JOBS.pop(session_id, None)
+            return None
+        return dict(current)
+
+def _request_reprocess_stop(session_id: str, job_id: str = "") -> bool:
+    with REPROCESS_LOCK:
+        current = REPROCESS_JOBS.get(session_id)
+        if not current:
+            return False
+        if job_id and str(current.get("jobId") or "") != str(job_id):
+            return False
+        stop_event = current.get("stopEvent")
+        if isinstance(stop_event, threading.Event):
+            stop_event.set()
+            return True
+        return False
+
+def _register_clean_transcript_job(session_id: str, job_id: str, thread: threading.Thread):
+    with CLEAN_TRANSCRIPT_LOCK:
+        CLEAN_TRANSCRIPT_JOBS[session_id] = {
+            "jobId": str(job_id or ""),
+            "thread": thread,
+            "registeredAt": int(time.time()),
+        }
+
+def _unregister_clean_transcript_job(session_id: str, job_id: str = ""):
+    with CLEAN_TRANSCRIPT_LOCK:
+        current = CLEAN_TRANSCRIPT_JOBS.get(session_id)
+        if not current:
+            return
+        if job_id and str(current.get("jobId") or "") != str(job_id):
+            return
+        CLEAN_TRANSCRIPT_JOBS.pop(session_id, None)
+
+def _active_clean_transcript_job(session_id: str):
+    with CLEAN_TRANSCRIPT_LOCK:
+        current = CLEAN_TRANSCRIPT_JOBS.get(session_id)
+        if not current:
+            return None
+        thread = current.get("thread")
+        if isinstance(thread, threading.Thread) and not thread.is_alive():
+            CLEAN_TRANSCRIPT_JOBS.pop(session_id, None)
+            return None
+        return dict(current)
+
+def _register_transcript_backfill_job(session_id: str, job_id: str, thread: threading.Thread):
+    with TRANSCRIPT_BACKFILL_LOCK:
+        TRANSCRIPT_BACKFILL_JOBS[session_id] = {
+            "jobId": str(job_id or ""),
+            "thread": thread,
+            "registeredAt": int(time.time()),
+        }
+
+def _unregister_transcript_backfill_job(session_id: str, job_id: str = ""):
+    with TRANSCRIPT_BACKFILL_LOCK:
+        current = TRANSCRIPT_BACKFILL_JOBS.get(session_id)
+        if not current:
+            return
+        if job_id and str(current.get("jobId") or "") != str(job_id):
+            return
+        TRANSCRIPT_BACKFILL_JOBS.pop(session_id, None)
+
+def _active_transcript_backfill_job(session_id: str):
+    with TRANSCRIPT_BACKFILL_LOCK:
+        current = TRANSCRIPT_BACKFILL_JOBS.get(session_id)
+        if not current:
+            return None
+        thread = current.get("thread")
+        if isinstance(thread, threading.Thread) and not thread.is_alive():
+            TRANSCRIPT_BACKFILL_JOBS.pop(session_id, None)
+            return None
+        return dict(current)
+
+def _status_lock(path: str):
+    path = os.path.abspath(path)
+    with STATUS_LOCKS_LOCK:
+        lock = STATUS_LOCKS.get(path)
+        if lock is None:
+            lock = threading.Lock()
+            STATUS_LOCKS[path] = lock
+        return lock
+
+def _session_status_path(session_id: str) -> str:
+    return os.path.join(init_session(session_id), "status.json")
+
+def _update_session_status(session_id: str, mutator, default=None):
+    status_path = _session_status_path(session_id)
+    lock = _status_lock(status_path)
+    with lock:
+        status = read_json(status_path, default={} if default is None else default)
+        result = mutator(status)
+        write_json_atomic(status_path, status)
+        return status if result is None else result
+
 def write_json_atomic(path: str, data):
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-    os.replace(tmp, path)
+    tmp = f"{path}.{os.getpid()}.{threading.get_ident()}.{uuid.uuid4().hex}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
+        last_err = None
+        for delay_ms in (10, 25, 50, 100, 200):
+            try:
+                os.replace(tmp, path)
+                last_err = None
+                break
+            except PermissionError as e:
+                last_err = e
+                time.sleep(delay_ms / 1000.0)
+        if last_err is not None:
+            raise last_err
+    finally:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except OSError:
+            pass
 
 def load_env_file(path: str):
     if not os.path.isfile(path):
@@ -221,6 +420,12 @@ def _read_session_status(session_id: str):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
     return read_json(os.path.join(session_dir, "status.json"), default={})
 
+def _set_session_status_fields(session_id: str, patch: dict):
+    def mutate(status):
+        status.update(patch or {})
+        return dict(status)
+    return _update_session_status(session_id, mutate, default={})
+
 def _session_context_snapshot(session_id: str):
     status = _read_session_status(session_id)
     snap = status.get("contextSnapshot")
@@ -233,11 +438,14 @@ def _session_context_snapshot(session_id: str):
     return {}
 
 def _session_party_text(session_id: str) -> str:
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    party_override = read_text(os.path.join(session_dir, "party.txt"), "").strip()
+    if party_override:
+        return party_override
     snap = _session_context_snapshot(session_id)
     if snap.get("partyText"):
         return str(snap.get("partyText") or "").strip()
-    session_dir = os.path.join(UPLOADS_DIR, session_id)
-    return read_text(os.path.join(session_dir, "party.txt"), "").strip()
+    return ""
 
 def _session_prep_context(session_id: str):
     snap = _session_context_snapshot(session_id)
@@ -293,9 +501,10 @@ def init_session(session_id: str, campaign_id: str = "") -> str:
 
     return session_dir
 
-def list_sessions(limit: int = 50):
+def list_sessions(limit: int = 50, campaign_id: str = ""):
     ensure_dir(UPLOADS_DIR)
     sessions = []
+    wanted_campaign = str(campaign_id or "").strip()
     for name in os.listdir(UPLOADS_DIR):
         session_dir = os.path.join(UPLOADS_DIR, name)
         if not os.path.isdir(session_dir):
@@ -304,12 +513,15 @@ def list_sessions(limit: int = 50):
             continue
         status_path = os.path.join(session_dir, "status.json")
         status = read_json(status_path, default={})
+        session_campaign_id = str(status.get("campaignId") or "").strip()
+        if wanted_campaign and session_campaign_id != wanted_campaign:
+            continue
         mtime = int(os.path.getmtime(session_dir))
         snap = status.get("contextSnapshot") if isinstance(status.get("contextSnapshot"), dict) else {}
         sessions.append({
             "sessionId": name,
             "sessionName": str(status.get("sessionName") or ""),
-            "campaignId": str(status.get("campaignId") or ""),
+            "campaignId": session_campaign_id,
             "campaignName": str(snap.get("campaignName") or ""),
             "updatedAt": status.get("updatedAt") or mtime,
             "createdAt": status.get("createdAt") or mtime,
@@ -318,6 +530,147 @@ def list_sessions(limit: int = 50):
         })
     sessions.sort(key=lambda s: s.get("updatedAt", 0), reverse=True)
     return sessions[:limit]
+
+def _normalize_reprocess_status(session_id: str, status: dict, persist: bool = False) -> dict:
+    if not isinstance(status, dict):
+        status = {}
+    rep = status.get("reprocessStatus") or {}
+    if not isinstance(rep, dict):
+        rep = {}
+    if not rep:
+        status["reprocessStatus"] = {}
+        return {}
+
+    now = int(time.time())
+    current = dict(rep)
+    running = bool(current.get("running"))
+    heartbeat_at = int(current.get("heartbeatAt") or current.get("updatedAt") or current.get("startedAt") or 0)
+    owner_started_at = int(current.get("ownerStartedAt") or 0)
+    job_id = str(current.get("jobId") or "")
+    active_job = _active_reprocess_job(session_id) if running else None
+    stall_seconds = max(0, now - heartbeat_at) if heartbeat_at else 0
+
+    if running:
+        orphan_reason = ""
+        if owner_started_at and owner_started_at != SERVER_STARTED_AT:
+            orphan_reason = "Rebuild was started by a previous server process and is no longer running."
+        else:
+            if not active_job:
+                orphan_reason = "Rebuild worker is no longer active in this server process."
+            elif job_id and str(active_job.get("jobId") or "") != job_id:
+                orphan_reason = "Rebuild worker no longer matches the persisted job state."
+        if orphan_reason:
+            current.update({
+                "running": False,
+                "phase": "stale",
+                "error": orphan_reason,
+                "finishedAt": now,
+                "updatedAt": now,
+                "staleDetectedAt": now,
+                "stalled": False,
+                "stallSeconds": 0,
+                "stopRequested": False,
+            })
+            status["reprocessStatus"] = current
+            status["updatedAt"] = now
+            if persist:
+                _set_session_status_fields(session_id, status)
+            return current
+
+        current["stalled"] = bool(heartbeat_at and stall_seconds >= _reprocess_stall_seconds())
+        current["stallSeconds"] = stall_seconds
+        current["ownerIsCurrentServer"] = (owner_started_at == SERVER_STARTED_AT) if owner_started_at else False
+    else:
+        current["stalled"] = False
+        current["stallSeconds"] = 0
+        current["ownerIsCurrentServer"] = (owner_started_at == SERVER_STARTED_AT) if owner_started_at else False
+
+    status["reprocessStatus"] = current
+    return current
+
+def _normalize_clean_transcript_status(session_id: str, status: dict, persist: bool = False) -> dict:
+    if not isinstance(status, dict):
+        status = {}
+    current = status.get("cleanTranscriptStatus") or {}
+    if not isinstance(current, dict):
+        current = {}
+    if not current:
+        status["cleanTranscriptStatus"] = {}
+        return {}
+
+    now = int(time.time())
+    running = bool(current.get("running"))
+    owner_started_at = int(current.get("ownerStartedAt") or 0)
+    job_id = str(current.get("jobId") or "")
+    active_job = _active_clean_transcript_job(session_id) if running else None
+
+    if running:
+        orphan_reason = ""
+        if owner_started_at and owner_started_at != SERVER_STARTED_AT:
+            orphan_reason = "Clean transcript rebuild was started by a previous server process and is no longer running."
+        else:
+            if not active_job:
+                orphan_reason = "Clean transcript worker is no longer active in this server process."
+            elif job_id and str(active_job.get("jobId") or "") != job_id:
+                orphan_reason = "Clean transcript worker no longer matches the persisted job state."
+        if orphan_reason:
+            current.update({
+                "running": False,
+                "phase": "stale",
+                "error": orphan_reason,
+                "updatedAt": now,
+                "finishedAt": now,
+            })
+            status["cleanTranscriptStatus"] = current
+            status["updatedAt"] = now
+            if persist:
+                _set_session_status_fields(session_id, status)
+            return current
+
+    status["cleanTranscriptStatus"] = current
+    return current
+
+def _normalize_transcript_backfill_status(session_id: str, status: dict, persist: bool = False) -> dict:
+    if not isinstance(status, dict):
+        status = {}
+    current = status.get("transcriptBackfillStatus") or {}
+    if not isinstance(current, dict):
+        current = {}
+    if not current:
+        status["transcriptBackfillStatus"] = {}
+        return {}
+
+    now = int(time.time())
+    running = bool(current.get("running"))
+    owner_started_at = int(current.get("ownerStartedAt") or 0)
+    job_id = str(current.get("jobId") or "")
+    active_job = _active_transcript_backfill_job(session_id) if running else None
+
+    if running:
+        orphan_reason = ""
+        if owner_started_at and owner_started_at != SERVER_STARTED_AT:
+            orphan_reason = "Transcript backfill was started by a previous server process and is no longer running."
+        else:
+            if not active_job:
+                orphan_reason = "Transcript backfill worker is no longer active in this server process."
+            elif job_id and str(active_job.get("jobId") or "") != job_id:
+                orphan_reason = "Transcript backfill worker no longer matches the persisted job state."
+        if orphan_reason:
+            current.update({
+                "running": False,
+                "phase": "stale",
+                "error": orphan_reason,
+                "updatedAt": now,
+                "finishedAt": now,
+            })
+            status["transcriptBackfillStatus"] = current
+            status["updatedAt"] = now
+            if persist:
+                _set_session_status_fields(session_id, status)
+            return current
+
+    status["transcriptBackfillStatus"] = current
+    return current
 
 def read_session_text(session_id: str):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
@@ -329,13 +682,17 @@ def read_session_text(session_id: str):
     game_narrative_path = os.path.join(session_dir, "game_narrative.txt")
     structured = _latest_notes_structured(session_id)
     status = read_json(os.path.join(session_dir, "status.json"), default={})
+    _normalize_reprocess_status(session_id, status, persist=True)
+    _normalize_clean_transcript_status(session_id, status, persist=True)
+    _normalize_transcript_backfill_status(session_id, status, persist=True)
     tracking_state = status.get("trackingState") or _get_tracking_state(session_id)
     prep_context = _session_prep_context(session_id)
     snap = _session_context_snapshot(session_id)
+    missing_chunks = _missing_transcript_audio_chunks(session_id)
     return {
         "transcript": read_text(transcript_path, ""),
         "cleanTranscript": read_text(clean_transcript_path, ""),
-        "notes": read_text(notes_path, ""),
+        "notes": structured.get("timelineText") or read_text(notes_path, ""),
         "party": _session_party_text(session_id),
         "summary": read_text(summary_path, ""),
         "gameSummary": read_text(game_summary_path, ""),
@@ -345,7 +702,12 @@ def read_session_text(session_id: str):
         "campaignName": str(snap.get("campaignName") or ""),
         "contextSnapshot": snap,
         "reprocessStatus": status.get("reprocessStatus") or {},
+        "cleanTranscriptStatus": status.get("cleanTranscriptStatus") or {},
+        "transcriptBackfillStatus": status.get("transcriptBackfillStatus") or {},
+        "missingTranscriptChunks": [int(item.get("chunkIndex") or -1) for item in missing_chunks if int(item.get("chunkIndex") or -1) >= 0],
         "notesState": structured.get("state") or {},
+        "notesTimeline": structured.get("timelineItems") or [],
+        "notesTimelineText": structured.get("timelineText") or "",
         "notesLatestStructured": structured.get("latest"),
         "trackingState": tracking_state,
         "prepContext": prep_context,
@@ -353,31 +715,28 @@ def read_session_text(session_id: str):
     }
 
 def update_status_for_chunk(session_id: str, chunk_index: int, filename: str, nbytes: int):
-    session_dir = os.path.join(UPLOADS_DIR, session_id)
-    status_path = os.path.join(session_dir, "status.json")
-
-    status = read_json(status_path, default={
-        "sessionId": session_id,
-        "sessionName": "",
-        "createdAt": int(time.time()),
-        "updatedAt": int(time.time()),
-        "chunks": [],
-        "latestChunkIndex": -1,
-        "notes": "",
-    })
-
-    status["chunks"] = [c for c in status.get("chunks", []) if c.get("chunkIndex") != chunk_index]
-    status["chunks"].append({
-        "chunkIndex": chunk_index,
-        "filename": filename,
-        "bytes": nbytes,
-        "uploadedAt": int(time.time()),
-    })
-    status["chunks"].sort(key=lambda c: c.get("chunkIndex", -1))
-    status["latestChunkIndex"] = max(status.get("latestChunkIndex", -1), chunk_index)
-    status["updatedAt"] = int(time.time())
-
-    write_json_atomic(status_path, status)
+    def mutate(status):
+        if not status:
+            status.update({
+                "sessionId": session_id,
+                "sessionName": "",
+                "createdAt": int(time.time()),
+                "updatedAt": int(time.time()),
+                "chunks": [],
+                "latestChunkIndex": -1,
+                "notes": "",
+            })
+        status["chunks"] = [c for c in status.get("chunks", []) if c.get("chunkIndex") != chunk_index]
+        status["chunks"].append({
+            "chunkIndex": chunk_index,
+            "filename": filename,
+            "bytes": nbytes,
+            "uploadedAt": int(time.time()),
+        })
+        status["chunks"].sort(key=lambda c: c.get("chunkIndex", -1))
+        status["latestChunkIndex"] = max(status.get("latestChunkIndex", -1), chunk_index)
+        status["updatedAt"] = int(time.time())
+    _update_session_status(session_id, mutate, default={})
 
 def _mime_for_filename(filename: str) -> str:
     ext = os.path.splitext(filename)[1].lower()
@@ -516,22 +875,59 @@ def _append_transcript(session_id: str, chunk_index: int, text: str):
             "createdAt": int(time.time()),
         }) + "\n")
 
-    status_path = os.path.join(session_dir, "status.json")
-    status = read_json(status_path, default={})
-    status["transcriptLatest"] = text
-    status["transcriptUpdatedAt"] = int(time.time())
-    write_json_atomic(status_path, status)
+    _set_session_status_fields(session_id, {
+        "transcriptLatest": text,
+        "transcriptUpdatedAt": int(time.time()),
+    })
+
+def _rewrite_transcript_artifacts(session_id: str):
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    ensure_dir(session_dir)
+    transcript_path = os.path.join(session_dir, "transcript.txt")
+    clean_transcript_path = os.path.join(session_dir, "clean_transcript.txt")
+    transcripts = _load_all_transcripts(session_id)
+
+    transcript_lines = []
+    clean_lines = []
+    for item in transcripts:
+        chunk_index = int(item.get("chunkIndex", -1))
+        if chunk_index < 0:
+            continue
+        text = str(item.get("text") or "").strip()
+        clean_text = str(item.get("cleanText") or "").strip()
+        if not clean_text and text:
+            clean_text = _clean_transcript_text(text)
+        if text:
+            transcript_lines.append(f"[{chunk_index:04d}] {text}")
+        if clean_text:
+            clean_lines.append(f"[{chunk_index:04d}] {clean_text}")
+
+    with open(transcript_path, "w", encoding="utf-8") as f:
+        if transcript_lines:
+            f.write("\n".join(transcript_lines).strip() + "\n")
+        else:
+            f.write("")
+
+    with open(clean_transcript_path, "w", encoding="utf-8") as f:
+        if clean_lines:
+            f.write("\n".join(clean_lines).strip() + "\n")
+        else:
+            f.write("")
+
+    now = int(time.time())
+    _set_session_status_fields(session_id, {
+        "transcriptUpdatedAt": now,
+        "cleanTranscriptUpdatedAt": now,
+    })
 
 def _set_transcript_error(session_id: str, chunk_index: int, message: str):
-    session_dir = os.path.join(UPLOADS_DIR, session_id)
-    status_path = os.path.join(session_dir, "status.json")
-    status = read_json(status_path, default={})
-    status["transcriptError"] = {
-        "chunkIndex": chunk_index,
-        "message": message,
-        "updatedAt": int(time.time()),
-    }
-    write_json_atomic(status_path, status)
+    def mutate(status):
+        status["transcriptError"] = {
+            "chunkIndex": chunk_index,
+            "message": message,
+            "updatedAt": int(time.time()),
+        }
+    _update_session_status(session_id, mutate, default={})
 
 def _read_party_meta(session_id: str) -> str:
     return _session_party_text(session_id)
@@ -551,12 +947,10 @@ def _write_prep_context(session_id: str, payload):
         raise ValueError("prepContext must be a JSON object.")
     path = _prep_context_path(session_id)
     write_json_atomic(path, payload)
-    session_dir = init_session(session_id)
-    status_path = os.path.join(session_dir, "status.json")
-    status = read_json(status_path, default={})
-    status["prepUpdatedAt"] = int(time.time())
-    status["updatedAt"] = int(time.time())
-    write_json_atomic(status_path, status)
+    _set_session_status_fields(session_id, {
+        "prepUpdatedAt": int(time.time()),
+        "updatedAt": int(time.time()),
+    })
 
 def _prep_context_text(prep: dict) -> str:
     if not isinstance(prep, dict) or not prep:
@@ -629,6 +1023,107 @@ def _load_notes_entries(session_id: str):
         return []
     return entries
 
+def _notes_overrides_path(session_id: str) -> str:
+    session_dir = init_session(session_id)
+    return os.path.join(session_dir, "notes_overrides.json")
+
+def _read_notes_overrides(session_id: str):
+    data = read_json(_notes_overrides_path(session_id), default={})
+    return data if isinstance(data, dict) else {}
+
+def _write_notes_overrides(session_id: str, overrides: dict):
+    if not isinstance(overrides, dict):
+        overrides = {}
+    write_json_atomic(_notes_overrides_path(session_id), overrides)
+    _set_session_status_fields(session_id, {
+        "notesOverridesUpdatedAt": int(time.time()),
+    })
+
+def _timeline_item_id(chunk_index: int, position: int, text: str) -> str:
+    key = f"{int(chunk_index)}|{int(position)}|{str(text or '').strip()}"
+    digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
+    return f"tl_{chunk_index:04d}_{position:02d}_{digest}"
+
+def _coerce_priority(value) -> int:
+    try:
+        n = int(value)
+    except Exception:
+        n = 0
+    if n > 0:
+        return 1
+    if n < 0:
+        return -1
+    return 0
+
+def _timeline_entries(session_id: str):
+    entries = _load_notes_entries(session_id)
+    overrides = _read_notes_overrides(session_id)
+    items = []
+    for entry in entries:
+        chunk_index = int(entry.get("chunkIndex", -1))
+        notes = entry.get("notes") or {}
+        timeline = notes.get("timeline") or []
+        if isinstance(timeline, str):
+            timeline = [timeline]
+        if not isinstance(timeline, list):
+            timeline = []
+        for idx, raw in enumerate(timeline):
+            original_text = str(raw or "").strip()
+            if not original_text:
+                continue
+            item_id = _timeline_item_id(chunk_index, idx, original_text)
+            override = overrides.get(item_id) if isinstance(overrides.get(item_id), dict) else {}
+            edited_text = str(override.get("editedText") or "").strip()
+            display_text = edited_text or original_text
+            priority = _coerce_priority(override.get("priority"))
+            items.append({
+                "id": item_id,
+                "chunkIndex": chunk_index,
+                "position": idx,
+                "originalText": original_text,
+                "editedText": edited_text,
+                "text": display_text,
+                "priority": priority,
+                "isEdited": bool(edited_text),
+            })
+    return items
+
+def _compiled_notes_timeline_text(session_id: str) -> str:
+    items = _timeline_entries(session_id)
+    lines = [f"[{int(item.get('chunkIndex', -1)):04d}] {str(item.get('text') or '').strip()}" for item in items if str(item.get("text") or "").strip()]
+    return "\n".join(lines).strip()
+
+def _timeline_priority_texts(session_id: str):
+    promoted = []
+    deemphasized = []
+    for item in _timeline_entries(session_id):
+        text = str(item.get("text") or "").strip()
+        if not text:
+            continue
+        line = f"[{int(item.get('chunkIndex', -1)):04d}] {text}"
+        priority = _coerce_priority(item.get("priority"))
+        if priority > 0:
+            promoted.append(line)
+        elif priority < 0:
+            deemphasized.append(line)
+    return {
+        "promoted": "\n".join(promoted).strip(),
+        "deemphasized": "\n".join(deemphasized).strip(),
+    }
+
+def _rewrite_notes_timeline_file(session_id: str):
+    session_dir = init_session(session_id)
+    notes_path = os.path.join(session_dir, "notes.txt")
+    compiled = _compiled_notes_timeline_text(session_id)
+    with open(notes_path, "w", encoding="utf-8") as f:
+        if compiled:
+            f.write(compiled.strip() + "\n")
+        else:
+            f.write("")
+    _set_session_status_fields(session_id, {
+        "notesUpdatedAt": int(time.time()),
+    })
+
 def _merge_notes_state(entries):
     merged = {
         "location": "",
@@ -664,10 +1159,15 @@ def _latest_notes_structured(session_id: str):
     latest = None
     if entries:
         latest = (entries[-1].get("notes") or None)
+    timeline_items = _timeline_entries(session_id)
     return {
         "latest": latest,
         "state": _merge_notes_state(entries),
         "summary": _read_notes_summary(session_id),
+        "timelineItems": timeline_items,
+        "timelineText": "\n".join(
+            [f"[{int(item.get('chunkIndex', -1)):04d}] {str(item.get('text') or '').strip()}" for item in timeline_items if str(item.get("text") or "").strip()]
+        ).strip(),
     }
 
 def _write_notes_summary(session_id: str, summary: str):
@@ -719,6 +1219,35 @@ def _load_all_transcripts(session_id: str):
         return []
     lines.sort(key=lambda o: int(o.get("chunkIndex", -1)))
     return lines
+
+def _saved_audio_chunks(session_id: str):
+    session_dir = init_session(session_id)
+    items = {}
+    try:
+        for name in os.listdir(session_dir):
+            match = CHUNK_AUDIO_RE.match(name)
+            if not match:
+                continue
+            chunk_index = int(match.group(1))
+            path = os.path.join(session_dir, name)
+            current = items.get(chunk_index)
+            if current is None or name.lower() < str(current.get("filename") or "").lower():
+                items[chunk_index] = {
+                    "chunkIndex": chunk_index,
+                    "filename": name,
+                    "path": path,
+                }
+    except FileNotFoundError:
+        return []
+    return [items[idx] for idx in sorted(items.keys())]
+
+def _missing_transcript_audio_chunks(session_id: str):
+    transcript_indexes = {
+        int(item.get("chunkIndex", -1))
+        for item in _load_all_transcripts(session_id)
+        if int(item.get("chunkIndex", -1)) >= 0
+    }
+    return [item for item in _saved_audio_chunks(session_id) if int(item.get("chunkIndex", -1)) not in transcript_indexes]
 
 def _tracking_events_path(session_id: str) -> str:
     session_dir = init_session(session_id)
@@ -1093,14 +1622,7 @@ def _chat_complete_text(system_prompt: str, user_prompt: str, model: str) -> str
         },
     )
 
-    try:
-        with urlopen(req, timeout=180) as resp:
-            raw = resp.read().decode("utf-8")
-    except HTTPError as e:
-        detail = e.read().decode("utf-8", errors="ignore")
-        raise RuntimeError(f"OpenAI API error: HTTP {e.code} {detail}")
-    except URLError as e:
-        raise RuntimeError(f"OpenAI API connection error: {e}")
+    raw = _urlopen_with_retry(req, timeout=180)
 
     data = json.loads(raw)
     content = (
@@ -1157,14 +1679,7 @@ def transcribe_with_openai(path: str, model: str = "gpt-4o-mini-transcribe") -> 
         },
     )
 
-    try:
-        with urlopen(req, timeout=120) as resp:
-            payload = resp.read().decode("utf-8")
-    except HTTPError as e:
-        detail = e.read().decode("utf-8", errors="ignore")
-        raise RuntimeError(f"OpenAI API error: HTTP {e.code} {detail}")
-    except URLError as e:
-        raise RuntimeError(f"OpenAI API connection error: {e}")
+    payload = _urlopen_with_retry(req, timeout=120)
 
     data = json.loads(payload)
     text = (data.get("text") or "").strip()
@@ -1189,6 +1704,8 @@ def _default_game_summary_system_prompt() -> str:
     return (
         "You are a D&D campaign recapper. Produce a readable game summary in plain text Markdown.\n"
         "Prioritize chronological events, major discoveries, NPC interactions, combat outcomes, loot, and open hooks.\n"
+        "If promoted DM notes events are provided, make sure they are included unless they directly conflict with stronger source evidence.\n"
+        "If de-emphasized DM notes events are provided, keep them low priority and do not center them unless needed for coherence.\n"
         "Treat tracker HP/damage state as authoritative when it conflicts with transcript narration.\n"
         "Do not invent facts. Use the party roster to normalize transcript names to the correct character names whenever context supports it.\n"
         "Prefer character names consistently. If a name is unclear and cannot be matched confidently, use a neutral description.\n"
@@ -1201,6 +1718,8 @@ def _default_game_narrative_system_prompt(target_word_count: int = 600) -> str:
         "You are a fantasy chronicler retelling a D&D session as a humorous high-fantasy narrative.\n"
         f"Write approximately {target_word_count} words in plain text Markdown (no code fences).\n"
         "Accuracy is the top priority. Build the narrative from the DM notes timeline first, then use the transcript to add detail.\n"
+        "If promoted DM notes events are provided, make sure they appear in the narrative unless they conflict with stronger source evidence.\n"
+        "If de-emphasized DM notes events are provided, keep them in the background and do not let them dominate the story unless needed for coherence.\n"
         "Preserve chronological order of events. Do not reorder scenes for dramatic effect.\n"
         "Use vivid but clear prose, with light humor only where it does not distort the facts.\n"
         "Prefer character names from the party roster when possible.\n"
@@ -1258,6 +1777,8 @@ def generate_game_summary_from_text(
     party: str = "",
     notes_text: str = "",
     notes_summary: str = "",
+    promoted_notes_text: str = "",
+    deemphasized_notes_text: str = "",
     tracker_state_text: str = "",
     tracker_events_text: str = "",
     prep_context_text: str = "",
@@ -1274,6 +1795,10 @@ def generate_game_summary_from_text(
         f"{notes_text.strip() if notes_text else '(none)'}\n\n"
         "Existing rolling notes summary (if any):\n"
         f"{notes_summary.strip() if notes_summary else '(none)'}\n\n"
+        "Promoted DM notes events that should be included if supported:\n"
+        f"{promoted_notes_text.strip() if promoted_notes_text else '(none)'}\n\n"
+        "De-emphasized DM notes events to keep low priority:\n"
+        f"{deemphasized_notes_text.strip() if deemphasized_notes_text else '(none)'}\n\n"
         "Tracker state (authoritative for hp/damage when present):\n"
         f"{tracker_state_text.strip() if tracker_state_text else '(none)'}\n\n"
         "Recent tracker events (if any):\n"
@@ -1290,6 +1815,8 @@ def generate_game_narrative_from_text(
     party: str = "",
     notes_text: str = "",
     notes_summary: str = "",
+    promoted_notes_text: str = "",
+    deemphasized_notes_text: str = "",
     prep_context_text: str = "",
     narrative_guidance: str = "",
     target_word_count: int = 600,
@@ -1308,6 +1835,10 @@ def generate_game_narrative_from_text(
         f"{notes_text.strip() if notes_text else '(none)'}\n\n"
         "DM notes rolling summary (if any):\n"
         f"{notes_summary.strip() if notes_summary else '(none)'}\n\n"
+        "Promoted DM notes events that should be included if supported:\n"
+        f"{promoted_notes_text.strip() if promoted_notes_text else '(none)'}\n\n"
+        "De-emphasized DM notes events to keep low priority:\n"
+        f"{deemphasized_notes_text.strip() if deemphasized_notes_text else '(none)'}\n\n"
         "Campaign and session context (if any):\n"
         f"{prep_context_text.strip() if prep_context_text else '(none)'}\n\n"
         f"Target word count for this run: {target_word_count}\n\n"
@@ -1323,9 +1854,10 @@ def generate_game_summary_for_session(session_id: str) -> str:
     clean_transcript = read_text(os.path.join(session_dir, "clean_transcript.txt"), "").strip()
     raw_transcript = read_text(os.path.join(session_dir, "transcript.txt"), "").strip()
     transcript_text = clean_transcript or raw_transcript
-    notes_text = read_text(os.path.join(session_dir, "notes.txt"), "")
+    notes_text = _compiled_notes_timeline_text(session_id) or read_text(os.path.join(session_dir, "notes.txt"), "")
     notes_summary = read_text(os.path.join(session_dir, "notes_summary.txt"), "")
     party = _read_party_meta(session_id)
+    timeline_priority = _timeline_priority_texts(session_id)
 
     tracking_state = _get_tracking_state(session_id)
     tracking_state_text = _tracking_state_text(tracking_state)
@@ -1337,6 +1869,8 @@ def generate_game_summary_for_session(session_id: str) -> str:
         party=party,
         notes_text=notes_text,
         notes_summary=notes_summary,
+        promoted_notes_text=timeline_priority.get("promoted") or "",
+        deemphasized_notes_text=timeline_priority.get("deemphasized") or "",
         tracker_state_text=tracking_state_text,
         tracker_events_text=tracking_events_text,
         prep_context_text=prep_context_text,
@@ -1346,10 +1880,9 @@ def generate_game_summary_for_session(session_id: str) -> str:
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(summary.strip() + "\n")
 
-    status_path = os.path.join(session_dir, "status.json")
-    status = read_json(status_path, default={})
-    status["gameSummaryUpdatedAt"] = int(time.time())
-    write_json_atomic(status_path, status)
+    _set_session_status_fields(session_id, {
+        "gameSummaryUpdatedAt": int(time.time()),
+    })
     return summary
 
 def generate_game_narrative_for_session(session_id: str, narrative_guidance: str = "", target_word_count: int = 600) -> str:
@@ -1357,16 +1890,19 @@ def generate_game_narrative_for_session(session_id: str, narrative_guidance: str
     clean_transcript = read_text(os.path.join(session_dir, "clean_transcript.txt"), "").strip()
     raw_transcript = read_text(os.path.join(session_dir, "transcript.txt"), "").strip()
     transcript_text = clean_transcript or raw_transcript
-    notes_text = read_text(os.path.join(session_dir, "notes.txt"), "")
+    notes_text = _compiled_notes_timeline_text(session_id) or read_text(os.path.join(session_dir, "notes.txt"), "")
     notes_summary = read_text(os.path.join(session_dir, "notes_summary.txt"), "")
     party = _read_party_meta(session_id)
     prep_context_text = _session_prompt_context_text(session_id)
+    timeline_priority = _timeline_priority_texts(session_id)
 
     narrative = generate_game_narrative_from_text(
         transcript_text=transcript_text,
         party=party,
         notes_text=notes_text,
         notes_summary=notes_summary,
+        promoted_notes_text=timeline_priority.get("promoted") or "",
+        deemphasized_notes_text=timeline_priority.get("deemphasized") or "",
         prep_context_text=prep_context_text,
         narrative_guidance=narrative_guidance,
         target_word_count=target_word_count,
@@ -1376,10 +1912,9 @@ def generate_game_narrative_for_session(session_id: str, narrative_guidance: str
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(narrative.strip() + "\n")
 
-    status_path = os.path.join(session_dir, "status.json")
-    status = read_json(status_path, default={})
-    status["gameNarrativeUpdatedAt"] = int(time.time())
-    write_json_atomic(status_path, status)
+    _set_session_status_fields(session_id, {
+        "gameNarrativeUpdatedAt": int(time.time()),
+    })
     return narrative
 
 def _generate_notes_with_context(session_id: str, chunk_index: int, recent: list, summary_override: str = "", window_override: int = None):
@@ -1449,7 +1984,14 @@ def _parse_chunked_transcript(transcript_text: str):
     chunks = [(idx, txt) for idx, txt in chunks if txt.strip()]
     return chunks
 
-def generate_notes_from_text(transcript_text: str, party: str = "", summary: str = "", system_prompt: str = "", window: int = 2):
+def generate_notes_from_text(
+    transcript_text: str,
+    party: str = "",
+    summary: str = "",
+    system_prompt: str = "",
+    window: int = 2,
+    prep_context_text: str = "",
+):
     api_key = _openai_api_key()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY not set. Add it to .env or your environment.")
@@ -1471,6 +2013,8 @@ def generate_notes_from_text(transcript_text: str, party: str = "", summary: str
     user_prompt = (
         "Party data (if any):\n"
         f"{party.strip() if party else '(none)'}\n\n"
+        "Campaign and session context (if any):\n"
+        f"{prep_context_text.strip() if prep_context_text else '(none)'}\n\n"
         "Rolling summary so far:\n"
         f"{summary.strip() if summary else '(none)'}\n\n"
         "Transcript input (most recent chunk window):\n"
@@ -1497,14 +2041,7 @@ def generate_notes_from_text(transcript_text: str, party: str = "", summary: str
         },
     )
 
-    try:
-        with urlopen(req, timeout=120) as resp:
-            raw = resp.read().decode("utf-8")
-    except HTTPError as e:
-        detail = e.read().decode("utf-8", errors="ignore")
-        raise RuntimeError(f"OpenAI API error: HTTP {e.code} {detail}")
-    except URLError as e:
-        raise RuntimeError(f"OpenAI API connection error: {e}")
+    raw = _urlopen_with_retry(req, timeout=120)
 
     data = json.loads(raw)
     content = (
@@ -1538,6 +2075,7 @@ def _notes_test_payload(
     chunk_from=None,
     chunk_to=None,
     use_context: bool = True,
+    prep_context_text: str = "",
 ):
     transcript_text = (transcript_text or "").strip()
     if not transcript_text:
@@ -1555,6 +2093,7 @@ def _notes_test_payload(
             summary=prior_summary if use_context else "",
             system_prompt=prompt_used,
             window=window,
+            prep_context_text=prep_context_text,
         )
         timeline = notes_obj.get("timeline") or []
         if isinstance(timeline, str):
@@ -1595,6 +2134,7 @@ def _notes_test_payload(
             summary=rolling_summary if use_context else "",
             system_prompt=prompt_used,
             window=window,
+            prep_context_text=prep_context_text,
         )
         timeline = notes_obj.get("timeline") or []
         if isinstance(timeline, str):
@@ -1632,6 +2172,114 @@ def _notes_test_payload(
         "aggregateState": _merge_notes_state(entries_for_merge),
     }
 
+def _notes_lab_markdown(session_meta: dict, payload: dict, result: dict) -> str:
+    session_meta = session_meta if isinstance(session_meta, dict) else {}
+    payload = payload if isinstance(payload, dict) else {}
+    result = result if isinstance(result, dict) else {}
+
+    generated_at = time.strftime("%Y-%m-%d %H:%M:%S %Z", time.localtime())
+    session_id = str(session_meta.get("sessionId") or "").strip()
+    session_name = str(session_meta.get("sessionName") or "").strip()
+    campaign_id = str(session_meta.get("campaignId") or "").strip()
+    campaign_name = str(session_meta.get("campaignName") or "").strip()
+    transcript = str(payload.get("transcript") or "")
+    prompt = str(payload.get("prompt") or "")
+    party = str(payload.get("party") or "")
+    prep_context = str(payload.get("prepContextText") or "")
+    rolling_summary_seed = str(payload.get("summary") or "")
+    chunk_from = payload.get("chunkFrom")
+    chunk_to = payload.get("chunkTo")
+    window = payload.get("window")
+    use_context = bool(payload.get("useContext", True))
+    mode = str(result.get("mode") or "")
+    runs = result.get("runs") if isinstance(result.get("runs"), list) else []
+    compiled_preview = str(result.get("compiledNotesPreview") or "")
+    final_summary = str(result.get("finalSummary") or "")
+    aggregate_state = result.get("aggregateState") if isinstance(result.get("aggregateState"), dict) else {}
+
+    transcript_hash = hashlib.sha256(transcript.encode("utf-8")).hexdigest() if transcript else ""
+    prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest() if prompt else ""
+    prep_hash = hashlib.sha256(prep_context.encode("utf-8")).hexdigest() if prep_context else ""
+
+    lines = [
+        "# Notes Lab Run",
+        "",
+        "## Metadata",
+        f"- Generated at: {generated_at}",
+        f"- Session ID: {session_id or '(none)'}",
+        f"- Session name: {session_name or '(none)'}",
+        f"- Campaign ID: {campaign_id or '(none)'}",
+        f"- Campaign name: {campaign_name or '(none)'}",
+        f"- Mode: {mode or '(unknown)'}",
+        f"- Notes window: {window}",
+        f"- Chunk from: {chunk_from if chunk_from is not None else '(auto)'}",
+        f"- Chunk to: {chunk_to if chunk_to is not None else '(auto)'}",
+        f"- Use rolling context: {'yes' if use_context else 'no'}",
+        f"- Notes calls generated: {len(runs)}",
+        f"- Transcript SHA256: {transcript_hash or '(none)'}",
+        f"- Prompt SHA256: {prompt_hash or '(none)'}",
+        f"- Context SHA256: {prep_hash or '(none)'}",
+        "",
+        "## Prompt",
+        "```text",
+        prompt.strip() or "(none)",
+        "```",
+        "",
+        "## Party Data",
+        "```text",
+        party.strip() or "(none)",
+        "```",
+        "",
+        "## Campaign And Session Context",
+        "```text",
+        prep_context.strip() or "(none)",
+        "```",
+        "",
+        "## Rolling Summary Seed",
+        "```text",
+        rolling_summary_seed.strip() or "(none)",
+        "```",
+        "",
+        "## Transcript Input",
+        "```text",
+        transcript.strip() or "(none)",
+        "```",
+        "",
+        "## Compiled Timeline Preview",
+        "```text",
+        compiled_preview.strip() or "(none)",
+        "```",
+        "",
+        "## Final Summary",
+        "```text",
+        final_summary.strip() or "(none)",
+        "```",
+        "",
+        "## Aggregate State",
+        "```json",
+        json.dumps(aggregate_state, indent=2),
+        "```",
+        "",
+        "## Raw Result JSON",
+        "```json",
+        json.dumps(result, indent=2),
+        "```",
+        "",
+    ]
+    return "\n".join(lines)
+
+def _save_notes_lab_run(session_meta: dict, payload: dict, result: dict):
+    ensure_dir(NOTES_LAB_RUNS_DIR)
+    stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
+    session_id = _safe_filename_part((session_meta or {}).get("sessionId") or "", default="no-session", max_len=24)
+    session_name = _safe_filename_part((session_meta or {}).get("sessionName") or "", default="unnamed", max_len=36)
+    prompt_hash = hashlib.sha256(str((payload or {}).get("prompt") or "").encode("utf-8")).hexdigest()[:10]
+    filename = f"{stamp}--{session_id}--{session_name}--prompt-{prompt_hash}.md"
+    path = os.path.join(NOTES_LAB_RUNS_DIR, filename)
+    markdown = _notes_lab_markdown(session_meta, payload, result)
+    write_text(path, markdown)
+    return path
+
 def _append_notes(session_id: str, chunk_index: int, notes_obj: dict):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
     ensure_dir(session_dir)
@@ -1663,24 +2311,25 @@ def _append_notes(session_id: str, chunk_index: int, notes_obj: dict):
     if summary:
         _write_notes_summary(session_id, summary)
 
-    status_path = os.path.join(session_dir, "status.json")
-    status = read_json(status_path, default={})
-    status["notesLatest"] = timeline[-1] if timeline else ""
-    status["notesUpdatedAt"] = int(time.time())
-    write_json_atomic(status_path, status)
+    def mutate(status):
+        status["notesLatest"] = timeline[-1] if timeline else ""
+        status["notesUpdatedAt"] = int(time.time())
+    _update_session_status(session_id, mutate, default={})
 
 def _set_notes_error(session_id: str, chunk_index: int, message: str):
-    session_dir = os.path.join(UPLOADS_DIR, session_id)
-    status_path = os.path.join(session_dir, "status.json")
-    status = read_json(status_path, default={})
-    status["notesError"] = {
-        "chunkIndex": chunk_index,
-        "message": message,
-        "updatedAt": int(time.time()),
-    }
-    write_json_atomic(status_path, status)
+    def mutate(status):
+        status["notesError"] = {
+            "chunkIndex": chunk_index,
+            "message": message,
+            "updatedAt": int(time.time()),
+        }
+    _update_session_status(session_id, mutate, default={})
 
-def rebuild_notes_for_session(session_id: str, party_override: str = "", regenerate_summary: bool = True, progress_cb=None, window_override: int = None):
+def _raise_if_reprocess_stopped(stop_event: threading.Event = None):
+    if isinstance(stop_event, threading.Event) and stop_event.is_set():
+        raise ReprocessStopped("Rebuild stopped by user.")
+
+def rebuild_notes_for_session(session_id: str, party_override: str = "", regenerate_summary: bool = True, progress_cb=None, window_override: int = None, stop_event: threading.Event = None):
     session_dir = init_session(session_id)
     transcripts = _load_all_transcripts(session_id)
     if not transcripts:
@@ -1698,13 +2347,12 @@ def rebuild_notes_for_session(session_id: str, party_override: str = "", regener
             os.remove(path)
 
     # Clear status note fields/errors before rebuild.
-    status_path = os.path.join(session_dir, "status.json")
-    status = read_json(status_path, default={})
-    status.pop("notesError", None)
-    status.pop("gameSummaryUpdatedAt", None)
-    status["notesLatest"] = ""
-    status["notesUpdatedAt"] = int(time.time())
-    write_json_atomic(status_path, status)
+    def mutate(status):
+        status.pop("notesError", None)
+        status.pop("gameSummaryUpdatedAt", None)
+        status["notesLatest"] = ""
+        status["notesUpdatedAt"] = int(time.time())
+    _update_session_status(session_id, mutate, default={})
 
     rebuilt = 0
     window = _notes_window()
@@ -1717,14 +2365,15 @@ def rebuild_notes_for_session(session_id: str, party_override: str = "", regener
     total = len([t for t in transcripts if int(t.get("chunkIndex", -1)) >= 0])
     if progress_cb:
         progress_cb({"phase": "notes", "running": True, "processed": 0, "total": total, "window": window})
-    with NOTES_LOCK:
-        processed = []
-        for item in transcripts:
-            chunk_index = int(item.get("chunkIndex", -1))
-            if chunk_index < 0:
-                continue
-            processed.append(item)
-            recent = processed[-window:]
+    processed = []
+    for item in transcripts:
+        _raise_if_reprocess_stopped(stop_event)
+        chunk_index = int(item.get("chunkIndex", -1))
+        if chunk_index < 0:
+            continue
+        processed.append(item)
+        recent = processed[-window:]
+        with NOTES_LOCK:
             notes_obj = _generate_notes_with_context(
                 session_id=session_id,
                 chunk_index=chunk_index,
@@ -1733,16 +2382,19 @@ def rebuild_notes_for_session(session_id: str, party_override: str = "", regener
                 window_override=window,
             )
             _append_notes(session_id, chunk_index, notes_obj)
-            rolling_summary = str(notes_obj.get("summary") or "").strip() or rolling_summary
-            rebuilt += 1
-            if progress_cb:
-                progress_cb({"phase": "notes", "running": True, "processed": rebuilt, "total": total, "window": window})
+        rolling_summary = str(notes_obj.get("summary") or "").strip() or rolling_summary
+        rebuilt += 1
+        if progress_cb:
+            progress_cb({"phase": "notes", "running": True, "processed": rebuilt, "total": total, "window": window})
 
     summary_text = ""
     if regenerate_summary:
+        _raise_if_reprocess_stopped(stop_event)
         if progress_cb:
             progress_cb({"phase": "summary", "running": True, "processed": rebuilt, "total": total})
         summary_text = generate_game_summary_for_session(session_id)
+
+    _rewrite_notes_timeline_file(session_id)
 
     if progress_cb:
         progress_cb({"phase": "done", "running": False, "processed": rebuilt, "total": total})
@@ -1753,16 +2405,33 @@ def rebuild_notes_for_session(session_id: str, party_override: str = "", regener
     }
 
 def _set_reprocess_status(session_id: str, patch: dict):
-    session_dir = init_session(session_id)
-    status_path = os.path.join(session_dir, "status.json")
-    status = read_json(status_path, default={})
-    current = status.get("reprocessStatus") or {}
-    current.update(patch or {})
-    status["reprocessStatus"] = current
-    status["updatedAt"] = int(time.time())
-    write_json_atomic(status_path, status)
+    def mutate(status):
+        current = status.get("reprocessStatus") or {}
+        current.update(patch or {})
+        status["reprocessStatus"] = current
+        status["updatedAt"] = int(time.time())
+        return dict(current)
+    return _update_session_status(session_id, mutate, default={})
 
-def _run_reprocess_job(session_id: str, party_override: str, regenerate_summary: bool, window_override: int = None):
+def _set_clean_transcript_status(session_id: str, patch: dict):
+    def mutate(status):
+        current = status.get("cleanTranscriptStatus") or {}
+        current.update(patch or {})
+        status["cleanTranscriptStatus"] = current
+        status["updatedAt"] = int(time.time())
+        return dict(current)
+    return _update_session_status(session_id, mutate, default={})
+
+def _set_transcript_backfill_status(session_id: str, patch: dict):
+    def mutate(status):
+        current = status.get("transcriptBackfillStatus") or {}
+        current.update(patch or {})
+        status["transcriptBackfillStatus"] = current
+        status["updatedAt"] = int(time.time())
+        return dict(current)
+    return _update_session_status(session_id, mutate, default={})
+
+def _run_reprocess_job(session_id: str, party_override: str, regenerate_summary: bool, window_override: int = None, job_id: str = "", stop_event: threading.Event = None):
     def progress(p):
         payload = {
             "running": bool(p.get("running", True)),
@@ -1771,7 +2440,11 @@ def _run_reprocess_job(session_id: str, party_override: str, regenerate_summary:
             "total": int(p.get("total") or 0),
             "error": "",
             "updatedAt": int(time.time()),
+            "heartbeatAt": int(time.time()),
             "window": int(p.get("window") or 0),
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+            "stopRequested": bool(isinstance(stop_event, threading.Event) and stop_event.is_set()),
         }
         _set_reprocess_status(session_id, payload)
 
@@ -1784,8 +2457,12 @@ def _run_reprocess_job(session_id: str, party_override: str, regenerate_summary:
             "error": "",
             "startedAt": int(time.time()),
             "updatedAt": int(time.time()),
+            "heartbeatAt": int(time.time()),
             "finishedAt": None,
             "window": int(window_override or 0),
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+            "stopRequested": False,
         })
         result = rebuild_notes_for_session(
             session_id=session_id,
@@ -1793,6 +2470,7 @@ def _run_reprocess_job(session_id: str, party_override: str, regenerate_summary:
             regenerate_summary=regenerate_summary,
             progress_cb=progress,
             window_override=window_override,
+            stop_event=stop_event,
         )
         _set_reprocess_status(session_id, {
             "running": False,
@@ -1801,7 +2479,24 @@ def _run_reprocess_job(session_id: str, party_override: str, regenerate_summary:
             "error": "",
             "finishedAt": int(time.time()),
             "updatedAt": int(time.time()),
+            "heartbeatAt": int(time.time()),
             "window": int(window_override or 0),
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+            "stopRequested": False,
+        })
+    except ReprocessStopped:
+        _set_reprocess_status(session_id, {
+            "running": False,
+            "phase": "stopped",
+            "error": "",
+            "finishedAt": int(time.time()),
+            "updatedAt": int(time.time()),
+            "heartbeatAt": int(time.time()),
+            "window": int(window_override or 0),
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+            "stopRequested": True,
         })
     except Exception as e:
         _set_reprocess_status(session_id, {
@@ -1810,8 +2505,13 @@ def _run_reprocess_job(session_id: str, party_override: str, regenerate_summary:
             "error": str(e),
             "finishedAt": int(time.time()),
             "updatedAt": int(time.time()),
+            "heartbeatAt": int(time.time()),
             "window": int(window_override or 0),
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
         })
+    finally:
+        _unregister_reprocess_job(session_id, job_id=job_id)
 
 def rebuild_clean_transcript_for_session(session_id: str, party_override: str = ""):
     session_dir = init_session(session_id)
@@ -1839,36 +2539,245 @@ def rebuild_clean_transcript_for_session(session_id: str, party_override: str = 
 
     cleaned_count = 0
     lines_out = []
-    for idx, item in enumerate(transcript_items):
-        chunk_index = int(item["chunkIndex"])
-        raw_text = str(item["text"])
-        prev_chunk_text = transcript_items[idx - 1]["text"] if idx > 0 else ""
-        next_chunk_text = transcript_items[idx + 1]["text"] if idx + 1 < len(transcript_items) else ""
-        cleaned = clean_transcript_chunk_with_openai(
-            raw_text,
-            party=party,
-            chunk_index=chunk_index,
-            prev_chunk_text=prev_chunk_text,
-            next_chunk_text=next_chunk_text,
-        )
-        lines_out.append(f"[{chunk_index:04d}] {cleaned}".rstrip())
-        cleaned_count += 1
+    started_at = int(time.time())
+    _set_clean_transcript_status(session_id, {
+        "running": True,
+        "phase": "cleaning",
+        "processed": 0,
+        "total": len(transcript_items),
+        "error": "",
+        "startedAt": started_at,
+        "updatedAt": started_at,
+        "finishedAt": None,
+    })
 
     with open(clean_transcript_path, "w", encoding="utf-8") as f:
-        if lines_out:
-            f.write("\n".join(lines_out).strip() + "\n")
-        else:
-            f.write("")
+        f.write("")
 
-    status_path = os.path.join(session_dir, "status.json")
-    status = read_json(status_path, default={})
-    status["cleanTranscriptUpdatedAt"] = int(time.time())
-    write_json_atomic(status_path, status)
+    try:
+        for idx, item in enumerate(transcript_items):
+            chunk_index = int(item["chunkIndex"])
+            raw_text = str(item["text"])
+            prev_chunk_text = transcript_items[idx - 1]["text"] if idx > 0 else ""
+            next_chunk_text = transcript_items[idx + 1]["text"] if idx + 1 < len(transcript_items) else ""
+            cleaned = clean_transcript_chunk_with_openai(
+                raw_text,
+                party=party,
+                chunk_index=chunk_index,
+                prev_chunk_text=prev_chunk_text,
+                next_chunk_text=next_chunk_text,
+            )
+            lines_out.append(f"[{chunk_index:04d}] {cleaned}".rstrip())
+            cleaned_count += 1
+            with open(clean_transcript_path, "w", encoding="utf-8") as f:
+                if lines_out:
+                    f.write("\n".join(lines_out).strip() + "\n")
+                else:
+                    f.write("")
+            _set_session_status_fields(session_id, {
+                "cleanTranscriptUpdatedAt": int(time.time()),
+            })
+            _set_clean_transcript_status(session_id, {
+                "running": True,
+                "phase": "cleaning",
+                "processed": cleaned_count,
+                "total": len(transcript_items),
+                "error": "",
+                "updatedAt": int(time.time()),
+                "finishedAt": None,
+            })
+
+        _set_session_status_fields(session_id, {
+            "cleanTranscriptUpdatedAt": int(time.time()),
+        })
+        _set_clean_transcript_status(session_id, {
+            "running": False,
+            "phase": "done",
+            "processed": cleaned_count,
+            "total": len(transcript_items),
+            "error": "",
+            "updatedAt": int(time.time()),
+            "finishedAt": int(time.time()),
+        })
+    except Exception as e:
+        _set_clean_transcript_status(session_id, {
+            "running": False,
+            "phase": "error",
+            "processed": cleaned_count,
+            "total": len(transcript_items),
+            "error": str(e),
+            "updatedAt": int(time.time()),
+            "finishedAt": int(time.time()),
+        })
+        raise
 
     return {
         "rebuiltChunks": cleaned_count,
         "cleanTranscript": read_text(clean_transcript_path, ""),
     }
+
+def backfill_missing_transcripts_for_session(session_id: str):
+    session_dir = init_session(session_id)
+    if not os.path.isdir(session_dir):
+        raise RuntimeError("Session directory not found.")
+
+    missing = _missing_transcript_audio_chunks(session_id)
+    total = len(missing)
+    started_at = int(time.time())
+    _set_transcript_backfill_status(session_id, {
+        "running": True,
+        "phase": "backfilling",
+        "processed": 0,
+        "total": total,
+        "error": "",
+        "updatedAt": started_at,
+        "finishedAt": None,
+    })
+    if total <= 0:
+        return {
+            "backfilledChunks": 0,
+            "remainingMissing": 0,
+            "totalMissing": 0,
+        }
+
+    recovered_indexes = []
+    try:
+        for item in missing:
+            chunk_index = int(item.get("chunkIndex", -1))
+            path = str(item.get("path") or "")
+            if chunk_index < 0 or not path:
+                continue
+            text = transcribe_with_openai(path)
+            _append_transcript(session_id, chunk_index, text)
+            _rewrite_transcript_artifacts(session_id)
+            recovered_indexes.append(chunk_index)
+            _set_transcript_backfill_status(session_id, {
+                "running": True,
+                "phase": "backfilling",
+                "processed": len(recovered_indexes),
+                "total": total,
+                "error": "",
+                "updatedAt": int(time.time()),
+                "finishedAt": None,
+            })
+
+        remaining_missing = _missing_transcript_audio_chunks(session_id)
+        now = int(time.time())
+
+        def mutate(status):
+            status["transcriptBackfillUpdatedAt"] = now
+            err = status.get("transcriptError") or {}
+            try:
+                err_idx = int(err.get("chunkIndex", -1))
+            except Exception:
+                err_idx = -1
+            if err_idx in recovered_indexes and not remaining_missing:
+                status.pop("transcriptError", None)
+        _update_session_status(session_id, mutate, default={})
+
+        _set_transcript_backfill_status(session_id, {
+            "running": False,
+            "phase": "done",
+            "processed": len(recovered_indexes),
+            "total": total,
+            "error": "",
+            "updatedAt": now,
+            "finishedAt": now,
+        })
+        return {
+            "backfilledChunks": len(recovered_indexes),
+            "remainingMissing": len(remaining_missing),
+            "totalMissing": total,
+        }
+    except Exception as e:
+        _set_transcript_backfill_status(session_id, {
+            "running": False,
+            "phase": "error",
+            "processed": len(recovered_indexes),
+            "total": total,
+            "error": str(e),
+            "updatedAt": int(time.time()),
+            "finishedAt": int(time.time()),
+        })
+        raise
+
+def _run_transcript_backfill_job(session_id: str, job_id: str = ""):
+    try:
+        _set_transcript_backfill_status(session_id, {
+            "running": True,
+            "phase": "starting",
+            "processed": 0,
+            "total": 0,
+            "error": "",
+            "startedAt": int(time.time()),
+            "updatedAt": int(time.time()),
+            "finishedAt": None,
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+        })
+        result = backfill_missing_transcripts_for_session(session_id=session_id)
+        _set_transcript_backfill_status(session_id, {
+            "running": False,
+            "phase": "done",
+            "processed": int(result.get("backfilledChunks") or 0),
+            "total": int(result.get("totalMissing") or 0),
+            "remainingMissing": int(result.get("remainingMissing") or 0),
+            "error": "",
+            "updatedAt": int(time.time()),
+            "finishedAt": int(time.time()),
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+        })
+    except Exception as e:
+        _set_transcript_backfill_status(session_id, {
+            "running": False,
+            "phase": "error",
+            "error": str(e),
+            "updatedAt": int(time.time()),
+            "finishedAt": int(time.time()),
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+        })
+    finally:
+        _unregister_transcript_backfill_job(session_id, job_id=job_id)
+
+def _run_clean_transcript_job(session_id: str, party_override: str, job_id: str = ""):
+    try:
+        _set_clean_transcript_status(session_id, {
+            "running": True,
+            "phase": "starting",
+            "processed": 0,
+            "total": 0,
+            "error": "",
+            "startedAt": int(time.time()),
+            "updatedAt": int(time.time()),
+            "finishedAt": None,
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+        })
+        result = rebuild_clean_transcript_for_session(session_id=session_id, party_override=party_override)
+        _set_clean_transcript_status(session_id, {
+            "running": False,
+            "phase": "done",
+            "processed": int(result.get("rebuiltChunks") or 0),
+            "error": "",
+            "updatedAt": int(time.time()),
+            "finishedAt": int(time.time()),
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+        })
+    except Exception as e:
+        _set_clean_transcript_status(session_id, {
+            "running": False,
+            "phase": "error",
+            "error": str(e),
+            "updatedAt": int(time.time()),
+            "finishedAt": int(time.time()),
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+        })
+    finally:
+        _unregister_clean_transcript_job(session_id, job_id=job_id)
 
 def transcribe_async(session_id: str, chunk_index: int, path: str):
     try:
@@ -1920,7 +2829,10 @@ class Handler(SimpleHTTPRequestHandler):
                 qs = parse_qs(parsed.query)
                 limit = int((qs.get("limit") or ["50"])[0])
                 limit = max(1, min(200, limit))
-                self._send_json(200, {"ok": True, "sessions": list_sessions(limit)})
+                campaign_id = str((qs.get("campaignId") or [""])[0]).strip()
+                if campaign_id:
+                    campaign_id = _safe_campaign_id(campaign_id)
+                self._send_json(200, {"ok": True, "sessions": list_sessions(limit, campaign_id=campaign_id)})
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
@@ -2086,6 +2998,7 @@ class Handler(SimpleHTTPRequestHandler):
                 session_id = safe_session_id(str(data.get("sessionId", "")))
                 session_name = sanitize_session_name(data.get("sessionName", ""))
                 campaign_id = _safe_campaign_id(str(data.get("campaignId") or "default"))
+                party = str(data.get("party") or "").strip()
                 campaign = read_campaign(campaign_id)
                 session_dir = init_session(session_id, campaign_id=campaign_id)
                 status_path = os.path.join(session_dir, "status.json")
@@ -2094,6 +3007,9 @@ class Handler(SimpleHTTPRequestHandler):
                     status["sessionName"] = session_name
                 status["campaignId"] = campaign_id
                 status["contextSnapshot"] = _build_context_snapshot(campaign)
+                if party:
+                    write_text(os.path.join(session_dir, "party.txt"), party + "\n")
+                    status["party"] = party
                 status["updatedAt"] = int(time.time())
                 write_json_atomic(status_path, status)
                 self._send_json(200, {
@@ -2198,6 +3114,59 @@ class Handler(SimpleHTTPRequestHandler):
                 status["updatedAt"] = int(time.time())
                 write_json_atomic(status_path, status)
                 self._send_json(200, {"ok": True, "sessionId": session_id, "sessionName": session_name})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/notes/timeline/update":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                item_id = str(data.get("itemId") or "").strip()
+                if not item_id:
+                    raise ValueError("itemId is required.")
+
+                timeline_items = {str(item.get("id") or ""): item for item in _timeline_entries(session_id)}
+                if item_id not in timeline_items:
+                    raise ValueError("Timeline item not found.")
+
+                edited_text = str(data.get("editedText") or "").strip()
+                priority = _coerce_priority(data.get("priority"))
+
+                overrides = _read_notes_overrides(session_id)
+                current = overrides.get(item_id)
+                if not isinstance(current, dict):
+                    current = {}
+
+                original_text = str(timeline_items[item_id].get("originalText") or "").strip()
+                if edited_text and edited_text != original_text:
+                    current["editedText"] = edited_text
+                else:
+                    current.pop("editedText", None)
+
+                if priority != 0:
+                    current["priority"] = priority
+                else:
+                    current.pop("priority", None)
+
+                if current:
+                    current["updatedAt"] = int(time.time())
+                    overrides[item_id] = current
+                else:
+                    overrides.pop(item_id, None)
+
+                _write_notes_overrides(session_id, overrides)
+                _rewrite_notes_timeline_file(session_id)
+                structured = _latest_notes_structured(session_id)
+                updated_item = next((item for item in (structured.get("timelineItems") or []) if str(item.get("id") or "") == item_id), None)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "item": updated_item,
+                    "notesTimeline": structured.get("timelineItems") or [],
+                    "notesTimelineText": structured.get("timelineText") or "",
+                })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
@@ -2393,6 +3362,7 @@ class Handler(SimpleHTTPRequestHandler):
                 transcript_text = (data.get("transcript") or "").strip()
                 party = (data.get("party") or "").strip()
                 summary = (data.get("summary") or "").strip()
+                prep_context_text = (data.get("prepContextText") or "").strip()
                 system_prompt = (data.get("prompt") or "").strip()
                 window = data.get("window") or 2
                 chunk_from = data.get("chunkFrom")
@@ -2408,11 +3378,31 @@ class Handler(SimpleHTTPRequestHandler):
                     chunk_from=chunk_from,
                     chunk_to=chunk_to,
                     use_context=use_context,
+                    prep_context_text=prep_context_text,
                 )
 
                 self._send_json(200, {
                     "ok": True,
                     **payload,
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/notes/test/save-markdown":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_meta = data.get("sessionMeta") if isinstance(data.get("sessionMeta"), dict) else {}
+                payload = data.get("payload") if isinstance(data.get("payload"), dict) else {}
+                result = data.get("result") if isinstance(data.get("result"), dict) else {}
+                if not payload or not result:
+                    raise ValueError("payload and result are required.")
+                path = _save_notes_lab_run(session_meta, payload, result)
+                self._send_json(200, {
+                    "ok": True,
+                    "path": path,
+                    "relativePath": os.path.relpath(path, BASE_DIR),
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
@@ -2475,6 +3465,53 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
 
+        if parsed.path == "/api/session/reprocess/stop":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                status_path = os.path.join(UPLOADS_DIR, session_id, "status.json")
+                status = read_json(status_path, default={})
+                rep = _normalize_reprocess_status(session_id, status, persist=True)
+
+                if rep.get("running"):
+                    requested = _request_reprocess_stop(session_id, str(rep.get("jobId") or ""))
+                    if requested:
+                        _set_reprocess_status(session_id, {
+                            "running": True,
+                            "phase": "stop_requested",
+                            "updatedAt": int(time.time()),
+                            "heartbeatAt": int(time.time()),
+                            "stopRequested": True,
+                        })
+                        self._send_json(200, {
+                            "ok": True,
+                            "sessionId": session_id,
+                            "stopRequested": True,
+                            "running": True,
+                        })
+                        return
+
+                _set_reprocess_status(session_id, {
+                    "running": False,
+                    "phase": "stopped",
+                    "error": "",
+                    "finishedAt": int(time.time()),
+                    "updatedAt": int(time.time()),
+                    "heartbeatAt": int(time.time()),
+                    "stopRequested": False,
+                })
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "stopRequested": False,
+                    "running": False,
+                    "cleared": True,
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
         if parsed.path == "/api/session/reprocess/start":
             try:
                 body = self._read_body().decode("utf-8")
@@ -2488,36 +3525,114 @@ class Handler(SimpleHTTPRequestHandler):
 
                 # Avoid concurrent rebuilds for the same session.
                 status = read_json(os.path.join(UPLOADS_DIR, session_id, "status.json"), default={})
-                rep = status.get("reprocessStatus") or {}
+                rep = _normalize_reprocess_status(session_id, status, persist=True)
                 if rep.get("running"):
                     self._send_json(409, {"ok": False, "error": "Reprocess already running for this session."})
                     return
+                clean_status = _normalize_clean_transcript_status(session_id, status, persist=True)
+                if clean_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Clean transcript rebuild is already running for this session."})
+                    return
+                backfill_status = _normalize_transcript_backfill_status(session_id, status, persist=True)
+                if backfill_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Transcript backfill is already running for this session."})
+                    return
 
+                job_id = uuid.uuid4().hex
+                stop_event = threading.Event()
                 t = threading.Thread(
                     target=_run_reprocess_job,
-                    args=(session_id, party_override, regenerate_summary, window_override),
+                    args=(session_id, party_override, regenerate_summary, window_override, job_id, stop_event),
                     daemon=True,
                 )
+                _register_reprocess_job(session_id, job_id, stop_event, t)
                 t.start()
-                self._send_json(200, {"ok": True, "sessionId": session_id, "started": True, "window": window_override})
+                self._send_json(200, {"ok": True, "sessionId": session_id, "started": True, "window": window_override, "jobId": job_id})
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
 
-        if parsed.path == "/api/session/clean-transcript":
+        if parsed.path == "/api/session/clean-transcript/start":
             try:
                 body = self._read_body().decode("utf-8")
                 data = json.loads(body) if body else {}
                 session_id = safe_session_id(str(data.get("sessionId", "")))
                 party_override = str(data.get("party") or "")
-                result = rebuild_clean_transcript_for_session(
-                    session_id=session_id,
-                    party_override=party_override,
+                status = read_json(_session_status_path(session_id), default={})
+                rep = _normalize_reprocess_status(session_id, status, persist=True)
+                if rep.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Notes rebuild is already running for this session."})
+                    return
+                backfill_status = _normalize_transcript_backfill_status(session_id, status, persist=True)
+                if backfill_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Transcript backfill is already running for this session."})
+                    return
+                clean_status = _normalize_clean_transcript_status(session_id, status, persist=True)
+                if clean_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Clean transcript rebuild already running for this session."})
+                    return
+
+                job_id = uuid.uuid4().hex
+                t = threading.Thread(
+                    target=_run_clean_transcript_job,
+                    args=(session_id, party_override, job_id),
+                    daemon=True,
                 )
+                _register_clean_transcript_job(session_id, job_id, t)
+                t.start()
                 self._send_json(200, {
                     "ok": True,
                     "sessionId": session_id,
-                    **result,
+                    "started": True,
+                    "jobId": job_id,
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/transcripts/backfill/start":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                status = read_json(_session_status_path(session_id), default={})
+                rep = _normalize_reprocess_status(session_id, status, persist=True)
+                if rep.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Notes rebuild is already running for this session."})
+                    return
+                clean_status = _normalize_clean_transcript_status(session_id, status, persist=True)
+                if clean_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Clean transcript rebuild is already running for this session."})
+                    return
+                backfill_status = _normalize_transcript_backfill_status(session_id, status, persist=True)
+                if backfill_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Transcript backfill already running for this session."})
+                    return
+
+                missing = _missing_transcript_audio_chunks(session_id)
+                if not missing:
+                    self._send_json(200, {
+                        "ok": True,
+                        "sessionId": session_id,
+                        "started": False,
+                        "missingTranscriptChunks": [],
+                    })
+                    return
+
+                job_id = uuid.uuid4().hex
+                t = threading.Thread(
+                    target=_run_transcript_backfill_job,
+                    args=(session_id, job_id),
+                    daemon=True,
+                )
+                _register_transcript_backfill_job(session_id, job_id, t)
+                t.start()
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "started": True,
+                    "jobId": job_id,
+                    "missingTranscriptChunks": [int(item.get("chunkIndex") or -1) for item in missing if int(item.get("chunkIndex") or -1) >= 0],
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
