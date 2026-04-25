@@ -1,7 +1,15 @@
 {
   "campaignId": "parmedia-redux",
   "name": "Parmedia redux",
-  "party": "role=DM | player=Jon | character=DM | aliases=DM, GM, Dungeon Master\nrole=Player | player=Robert | character=Trell | class=Wizard | race=High Elf\nrole=Player | player=Geir | character=Goibert | class=Sourcer | race=Rabbit-folk\nrole=Player | player=Dan | character=Malygris | class=Fighter | race=Human\nrole=Player | player=Geoff | character=Visit | class=Cleric | race=Human\nrole=Player | player=Rubin | character=Ghedorim | class=Monk | race=Dragonborn\n\n\n",
+  "party": "role=DM | player=Jon | character=DM | aliases=DM, GM, Dungeon Master\nrole=Player | player=Robert | character=Trell | class=Wizard | race=High Elf\nrole=Player | player=Geir | character=Goibert | class=Sourcer | race=Rabbit-folk\nrole=Player | player=Dan | character=Malygris | class=Fighter | race=Human\nrole=Player | player=Geoff | character=Visit | class=Cleric | race=Human | aliases=Dongstrider\nrole=Player | player=Rubin | character=Ghedorim | class=Monk | race=Dragonborn\nrole=Player | player=Justin | character=Gale | class=Wizard | race=Elf",
+  "canonNames": [
+    {
+      "name": "King Aerlan",
+      "aliases": "Aerlan",
+      "type": "npc",
+      "descriptor": "Former King of Parmedia"
+    }
+  ],
   "campaignSummary": "",
   "dungeonMakerJson": {
     "export_type": "dm_recorder_context",
@@ -647,39 +655,39 @@
       "text": "# D&D Session Summary",
       "label": "",
       "sessionId": "",
-      "updatedAt": 1773197042
+      "updatedAt": 1777145220
     },
     {
       "text": "## Summary\nIn this session, the party continued their exploration of a mysterious dungeon, encountering various undead creatures and a waxy-skinned commander. After defeating the commander, they discovered valuable loot, including a wand of Cinderburst and ornate keys. The session ended with the party preparing to investigate a locked metal box and the hallway leading deeper into the dungeon.",
       "label": "",
       "sessionId": "",
-      "updatedAt": 1773197042
+      "updatedAt": 1777145220
     },
     {
       "text": "## Timeline\n- The party explored a dungeon and encountered orcs.\n- They discovered a magical pedestal by a well and defeated zombies and skeletons in a prison.\n- Visit used the spell 'knock' to open a door to a strategy room.\n- Malygris used the mage hand cantrip to reveal a strategy map on a table.\n- Visit prayed over a skeleton, confirming it had died of natural causes, and discovered three ornate stones with sigils.\n- The party examined the table and found divots matching the sigils on the stones.\n- Malygris placed the first stone into the table, revealing a live image of the capital city, Arantoria.\n- The party placed additional stones, revealing images of a tall chamber with a giant mirror and a dark stone chamber lit by blue light.\n- They encountered a waxy-skinned commander who attacked them.\n- The party engaged in combat, with Trell casting Tasha's Hideous Laughter on the commander.\n- After a fierce battle, the commander was defeated.\n- The party found military records, a ring with a star, and two ornate keys on the commander's body.\n- Ghedorim opened a locked metal box, revealing a wand of Cinderburst with three charges.\n- The session concluded with the party preparing to explore further.",
       "label": "",
       "sessionId": "",
-      "updatedAt": 1773197042
+      "updatedAt": 1777145220
     },
     {
       "text": "## Key NPCs\n- **Waxy-skinned Commander**: An undead commander who attacked the party and was ultimately defeated.\n- **Skeleton in Blue Officer's Coat**: Found in the strategy room, confirmed to have died of natural causes.",
       "label": "",
       "sessionId": "",
-      "updatedAt": 1773197042
+      "updatedAt": 1777145220
     },
     {
       "text": "## Loot/Treasure\n- **Wand of Cinderburst**: Allows the casting of burning hands at second level with three charges.\n- **Ring with a Star**: Found on the commander's body, potential magical properties.\n- **Two Ornate Keys**: Found alongside the ring.\n- **Military Records**: Blurry records found in the commander's office.",
       "label": "",
       "sessionId": "",
-      "updatedAt": 1773197042
+      "updatedAt": 1777145220
     },
     {
       "text": "## Outstanding Hooks\n- The party has yet to explore the locked metal box found in the commander's desk.\n- There is a hallway leading deeper into the dungeon that the party has not yet investigated.\n- The significance of the ornate keys and the ring remains unclear, presenting potential future quests or challenges.",
       "label": "",
       "sessionId": "",
-      "updatedAt": 1773197042
+      "updatedAt": 1777145220
     }
   ],
-  "createdAt": 1773197042,
-  "updatedAt": 1776905841
+  "createdAt": 1777145220,
+  "updatedAt": 1777145220
 }

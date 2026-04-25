@@ -437,6 +437,38 @@
                     <textarea id="campaignSessionSummaries" class="form-control" rows="6" placeholder="Paste or edit session recap entries here."></textarea>
                   </div>
                 </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-12">
+                    <div class="border rounded-3 p-3">
+                      <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-2">
+                        <div>
+                          <label class="form-label small mb-0">Canonical names and aliases</label>
+                          <div class="small text-muted">Use this as a lightweight glossary for names the model should spell and recognize consistently, including historical figures.</div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                          <button id="campaignAddCanonNpcBtn" type="button" class="btn btn-outline-primary btn-sm">Add NPC</button>
+                          <button id="campaignAddCanonHistoricalBtn" type="button" class="btn btn-outline-secondary btn-sm">Add Historical</button>
+                          <button id="campaignAddCanonPlaceBtn" type="button" class="btn btn-outline-secondary btn-sm">Add Place</button>
+                        </div>
+                      </div>
+                      <div class="table-responsive">
+                        <table class="table table-sm align-middle" id="campaignCanonNamesTable">
+                          <thead>
+                            <tr>
+                              <th style="min-width:170px;">Canonical name</th>
+                              <th style="min-width:110px;">Type</th>
+                              <th style="min-width:170px;">Aliases / transcript variants</th>
+                              <th style="min-width:220px;">Short descriptor</th>
+                              <th style="width:1%;"></th>
+                            </tr>
+                          </thead>
+                          <tbody id="campaignCanonNamesBody"></tbody>
+                        </table>
+                      </div>
+                      <div id="campaignCanonNamesStatus" class="small text-muted mt-1"></div>
+                    </div>
+                  </div>
+                </div>
                 <div class="row g-2">
                   <div class="col-12 col-md-5">
                     <div class="small text-muted mb-1">Compiled context preview</div>
@@ -559,8 +591,8 @@
                     <div>
                       <div class="soft-label mb-1">History Help</div>
                       <div class="small text-muted">
-                        This page is for reviewing and repairing a finished session. <strong>Notes context window</strong> controls how many recent transcript chunks are included each time the app rebuilds DM notes.
-                        It helps with continuity, but it does <strong>not</strong> change the original recording or raw chunk files.
+                        This page is for reviewing and repairing a finished session. DM notes rebuilds now use the settled default context window behind the scenes, so the History page stays focused on repair and review.
+                        Use <strong>Notes Lab</strong> when you want to experiment with chunk windows or prompt changes.
                       </div>
                     </div>
                     <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#helpModal">Open full help</button>
@@ -568,8 +600,6 @@
                 </div>
                 <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
                   <div class="small text-muted">Campaign history</div>
-                  <label class="small text-muted mb-0" for="sessions-window-input">Notes context window</label>
-                  <input id="sessions-window-input" type="number" class="form-control form-control-sm" value="2" min="1" max="20" style="width:90px;">
                   <button id="sessions-refresh" class="btn btn-outline-secondary btn-sm">Refresh</button>
                   <button id="sessions-backfill-transcripts" class="btn btn-outline-secondary btn-sm">Backfill Missing Audio</button>
                   <button id="sessions-clean-transcript" class="btn btn-outline-secondary btn-sm">Rebuild Clean Transcript</button>
@@ -742,8 +772,8 @@
                     <div class="faq-section">
                       <div class="soft-label mb-2">History Page</div>
                       <ul class="small mb-0">
-                        <li><strong>Notes context window</strong> affects only <strong>Rebuild Notes + Summary</strong>. It sets how many recent transcript chunks the app includes in each notes-generation step.</li>
-                        <li>A smaller notes window keeps the prompt tighter and more local. A larger window gives more surrounding context, which can help continuity but can also make the notes drift.</li>
+                        <li><strong>Rebuild Notes + Summary</strong> now uses the settled default notes window automatically.</li>
+                        <li>Use <strong>Notes Lab</strong> if you want to experiment with different chunk windows on a smaller slice before changing anything else.</li>
                         <li><strong>Backfill Missing Audio</strong> retranscribes saved audio chunks that exist on disk but are missing from the transcript, such as chunks recorded while you were offline.</li>
                         <li><strong>Rebuild Clean Transcript</strong> rewrites the readable transcript from the raw transcript entries. It does not recover missing audio on its own.</li>
                         <li><strong>Rebuild Notes + Summary</strong> regenerates DM notes and the rolling notes summary from the transcript.</li>
@@ -1912,6 +1942,11 @@ async function postMetaOnce() {
   const campaignAddNpcBtn = document.getElementById("campaignAddNpcBtn");
   const campaignAddDmBtn = document.getElementById("campaignAddDmBtn");
   const campaignPartyStatusEl = document.getElementById("campaignPartyStatus");
+  const campaignCanonNamesBodyEl = document.getElementById("campaignCanonNamesBody");
+  const campaignAddCanonNpcBtn = document.getElementById("campaignAddCanonNpcBtn");
+  const campaignAddCanonHistoricalBtn = document.getElementById("campaignAddCanonHistoricalBtn");
+  const campaignAddCanonPlaceBtn = document.getElementById("campaignAddCanonPlaceBtn");
+  const campaignCanonNamesStatusEl = document.getElementById("campaignCanonNamesStatus");
   const campaignSummaryEl = document.getElementById("campaignSummary");
   const campaignSessionSummariesEl = document.getElementById("campaignSessionSummaries");
   const recordingCampaignContextPreviewEl = document.getElementById("recordingCampaignContextPreview");
@@ -1920,6 +1955,7 @@ async function postMetaOnce() {
   let suppressCampaignChange = false;
   let workspaceActive = false;
   let campaignPartyRoster = [];
+  let campaignCanonNames = [];
 
   function setPrepStatus(msg) {
     if (prepStatusEl) prepStatusEl.textContent = msg || "";
@@ -1931,6 +1967,10 @@ async function postMetaOnce() {
 
   function setCampaignPartyStatus(msg) {
     if (campaignPartyStatusEl) campaignPartyStatusEl.textContent = msg || "";
+  }
+
+  function setCampaignCanonNamesStatus(msg) {
+    if (campaignCanonNamesStatusEl) campaignCanonNamesStatusEl.textContent = msg || "";
   }
 
   function showWorkspace(active) {
@@ -1999,6 +2039,20 @@ async function postMetaOnce() {
       .map((text) => ({ text }));
   }
 
+  function normalizeCanonNameEntry(entry = {}) {
+    const type = String(entry?.type || 'npc').trim().toLowerCase();
+    return {
+      name: String(entry?.name || '').trim(),
+      type: ['npc', 'historical', 'faction', 'place', 'item'].includes(type) ? type : 'npc',
+      aliases: String(entry?.aliases || '').trim(),
+      descriptor: String(entry?.descriptor || '').trim(),
+    };
+  }
+
+  function defaultCanonNameEntry(type = 'npc') {
+    return normalizeCanonNameEntry({ type });
+  }
+
   function setCampaignDirty(isDirty, message = '') {
     campaignDirty = Boolean(isDirty);
     if (campaignDirty) {
@@ -2022,6 +2076,39 @@ async function postMetaOnce() {
       markCampaignDirty();
       setCampaignPartyStatus('Campaign roster updated. Save Campaign to make it canonical.');
     }
+  }
+
+  function renderCampaignCanonNames() {
+    if (!campaignCanonNamesBodyEl) return;
+    campaignCanonNamesBodyEl.innerHTML = '';
+    if (!Array.isArray(campaignCanonNames)) campaignCanonNames = [];
+    campaignCanonNames.forEach((entry, index) => {
+      const row = normalizeCanonNameEntry(entry);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input class="form-control form-control-sm" data-campaign-canon-field="name" data-campaign-canon-index="${index}" value="${escapeHtml(row.name)}" placeholder="King Aerlan"></td>
+        <td>
+          <select class="form-select form-select-sm" data-campaign-canon-field="type" data-campaign-canon-index="${index}">
+            <option value="npc" ${row.type === 'npc' ? 'selected' : ''}>NPC</option>
+            <option value="historical" ${row.type === 'historical' ? 'selected' : ''}>Historical</option>
+            <option value="place" ${row.type === 'place' ? 'selected' : ''}>Place</option>
+            <option value="item" ${row.type === 'item' ? 'selected' : ''}>Item</option>
+            <option value="faction" ${row.type === 'faction' ? 'selected' : ''}>Faction</option>
+          </select>
+        </td>
+        <td><input class="form-control form-control-sm" data-campaign-canon-field="aliases" data-campaign-canon-index="${index}" value="${escapeHtml(row.aliases)}" placeholder="Aerlan, Erland"></td>
+        <td><input class="form-control form-control-sm" data-campaign-canon-field="descriptor" data-campaign-canon-index="${index}" value="${escapeHtml(row.descriptor)}" placeholder="Former king tied to the fort's history."></td>
+        <td><button type="button" class="btn btn-outline-danger btn-sm" data-campaign-canon-remove="${index}">Remove</button></td>
+      `;
+      campaignCanonNamesBodyEl.appendChild(tr);
+    });
+  }
+
+  function addCampaignCanonNameRow(type = 'npc') {
+    campaignCanonNames.push(defaultCanonNameEntry(type));
+    renderCampaignCanonNames();
+    markCampaignDirty();
+    setCampaignCanonNamesStatus('Canonical names updated. Save Campaign to make them part of the prompt context.');
   }
 
   function renderCampaignRoster() {
@@ -2116,6 +2203,50 @@ async function postMetaOnce() {
     }
   }
 
+  function bindCampaignCanonNameEvents() {
+    if (campaignAddCanonNpcBtn) campaignAddCanonNpcBtn.addEventListener('click', () => addCampaignCanonNameRow('npc'));
+    if (campaignAddCanonHistoricalBtn) campaignAddCanonHistoricalBtn.addEventListener('click', () => addCampaignCanonNameRow('historical'));
+    if (campaignAddCanonPlaceBtn) campaignAddCanonPlaceBtn.addEventListener('click', () => addCampaignCanonNameRow('place'));
+
+    if (campaignCanonNamesBodyEl) {
+      campaignCanonNamesBodyEl.addEventListener('input', (evt) => {
+        const target = evt.target;
+        if (!(target instanceof HTMLElement)) return;
+        const field = target.getAttribute('data-campaign-canon-field');
+        const idx = Number(target.getAttribute('data-campaign-canon-index'));
+        if (!field || !Number.isInteger(idx) || !campaignCanonNames[idx]) return;
+        campaignCanonNames[idx][field] = target.value;
+        markCampaignDirty();
+        setCampaignCanonNamesStatus('Canonical names updated. Save Campaign to keep these spellings and aliases.');
+      });
+
+      campaignCanonNamesBodyEl.addEventListener('change', (evt) => {
+        const target = evt.target;
+        if (!(target instanceof HTMLElement)) return;
+        const field = target.getAttribute('data-campaign-canon-field');
+        const idx = Number(target.getAttribute('data-campaign-canon-index'));
+        if (!field || !Number.isInteger(idx) || !campaignCanonNames[idx]) return;
+        campaignCanonNames[idx] = normalizeCanonNameEntry(campaignCanonNames[idx]);
+        renderCampaignCanonNames();
+        markCampaignDirty();
+        setCampaignCanonNamesStatus('Canonical names updated. Save Campaign to keep these spellings and aliases.');
+      });
+
+      campaignCanonNamesBodyEl.addEventListener('click', (evt) => {
+        const target = evt.target;
+        if (!(target instanceof HTMLElement)) return;
+        const rawIdx = target.getAttribute('data-campaign-canon-remove');
+        if (rawIdx == null) return;
+        const idx = Number(rawIdx);
+        if (!Number.isInteger(idx)) return;
+        campaignCanonNames.splice(idx, 1);
+        renderCampaignCanonNames();
+        markCampaignDirty();
+        setCampaignCanonNamesStatus('Canonical names updated. Save Campaign to keep these spellings and aliases.');
+      });
+    }
+  }
+
   function renderCampaign(campaign, preview) {
     if (campaignNameEl) campaignNameEl.value = campaign?.name || selectedCampaignId();
     campaignPartyRoster = parsePartyMetaText(campaign?.party || "");
@@ -2123,6 +2254,9 @@ async function postMetaOnce() {
     if (campaignPartyEl) campaignPartyEl.value = campaign?.party || "";
     setCampaignPartyStatus(campaignPartyRoster.length ? 'Campaign roster loaded.' : 'No saved campaign roster yet.');
     window.applyCampaignPartyToRecording?.(campaign?.party || '', campaign?.name || selectedCampaignId());
+    campaignCanonNames = Array.isArray(campaign?.canonNames) ? campaign.canonNames.map((entry) => normalizeCanonNameEntry(entry)) : [];
+    renderCampaignCanonNames();
+    setCampaignCanonNamesStatus(campaignCanonNames.length ? 'Canonical names loaded.' : 'No canonical names saved yet.');
     if (campaignSummaryEl) campaignSummaryEl.value = campaign?.campaignSummary || "";
     if (campaignSessionSummariesEl) {
       const items = Array.isArray(campaign?.sessionSummaries) ? campaign.sessionSummaries : [];
@@ -2208,6 +2342,7 @@ async function postMetaOnce() {
           campaignId,
           name: campaignNameEl?.value || campaignId,
           party: campaignPartyEl?.value || '',
+          canonNames: campaignCanonNames.map((entry) => normalizeCanonNameEntry(entry)).filter((entry) => entry.name || entry.aliases || entry.descriptor),
           campaignSummary: campaignSummaryEl?.value || '',
           dungeonMakerJson,
           sessionSummaries: parseSessionSummaryEntries(campaignSessionSummariesEl?.value || ''),
@@ -2352,6 +2487,7 @@ async function postMetaOnce() {
     setWorkspaceStatus('Choose another campaign.');
   });
   bindCampaignRosterEvents();
+  bindCampaignCanonNameEvents();
 
   [campaignNameEl, campaignPartyEl, campaignSummaryEl, campaignSessionSummariesEl, prepJsonEl].forEach((el) => {
     if (el) {
@@ -2442,6 +2578,7 @@ async function postMetaOnce() {
   async function loadTestSessions() {
     try {
       if (!testSessionSelectEl) return;
+      const previous = String(testSessionSelectEl.value || "").trim();
       testSessionSelectEl.innerHTML = "";
       const res = await fetch("/api/sessions/list?limit=200");
       const json = await res.json().catch(() => ({}));
@@ -2461,13 +2598,32 @@ async function postMetaOnce() {
         opt.textContent = `${label} (${s.sessionId})`;
         testSessionSelectEl.appendChild(opt);
       });
+      const historySelected = String(document.getElementById("sessions-select")?.value || "").trim();
+      if (previous && Array.from(testSessionSelectEl.options).some((opt) => opt.value === previous)) {
+        testSessionSelectEl.value = previous;
+      } else if (historySelected && Array.from(testSessionSelectEl.options).some((opt) => opt.value === historySelected)) {
+        testSessionSelectEl.value = historySelected;
+      }
     } catch (e) {
       setTestStatus(`Failed to load sessions: ${e.message}`);
     }
   }
 
   async function loadTestSessionData() {
-    const sid = testSessionSelectEl?.value || "";
+    if (!testSessionSelectEl?.value) {
+      await loadTestSessions();
+    }
+    let sid = String(testSessionSelectEl?.value || "").trim();
+    if (!sid) {
+      const historySelected = String(document.getElementById("sessions-select")?.value || "").trim();
+      if (historySelected && testSessionSelectEl) {
+        const hasHistorySelected = Array.from(testSessionSelectEl.options || []).some((opt) => opt.value === historySelected);
+        if (hasHistorySelected) {
+          testSessionSelectEl.value = historySelected;
+          sid = historySelected;
+        }
+      }
+    }
     if (!sid) {
       setTestStatus("Select a session first.");
       return;
@@ -2539,6 +2695,11 @@ async function postMetaOnce() {
     testLoadHistorySessionBtn.addEventListener("click", async () => {
       const sid = String(document.getElementById("sessions-select")?.value || "").trim();
       await openNotesLabForSession(sid);
+    });
+  }
+  if (tabTestEl) {
+    tabTestEl.addEventListener("shown.bs.tab", () => {
+      loadTestSessions();
     });
   }
   if (testReloadDefaultPromptBtn) {
@@ -2625,7 +2786,6 @@ async function postMetaOnce() {
   const rosterToPartyMetaText = window.rosterToPartyMetaText;
   const tabSessionsEl = document.getElementById("tab-sessions");
   const sessionsSelectEl = document.getElementById("sessions-select");
-  const sessionsWindowInputEl = document.getElementById("sessions-window-input");
   const sessionsNameInputEl = document.getElementById("sessions-name-input");
   const sessionsSaveNameEl = document.getElementById("sessions-save-name");
   const sessionsCampaignSelectEl = document.getElementById("sessions-campaign-select");
@@ -3526,8 +3686,7 @@ async function postMetaOnce() {
       try {
         reprocessStartPending = true;
         updateReprocessControls(currentReprocessStatus || {});
-        const windowOverride = Math.max(1, Math.min(20, Number(sessionsWindowInputEl?.value || 2)));
-        if (sessionsInfoEl) sessionsInfoEl.textContent = `Starting rebuild for ${sessionId} (window=${windowOverride})...`;
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Starting rebuild for ${sessionId}...`;
         if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = 'Rebuilding notes and summary...';
         const partyOverride = sessionsPartyMetaEl?.value || '';
         const res = await fetch('/api/session/reprocess/start', {
@@ -3536,13 +3695,12 @@ async function postMetaOnce() {
           body: JSON.stringify({
             sessionId,
             party: partyOverride,
-            regenerateSummary: true,
-            windowOverride
+            regenerateSummary: true
           })
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
-        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (rebuild started, window=${windowOverride})`;
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (rebuild started)`;
         startReprocessPolling(sessionId);
       } catch (e) {
         if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;

@@ -29,7 +29,7 @@ CLEAN_TRANSCRIPT_JOBS = {}
 TRANSCRIPT_BACKFILL_LOCK = threading.Lock()
 TRANSCRIPT_BACKFILL_JOBS = {}
 NOTES_MODEL_DEFAULT = "gpt-4o-mini"
-NOTES_WINDOW_DEFAULT = 5
+NOTES_WINDOW_DEFAULT = 2
 REPROCESS_STALL_SECONDS_DEFAULT = 600
 SUMMARY_MODEL_DEFAULT = "gpt-4o-mini"
 CLEAN_TRANSCRIPT_MODEL_DEFAULT = "gpt-4o-mini"
@@ -71,6 +71,13 @@ def read_text(path: str, default: str = "") -> str:
             return f.read()
     except FileNotFoundError:
         return default
+
+def write_text(path: str, text: str):
+    parent = os.path.dirname(path)
+    if parent:
+        ensure_dir(parent)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(str(text or ""))
 
 class ReprocessStopped(Exception):
     pass
@@ -297,12 +304,34 @@ def _default_campaign(campaign_id: str, name: str = ""):
         "campaignId": campaign_id,
         "name": str(name or campaign_id),
         "party": "",
+        "canonNames": [],
         "campaignSummary": "",
         "dungeonMakerJson": {},
         "sessionSummaries": [],
         "createdAt": now,
         "updatedAt": now,
     }
+
+def _normalize_canon_names(items):
+    out = []
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        aliases = str(item.get("aliases") or "").strip()
+        entry_type = str(item.get("type") or "").strip().lower()
+        descriptor = str(item.get("descriptor") or "").strip()
+        if not name and not aliases and not descriptor:
+            continue
+        if entry_type not in {"npc", "historical", "faction", "place", "item"}:
+            entry_type = "npc"
+        out.append({
+            "name": name,
+            "aliases": aliases,
+            "type": entry_type,
+            "descriptor": descriptor,
+        })
+    return out
 
 def _normalize_session_summaries(items):
     out = []
@@ -330,6 +359,7 @@ def _normalize_campaign_payload(campaign_id: str, payload):
         return base
     base["name"] = str(payload.get("name") or base["name"]).strip() or campaign_id
     base["party"] = str(payload.get("party") or "")
+    base["canonNames"] = _normalize_canon_names(payload.get("canonNames") or [])
     base["campaignSummary"] = str(payload.get("campaignSummary") or "")
     dungeon = payload.get("dungeonMakerJson")
     base["dungeonMakerJson"] = dungeon if isinstance(dungeon, dict) else {}
@@ -390,14 +420,45 @@ def _campaign_recent_session_summaries_text(campaign: dict, limit: int = 3) -> s
             lines.append(f"- {text}")
     return "\n".join(lines).strip()
 
+def _canon_names_text(campaign: dict) -> str:
+    entries = _normalize_canon_names(campaign.get("canonNames") or [])
+    if not entries:
+        return ""
+    lines = []
+    for entry in entries:
+        name = str(entry.get("name") or "").strip()
+        aliases = str(entry.get("aliases") or "").strip()
+        entry_type = str(entry.get("type") or "npc").strip()
+        descriptor = str(entry.get("descriptor") or "").strip()
+        if not name and not aliases:
+            continue
+        parts = []
+        if name:
+            parts.append(name)
+        if entry_type:
+            parts.append(f"[{entry_type}]")
+        line = " ".join(parts).strip()
+        extras = []
+        if aliases:
+            extras.append(f"aliases: {aliases}")
+        if descriptor:
+            extras.append(descriptor)
+        if extras:
+            line += " — " + " | ".join(extras)
+        lines.append(f"- {line}".strip())
+    return "\n".join(lines).strip()
+
 def _build_context_snapshot(campaign: dict):
     dungeon_json = campaign.get("dungeonMakerJson")
     if not isinstance(dungeon_json, dict):
         dungeon_json = {}
     prep_text = _prep_context_text(dungeon_json)
+    canon_names_text = _canon_names_text(campaign)
     campaign_summary = str(campaign.get("campaignSummary") or "").strip()
     recent_summaries = _campaign_recent_session_summaries_text(campaign)
     sections = []
+    if canon_names_text:
+        sections.append("Canonical names and aliases:\n" + canon_names_text)
     if campaign_summary:
         sections.append("Campaign summary:\n" + campaign_summary)
     if recent_summaries:
@@ -408,6 +469,8 @@ def _build_context_snapshot(campaign: dict):
         "campaignId": campaign.get("campaignId") or "",
         "campaignName": campaign.get("name") or "",
         "partyText": str(campaign.get("party") or "").strip(),
+        "canonNames": _normalize_canon_names(campaign.get("canonNames") or []),
+        "canonNamesText": canon_names_text,
         "campaignSummaryText": campaign_summary,
         "recentSessionSummariesText": recent_summaries,
         "prepContext": dungeon_json,
@@ -1692,12 +1755,57 @@ def _default_notes_system_prompt() -> str:
         "You are a D&D session note-taker. Produce strict JSON with keys:\n"
         "timeline (array of strings, chronological new events only),\n"
         "state (object with keys: location, npcs, loot, spells, hp, conditions, quests),\n"
-        "summary (string, 3-6 sentences, rolling summary of the session so far).\n"
-        "Use only facts in the transcript and party data. Do not invent details.\n"
-        "Use the party roster to normalize names in the transcript. Match likely variants, mis-hearings, and shortened names to the roster when the context supports it.\n"
+        "summary (string, 3-6 sentences, rolling summary of the session so far).\n\n"
+        "This is an incremental update, not a recap.\n"
+        "You are adding only the new information that became true in this transcript window.\n\n"
+        "Primary rule:\n"
+        "Only write timeline items for developments that are newly introduced, newly discovered, newly decided, or meaningfully changed.\n"
+        "If the current transcript window mostly continues an already-established scene, conversation, room description, ritual, or ongoing action, do not restate it.\n\n"
+        "Think of each timeline item as a delta:\n"
+        "- What changed?\n"
+        "- What was newly learned?\n"
+        "- What new consequence occurred?\n"
+        "If nothing materially changed, output no timeline item for that portion.\n\n"
+        "Good reasons to create a timeline item:\n"
+        "- a new character, NPC, room, object, clue, threat, or faction is introduced\n"
+        "- a new fact is learned about something already known\n"
+        "- the party changes location, goal, or focus\n"
+        "- a meaningful decision is made\n"
+        "- loot, spells, hp, conditions, or quest state changes\n"
+        "- a ritual, combat, negotiation, or exploration phase materially changes\n"
+        "- an ongoing situation gains a new consequence or reveal\n\n"
+        "Do NOT create a new timeline item just because:\n"
+        "- the same introduction continues\n"
+        "- the same person keeps talking\n"
+        "- the same room is described again\n"
+        "- the same ongoing scene continues\n"
+        "- the same subject is paraphrased with slightly different wording\n"
+        "- the same action is repeated in discussion without a new outcome\n\n"
+        "Scene persistence rule:\n"
+        "Once a room, scene, or ongoing interaction is established, do not re-log its basic existence in later chunks unless something about it changes.\n"
+        "Examples:\n"
+        "- Do not keep re-reporting that the pool glows, the mirrors are present, or the portal is there.\n"
+        "- Do re-report if the pool heals someone, a mirror reveals a new vision, or the portal changes or is interacted with in a meaningful new way.\n\n"
+        "Vivid detail rule:\n"
+        "If a colorful phrase, joke, quote, or vivid description appears in the transcript, you may preserve it when it is newly introduced and useful.\n"
+        "Do not keep reusing the same colorful detail in later chunks once it is already established.\n\n"
+        "Name handling:\n"
+        "Use only facts in the transcript and provided context. Do not invent details.\n"
+        "Use the party roster to normalize names in the transcript. Match likely variants, mis-hearings, and shortened names to the roster when context supports it.\n"
         "Prefer character names in timeline and summary. If helpful, include the player name once in parentheses on first mention.\n"
-        "If a speaker/action cannot be confidently matched to the roster, keep the transcript wording or use a neutral label instead of guessing.\n"
+        "If a speaker or action cannot be confidently matched to the roster, keep the transcript wording or use a neutral label instead of guessing.\n\n"
+        "Output guidance:\n"
+        "- Keep each timeline item short, concrete, and atomic.\n"
+        "- Prefer one item per genuinely new event.\n"
+        "- Preserve chronological order.\n"
+        "- Prefer discoveries, decisions, changes, and consequences over repeated setup.\n"
+        "- If nothing new happened, it is valid to return an empty timeline array.\n"
         "If a field has no info, use empty string or empty array.\n"
+        "\nSummary guidance:\n"
+        "- Maintain a compact rolling memory of the session so far.\n"
+        "- Emphasize changes, discoveries, decisions, outcomes, and unresolved hooks.\n"
+        "- Do not mirror the timeline line by line.\n"
+        "- Do not let repeated ongoing scene details dominate the summary.\n"
     )
 
 def _default_game_summary_system_prompt() -> str:
@@ -2916,6 +3024,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "campaignId": campaign_id,
                     "name": str(data.get("name") or campaign_id),
                     "party": str(data.get("party") or ""),
+                    "canonNames": data.get("canonNames") or [],
                     "campaignSummary": str(data.get("campaignSummary") or ""),
                     "dungeonMakerJson": data.get("dungeonMakerJson") if isinstance(data.get("dungeonMakerJson"), dict) else {},
                     "sessionSummaries": data.get("sessionSummaries") or [],
