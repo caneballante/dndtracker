@@ -602,6 +602,7 @@
                   <div class="small text-muted">Campaign history</div>
                   <button id="sessions-refresh" class="btn btn-outline-secondary btn-sm">Refresh</button>
                   <button id="sessions-backfill-transcripts" class="btn btn-outline-secondary btn-sm">Backfill Missing Audio</button>
+                  <button id="sessions-retranscribe-range" class="btn btn-outline-secondary btn-sm">Retranscribe Chunk Range</button>
                   <button id="sessions-clean-transcript" class="btn btn-outline-secondary btn-sm">Rebuild Clean Transcript</button>
                   <button id="sessions-reprocess" class="btn btn-outline-primary btn-sm">Rebuild Notes + Summary</button>
                   <button id="sessions-stop-reprocess" class="btn btn-outline-danger btn-sm" disabled>Stop / Clear Rebuild</button>
@@ -631,6 +632,19 @@
                   <div class="col-12 col-md-2">
                     <label class="form-label small mb-1">Session info</label>
                     <div id="sessions-info" class="small text-muted"></div>
+                  </div>
+                </div>
+                <div class="row g-2 mt-1 mb-2">
+                  <div class="col-12 col-md-3">
+                    <label class="form-label small mb-1" for="sessions-retranscribe-from">Retranscribe chunk from</label>
+                    <input id="sessions-retranscribe-from" type="number" class="form-control form-control-sm" min="0" step="1" placeholder="e.g. 10">
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label small mb-1" for="sessions-retranscribe-to">Retranscribe chunk to</label>
+                    <input id="sessions-retranscribe-to" type="number" class="form-control form-control-sm" min="0" step="1" placeholder="e.g. 30">
+                  </div>
+                  <div class="col-12 col-md-6 d-flex align-items-end">
+                    <div class="small text-muted">Use this when you want to replace existing transcript entries for a specific saved audio range, not just recover missing chunks.</div>
                   </div>
                 </div>
                 <div class="row g-2 mt-2">
@@ -775,6 +789,7 @@
                         <li><strong>Rebuild Notes + Summary</strong> now uses the settled default notes window automatically.</li>
                         <li>Use <strong>Notes Lab</strong> if you want to experiment with different chunk windows on a smaller slice before changing anything else.</li>
                         <li><strong>Backfill Missing Audio</strong> retranscribes saved audio chunks that exist on disk but are missing from the transcript, such as chunks recorded while you were offline.</li>
+                        <li><strong>Retranscribe Chunk Range</strong> replaces existing transcript entries for a specific saved audio slice when you want to test a different transcription model or repair a known section.</li>
                         <li><strong>Rebuild Clean Transcript</strong> rewrites the readable transcript from the raw transcript entries. It does not recover missing audio on its own.</li>
                         <li><strong>Rebuild Notes + Summary</strong> regenerates DM notes and the rolling notes summary from the transcript.</li>
                         <li><strong>Generate Game Summary</strong> and <strong>Generate Narrative</strong> are best run after transcript and notes look correct.</li>
@@ -2797,6 +2812,9 @@ async function postMetaOnce() {
   const sessionsNotesStateEl = document.getElementById("sessions-notes-state");
   const sessionsRefreshEl = document.getElementById("sessions-refresh");
   const sessionsBackfillTranscriptsEl = document.getElementById("sessions-backfill-transcripts");
+  const sessionsRetranscribeRangeEl = document.getElementById("sessions-retranscribe-range");
+  const sessionsRetranscribeFromEl = document.getElementById("sessions-retranscribe-from");
+  const sessionsRetranscribeToEl = document.getElementById("sessions-retranscribe-to");
   const sessionsCleanTranscriptEl = document.getElementById("sessions-clean-transcript");
   const sessionsReprocessEl = document.getElementById("sessions-reprocess");
   const sessionsStopReprocessEl = document.getElementById("sessions-stop-reprocess");
@@ -2834,6 +2852,7 @@ async function postMetaOnce() {
   let reprocessStartPending = false;
   let cleanTranscriptStartPending = false;
   let transcriptBackfillStartPending = false;
+  let transcriptRetranscribeStartPending = false;
   let sessionsPartyRoster = [];
   let sessionsPartyDirty = false;
 
@@ -3028,6 +3047,9 @@ async function postMetaOnce() {
       const cleanStatus = window.__currentCleanTranscriptStatus || {};
       sessionsCleanTranscriptEl.disabled = Boolean(cleanTranscriptStartPending || cleanStatus.running || currentReprocessStatus.running || backfillRunning);
     }
+    if (sessionsRetranscribeRangeEl) {
+      sessionsRetranscribeRangeEl.disabled = Boolean(transcriptRetranscribeStartPending || backfillRunning || currentReprocessStatus.running || window.__currentCleanTranscriptStatus?.running);
+    }
     if (!sessionsStopReprocessEl) return;
     const phase = String(currentReprocessStatus.phase || '').trim();
     const canAct = Boolean(currentReprocessStatus.running || phase === 'stale');
@@ -3045,24 +3067,45 @@ async function postMetaOnce() {
         currentTranscriptBackfillStatus.running
       );
     }
+    if (sessionsRetranscribeRangeEl) {
+      sessionsRetranscribeRangeEl.disabled = Boolean(
+        transcriptRetranscribeStartPending ||
+        window.__currentCleanTranscriptStatus.running ||
+        currentReprocessStatus.running ||
+        currentTranscriptBackfillStatus.running
+      );
+    }
   }
 
   function updateTranscriptBackfillControls(status, missingChunks = currentMissingTranscriptChunks) {
     currentTranscriptBackfillStatus = status && typeof status === 'object' ? status : {};
     currentMissingTranscriptChunks = Array.isArray(missingChunks) ? missingChunks.slice() : [];
-    if (!sessionsBackfillTranscriptsEl) return;
-    const missingCount = currentMissingTranscriptChunks.length;
+    const mode = String(currentTranscriptBackfillStatus?.mode || 'missing').trim() || 'missing';
     const isRunning = Boolean(currentTranscriptBackfillStatus.running);
-    sessionsBackfillTranscriptsEl.disabled = Boolean(
-      transcriptBackfillStartPending ||
-      isRunning ||
-      currentReprocessStatus.running ||
-      window.__currentCleanTranscriptStatus?.running ||
-      missingCount <= 0
-    );
-    sessionsBackfillTranscriptsEl.textContent = missingCount > 0
-      ? `Backfill Missing Audio (${missingCount})`
-      : 'Backfill Missing Audio';
+    if (sessionsBackfillTranscriptsEl) {
+      const missingCount = currentMissingTranscriptChunks.length;
+      sessionsBackfillTranscriptsEl.disabled = Boolean(
+        transcriptBackfillStartPending ||
+        isRunning ||
+        currentReprocessStatus.running ||
+        window.__currentCleanTranscriptStatus?.running ||
+        missingCount <= 0
+      );
+      sessionsBackfillTranscriptsEl.textContent = missingCount > 0
+        ? `Backfill Missing Audio (${missingCount})`
+        : 'Backfill Missing Audio';
+    }
+    if (sessionsRetranscribeRangeEl) {
+      sessionsRetranscribeRangeEl.disabled = Boolean(
+        transcriptRetranscribeStartPending ||
+        isRunning ||
+        currentReprocessStatus.running ||
+        window.__currentCleanTranscriptStatus?.running
+      );
+      sessionsRetranscribeRangeEl.textContent = isRunning && mode === 'range'
+        ? 'Retranscribing Range...'
+        : 'Retranscribe Chunk Range';
+    }
   }
 
   function reprocessStatusMessage(sessionId, rep, fallback = '') {
@@ -3095,14 +3138,33 @@ async function postMetaOnce() {
   }
 
   function transcriptBackfillStatusMessage(sessionId, status, missingChunks = currentMissingTranscriptChunks, fallback = '') {
+    const mode = String(status?.mode || 'missing').trim() || 'missing';
     const phase = String(status?.phase || '').trim();
     const processed = Number(status?.processed || 0);
     const total = Number(status?.total || 0);
+    const rangeStart = Number(status?.rangeStart);
+    const rangeEnd = Number(status?.rangeEnd);
     const missingCount = Array.isArray(missingChunks) ? missingChunks.length : 0;
-    if (status?.running) return `Session ${sessionId} (recovering missing audio transcripts: ${processed}/${total || '?'})`;
-    if (phase === 'error') return `Session ${sessionId} (transcript backfill error: ${status?.error || 'unknown error'})`;
-    if (phase === 'stale') return `Session ${sessionId} (transcript backfill stale: ${status?.error || 'worker is no longer active'})`;
-    if (phase === 'done') return `Session ${sessionId} (transcript backfill complete: ${processed}/${total || processed}; rebuild notes next)`;
+    const rangeLabel = Number.isFinite(rangeStart) && Number.isFinite(rangeEnd) ? `chunks ${rangeStart}-${rangeEnd}` : 'selected chunk range';
+    if (status?.running) {
+      if (mode === 'range') return `Session ${sessionId} (retranscribing ${rangeLabel}: ${processed}/${total || '?'})`;
+      return `Session ${sessionId} (recovering missing audio transcripts: ${processed}/${total || '?'})`;
+    }
+    if (phase === 'error') {
+      return mode === 'range'
+        ? `Session ${sessionId} (chunk retranscribe error: ${status?.error || 'unknown error'})`
+        : `Session ${sessionId} (transcript backfill error: ${status?.error || 'unknown error'})`;
+    }
+    if (phase === 'stale') {
+      return mode === 'range'
+        ? `Session ${sessionId} (chunk retranscribe stale: ${status?.error || 'worker is no longer active'})`
+        : `Session ${sessionId} (transcript backfill stale: ${status?.error || 'worker is no longer active'})`;
+    }
+    if (phase === 'done') {
+      return mode === 'range'
+        ? `Session ${sessionId} (chunk retranscribe complete: ${rangeLabel}; rebuild notes next)`
+        : `Session ${sessionId} (transcript backfill complete: ${processed}/${total || processed}; rebuild notes next)`;
+    }
     if (missingCount > 0) return `Session ${sessionId} (${missingCount} saved audio chunk${missingCount === 1 ? '' : 's'} missing from transcript)`;
     return fallback || `Session ${sessionId}`;
   }
@@ -3638,6 +3700,59 @@ async function postMetaOnce() {
         if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = `Error: ${e.message}`;
       } finally {
         transcriptBackfillStartPending = false;
+        updateTranscriptBackfillControls(currentTranscriptBackfillStatus || {}, currentMissingTranscriptChunks || []);
+      }
+    });
+  }
+  if (sessionsRetranscribeRangeEl) {
+    sessionsRetranscribeRangeEl.addEventListener('click', async () => {
+      const sessionId = sessionsSelectEl?.value || '';
+      if (!sessionId) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = 'Select a session first.';
+        return;
+      }
+      const rawFrom = String(sessionsRetranscribeFromEl?.value || '').trim();
+      const rawTo = String(sessionsRetranscribeToEl?.value || '').trim();
+      const chunkFrom = Number(rawFrom);
+      const chunkTo = Number(rawTo);
+      if (!rawFrom || !rawTo || !Number.isFinite(chunkFrom) || !Number.isFinite(chunkTo)) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = 'Enter both chunk numbers before retranscribing.';
+        return;
+      }
+      if (transcriptRetranscribeStartPending) return;
+      try {
+        transcriptRetranscribeStartPending = true;
+        updateTranscriptBackfillControls(currentTranscriptBackfillStatus || {}, currentMissingTranscriptChunks || []);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Retranscribing saved audio chunks ${Math.min(chunkFrom, chunkTo)}-${Math.max(chunkFrom, chunkTo)} for ${sessionId}...`;
+        if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = 'Retranscribing selected audio chunk range...';
+        startTranscriptBackfillPolling(sessionId);
+        const res = await fetch('/api/session/transcripts/retranscribe-range/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, chunkFrom, chunkTo })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        updateTranscriptBackfillControls(
+          json.started
+            ? {
+                running: true,
+                mode: 'range',
+                phase: 'starting',
+                rangeStart: json.chunkFrom,
+                rangeEnd: json.chunkTo,
+                total: json.selectedChunkCount || 0,
+              }
+            : (currentTranscriptBackfillStatus || {}),
+          currentMissingTranscriptChunks
+        );
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (retranscribing chunks ${json.chunkFrom}-${json.chunkTo})`;
+      } catch (e) {
+        stopTranscriptBackfillPolling();
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
+        if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = `Error: ${e.message}`;
+      } finally {
+        transcriptRetranscribeStartPending = false;
         updateTranscriptBackfillControls(currentTranscriptBackfillStatus || {}, currentMissingTranscriptChunks || []);
       }
     });

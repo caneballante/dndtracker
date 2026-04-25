@@ -34,6 +34,7 @@ REPROCESS_STALL_SECONDS_DEFAULT = 600
 SUMMARY_MODEL_DEFAULT = "gpt-4o-mini"
 CLEAN_TRANSCRIPT_MODEL_DEFAULT = "gpt-4o-mini"
 NARRATIVE_MODEL_DEFAULT = "gpt-4o-mini"
+TRANSCRIPTION_MODEL_DEFAULT = "gpt-4o-transcribe-diarize"
 SERVER_STARTED_AT = int(time.time())
 CHUNK_AUDIO_RE = re.compile(r"^chunk_(\d+)\.(wav|webm|ogg|mp4|m4a|mp3)$", re.IGNORECASE)
 
@@ -841,6 +842,10 @@ def _summary_model() -> str:
     load_env_file(ENV_PATH)
     return (os.environ.get("SUMMARY_MODEL") or SUMMARY_MODEL_DEFAULT).strip()
 
+def _transcription_model() -> str:
+    load_env_file(ENV_PATH)
+    return (os.environ.get("TRANSCRIPTION_MODEL") or TRANSCRIPTION_MODEL_DEFAULT).strip()
+
 def _clean_transcript_model() -> str:
     load_env_file(ENV_PATH)
     return (os.environ.get("CLEAN_TRANSCRIPT_MODEL") or CLEAN_TRANSCRIPT_MODEL_DEFAULT).strip()
@@ -915,7 +920,74 @@ def _clean_transcript_text(text: str) -> str:
 
     return "\n\n".join(paragraphs).strip()
 
-def _append_transcript(session_id: str, chunk_index: int, text: str):
+def _speaker_label_text(value) -> str:
+    s = str(value or "").strip()
+    if not s:
+        return ""
+    lower = s.lower()
+    if lower.startswith("speaker "):
+        suffix = s[len("speaker "):].strip()
+        return f"Speaker {suffix}" if suffix else "Speaker"
+    if lower.startswith("speaker"):
+        suffix = s[len("speaker"):].strip(" :#-_")
+        return f"Speaker {suffix}" if suffix else "Speaker"
+    return s
+
+def _normalize_transcription_segments(segments) -> list:
+    out = []
+    for item in segments or []:
+        if not isinstance(item, dict):
+            continue
+        text = str(item.get("text") or "").strip()
+        if not text:
+            continue
+        speaker = _speaker_label_text(item.get("speaker") or item.get("speaker_label") or item.get("speakerLabel"))
+        try:
+            start = float(item.get("start") or 0)
+        except Exception:
+            start = 0.0
+        try:
+            end = float(item.get("end") or 0)
+        except Exception:
+            end = 0.0
+        out.append({
+            "speaker": speaker,
+            "text": text,
+            "start": start,
+            "end": end,
+        })
+    return out
+
+def _speaker_text_from_segments(segments) -> str:
+    normalized = _normalize_transcription_segments(segments)
+    if not normalized:
+        return ""
+    lines = []
+    current_speaker = ""
+    current_parts = []
+    for seg in normalized:
+        speaker = str(seg.get("speaker") or "").strip() or "Speaker"
+        text = str(seg.get("text") or "").strip()
+        if not text:
+            continue
+        if current_parts and speaker != current_speaker:
+            lines.append(f"{current_speaker}: {' '.join(current_parts).strip()}".strip())
+            current_parts = []
+        current_speaker = speaker
+        current_parts.append(text)
+    if current_parts:
+        lines.append(f"{current_speaker}: {' '.join(current_parts).strip()}".strip())
+    return "\n".join([line for line in lines if line.strip()]).strip()
+
+def _transcript_entry_display_text(item) -> str:
+    if not isinstance(item, dict):
+        return ""
+    speaker_text = str(item.get("speakerText") or "").strip()
+    if speaker_text:
+        return speaker_text
+    return str(item.get("text") or "").strip()
+
+def _append_transcript(session_id: str, chunk_index: int, text: str, speaker_text: str = "", segments=None, model: str = ""):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
     ensure_dir(session_dir)
     transcript_path = os.path.join(session_dir, "transcript.txt")
@@ -923,8 +995,10 @@ def _append_transcript(session_id: str, chunk_index: int, text: str):
     jsonl_path = os.path.join(session_dir, "transcripts.jsonl")
 
     raw_text = (text or "").strip()
-    clean_text = _clean_transcript_text(raw_text)
-    line = f"[{chunk_index:04d}] {raw_text}\n"
+    speaker_text = (speaker_text or "").strip()
+    display_text = speaker_text or raw_text
+    clean_text = _clean_transcript_text(display_text)
+    line = f"[{chunk_index:04d}] {display_text}\n"
     clean_line = f"[{chunk_index:04d}] {clean_text}\n"
     with open(transcript_path, "a", encoding="utf-8") as f:
         f.write(line)
@@ -933,15 +1007,55 @@ def _append_transcript(session_id: str, chunk_index: int, text: str):
     with open(jsonl_path, "a", encoding="utf-8") as f:
         f.write(json.dumps({
             "chunkIndex": chunk_index,
-            "text": text,
+            "text": raw_text,
+            "speakerText": display_text,
             "cleanText": clean_text,
+            "segments": _normalize_transcription_segments(segments),
+            "model": str(model or "").strip(),
             "createdAt": int(time.time()),
         }) + "\n")
 
     _set_session_status_fields(session_id, {
-        "transcriptLatest": text,
+        "transcriptLatest": display_text,
+        "transcriptionModel": str(model or "").strip() or _transcription_model(),
         "transcriptUpdatedAt": int(time.time()),
     })
+
+def _transcript_entry_from_result(chunk_index: int, transcript_result: dict):
+    result = transcript_result if isinstance(transcript_result, dict) else {}
+    raw_text = str(result.get("text") or "").strip()
+    speaker_text = str(result.get("speakerText") or "").strip()
+    display_text = speaker_text or raw_text
+    return {
+        "chunkIndex": int(chunk_index),
+        "text": raw_text or display_text,
+        "speakerText": display_text,
+        "cleanText": _clean_transcript_text(display_text),
+        "segments": _normalize_transcription_segments(result.get("segments") or []),
+        "model": str(result.get("model") or "").strip() or _transcription_model(),
+        "createdAt": int(time.time()),
+    }
+
+def _write_all_transcripts(session_id: str, items):
+    session_dir = init_session(session_id)
+    jsonl_path = os.path.join(session_dir, "transcripts.jsonl")
+    rows = []
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        try:
+            chunk_index = int(item.get("chunkIndex", -1))
+        except Exception:
+            chunk_index = -1
+        if chunk_index < 0:
+            continue
+        row = dict(item)
+        row["chunkIndex"] = chunk_index
+        rows.append(row)
+    rows.sort(key=lambda o: int(o.get("chunkIndex", -1)))
+    with open(jsonl_path, "w", encoding="utf-8") as f:
+        for row in rows:
+            f.write(json.dumps(row) + "\n")
 
 def _rewrite_transcript_artifacts(session_id: str):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
@@ -956,7 +1070,7 @@ def _rewrite_transcript_artifacts(session_id: str):
         chunk_index = int(item.get("chunkIndex", -1))
         if chunk_index < 0:
             continue
-        text = str(item.get("text") or "").strip()
+        text = _transcript_entry_display_text(item)
         clean_text = str(item.get("cleanText") or "").strip()
         if not clean_text and text:
             clean_text = _clean_transcript_text(text)
@@ -1311,6 +1425,22 @@ def _missing_transcript_audio_chunks(session_id: str):
         if int(item.get("chunkIndex", -1)) >= 0
     }
     return [item for item in _saved_audio_chunks(session_id) if int(item.get("chunkIndex", -1)) not in transcript_indexes]
+
+def _selected_audio_chunks_for_range(session_id: str, chunk_from, chunk_to):
+    try:
+        start = int(chunk_from)
+        end = int(chunk_to)
+    except Exception:
+        raise RuntimeError("Chunk range requires numeric start and end values.")
+    if start > end:
+        start, end = end, start
+    selected = [
+        item for item in _saved_audio_chunks(session_id)
+        if start <= int(item.get("chunkIndex", -1)) <= end
+    ]
+    if not selected:
+        raise RuntimeError(f"No saved audio chunks found between {start} and {end}.")
+    return selected
 
 def _tracking_events_path(session_id: str) -> str:
     session_dir = init_session(session_id)
@@ -1698,10 +1828,12 @@ def _chat_complete_text(system_prompt: str, user_prompt: str, model: str) -> str
         raise RuntimeError("Empty chat completion response.")
     return content
 
-def transcribe_with_openai(path: str, model: str = "gpt-4o-mini-transcribe") -> str:
+def transcribe_with_openai(path: str, model: str = "") -> dict:
     api_key = _openai_api_key()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY not set. Add it to .env or your environment.")
+    model = str(model or "").strip() or _transcription_model()
+    diarized = (model == "gpt-4o-transcribe-diarize")
 
     filename = os.path.basename(path)
     content_type = _mime_for_filename(filename)
@@ -1727,7 +1859,11 @@ def transcribe_with_openai(path: str, model: str = "gpt-4o-mini-transcribe") -> 
         parts.append(b"\r\n")
 
     add_field("model", model)
-    add_field("response_format", "json")
+    if diarized:
+        add_field("response_format", "diarized_json")
+        add_field("chunking_strategy", "auto")
+    else:
+        add_field("response_format", "json")
     add_file("file", filename, content_type, file_bytes)
     parts.append(f"--{boundary}--\r\n".encode("utf-8"))
 
@@ -1746,9 +1882,16 @@ def transcribe_with_openai(path: str, model: str = "gpt-4o-mini-transcribe") -> 
 
     data = json.loads(payload)
     text = (data.get("text") or "").strip()
-    if not text:
+    segments = _normalize_transcription_segments(data.get("segments") or [])
+    speaker_text = _speaker_text_from_segments(segments)
+    if not text and not speaker_text:
         raise RuntimeError("Empty transcription response.")
-    return text
+    return {
+        "text": text or speaker_text,
+        "speakerText": speaker_text,
+        "segments": segments,
+        "model": model,
+    }
 
 def _default_notes_system_prompt() -> str:
     return (
@@ -1842,6 +1985,8 @@ def _default_clean_transcript_system_prompt() -> str:
         "You are editing an auto-transcribed D&D session transcript for readability.\n"
         "Return plain text only for a single transcript chunk (no JSON, no markdown fences).\n"
         "Preserve facts and sequence. Do not invent content.\n"
+        "If the target chunk includes speaker labels such as 'Speaker 1:' or 'Speaker 2:', preserve them and keep each utterance attached to the same speaker label.\n"
+        "Do not add, remove, merge, or reassign speaker labels.\n"
         "You may be given adjacent chunks for context, but only rewrite the target chunk.\n"
         "Do not pull lines forward or backward from neighboring chunks.\n"
         "Do not add connective narration, inferred transitions, or information not stated in the target chunk.\n"
@@ -2040,7 +2185,7 @@ def _generate_notes_with_context(session_id: str, chunk_index: int, recent: list
         except Exception:
             window = _notes_window()
     transcript_block = "\n".join(
-        [f"[{obj.get('chunkIndex', '?')}] {str(obj.get('text', '')).strip()}" for obj in (recent or [])]
+        [f"[{obj.get('chunkIndex', '?')}] {_transcript_entry_display_text(obj)}" for obj in (recent or []) if _transcript_entry_display_text(obj)]
     ).strip()
 
     system_prompt = _default_notes_system_prompt()
@@ -2637,7 +2782,7 @@ def rebuild_clean_transcript_for_session(session_id: str, party_override: str = 
     transcript_items = []
     for item in transcripts:
         chunk_index = int(item.get("chunkIndex", -1))
-        raw_text = str(item.get("text") or "").strip()
+        raw_text = _transcript_entry_display_text(item)
         if chunk_index < 0 or not raw_text:
             continue
         transcript_items.append({
@@ -2755,8 +2900,15 @@ def backfill_missing_transcripts_for_session(session_id: str):
             path = str(item.get("path") or "")
             if chunk_index < 0 or not path:
                 continue
-            text = transcribe_with_openai(path)
-            _append_transcript(session_id, chunk_index, text)
+            transcript_result = transcribe_with_openai(path)
+            _append_transcript(
+                session_id,
+                chunk_index,
+                transcript_result.get("text") or "",
+                speaker_text=transcript_result.get("speakerText") or "",
+                segments=transcript_result.get("segments") or [],
+                model=transcript_result.get("model") or "",
+            )
             _rewrite_transcript_artifacts(session_id)
             recovered_indexes.append(chunk_index)
             _set_transcript_backfill_status(session_id, {
@@ -2809,10 +2961,117 @@ def backfill_missing_transcripts_for_session(session_id: str):
         })
         raise
 
+def retranscribe_transcript_range_for_session(session_id: str, chunk_from, chunk_to):
+    session_dir = init_session(session_id)
+    if not os.path.isdir(session_dir):
+        raise RuntimeError("Session directory not found.")
+
+    selected = _selected_audio_chunks_for_range(session_id, chunk_from, chunk_to)
+    total = len(selected)
+    range_start = int(selected[0].get("chunkIndex", -1))
+    range_end = int(selected[-1].get("chunkIndex", -1))
+    started_at = int(time.time())
+    _set_transcript_backfill_status(session_id, {
+        "running": True,
+        "mode": "range",
+        "phase": "retranscribing",
+        "processed": 0,
+        "total": total,
+        "error": "",
+        "rangeStart": range_start,
+        "rangeEnd": range_end,
+        "updatedAt": started_at,
+        "finishedAt": None,
+    })
+
+    existing_items = _load_all_transcripts(session_id)
+    by_index = {}
+    for item in existing_items:
+        try:
+            idx = int(item.get("chunkIndex", -1))
+        except Exception:
+            idx = -1
+        if idx < 0:
+            continue
+        by_index[idx] = dict(item)
+
+    retranscribed_indexes = []
+    try:
+        for item in selected:
+            chunk_index = int(item.get("chunkIndex", -1))
+            path = str(item.get("path") or "")
+            if chunk_index < 0 or not path:
+                continue
+            transcript_result = transcribe_with_openai(path)
+            by_index[chunk_index] = _transcript_entry_from_result(chunk_index, transcript_result)
+            _write_all_transcripts(session_id, [by_index[idx] for idx in sorted(by_index.keys())])
+            _rewrite_transcript_artifacts(session_id)
+            retranscribed_indexes.append(chunk_index)
+            _set_transcript_backfill_status(session_id, {
+                "running": True,
+                "mode": "range",
+                "phase": "retranscribing",
+                "processed": len(retranscribed_indexes),
+                "total": total,
+                "error": "",
+                "rangeStart": range_start,
+                "rangeEnd": range_end,
+                "updatedAt": int(time.time()),
+                "finishedAt": None,
+            })
+
+        now = int(time.time())
+
+        def mutate(status):
+            status["transcriptRetranscribedAt"] = now
+            status["transcriptUpdatedAt"] = now
+            status["cleanTranscriptUpdatedAt"] = now
+            err = status.get("transcriptError") or {}
+            try:
+                err_idx = int(err.get("chunkIndex", -1))
+            except Exception:
+                err_idx = -1
+            if range_start <= err_idx <= range_end:
+                status.pop("transcriptError", None)
+        _update_session_status(session_id, mutate, default={})
+
+        _set_transcript_backfill_status(session_id, {
+            "running": False,
+            "mode": "range",
+            "phase": "done",
+            "processed": len(retranscribed_indexes),
+            "total": total,
+            "error": "",
+            "rangeStart": range_start,
+            "rangeEnd": range_end,
+            "updatedAt": now,
+            "finishedAt": now,
+        })
+        return {
+            "retranscribedChunks": len(retranscribed_indexes),
+            "rangeStart": range_start,
+            "rangeEnd": range_end,
+        }
+    except Exception as e:
+        _set_transcript_backfill_status(session_id, {
+            "running": False,
+            "mode": "range",
+            "phase": "error",
+            "processed": len(retranscribed_indexes),
+            "total": total,
+            "error": str(e),
+            "rangeStart": range_start,
+            "rangeEnd": range_end,
+            "updatedAt": int(time.time()),
+            "finishedAt": int(time.time()),
+        })
+        raise
+
 def _run_transcript_backfill_job(session_id: str, job_id: str = ""):
     try:
         _set_transcript_backfill_status(session_id, {
             "running": True,
+            "mode": "missing",
             "phase": "starting",
             "processed": 0,
             "total": 0,
@@ -2826,6 +3085,7 @@ def _run_transcript_backfill_job(session_id: str, job_id: str = ""):
         result = backfill_missing_transcripts_for_session(session_id=session_id)
         _set_transcript_backfill_status(session_id, {
             "running": False,
+            "mode": "missing",
             "phase": "done",
             "processed": int(result.get("backfilledChunks") or 0),
             "total": int(result.get("totalMissing") or 0),
@@ -2839,8 +3099,57 @@ def _run_transcript_backfill_job(session_id: str, job_id: str = ""):
     except Exception as e:
         _set_transcript_backfill_status(session_id, {
             "running": False,
+            "mode": "missing",
             "phase": "error",
             "error": str(e),
+            "updatedAt": int(time.time()),
+            "finishedAt": int(time.time()),
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+        })
+    finally:
+        _unregister_transcript_backfill_job(session_id, job_id=job_id)
+
+def _run_transcript_retranscribe_job(session_id: str, chunk_from: int, chunk_to: int, job_id: str = ""):
+    try:
+        _set_transcript_backfill_status(session_id, {
+            "running": True,
+            "mode": "range",
+            "phase": "starting",
+            "processed": 0,
+            "total": 0,
+            "error": "",
+            "rangeStart": int(min(chunk_from, chunk_to)),
+            "rangeEnd": int(max(chunk_from, chunk_to)),
+            "startedAt": int(time.time()),
+            "updatedAt": int(time.time()),
+            "finishedAt": None,
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+        })
+        result = retranscribe_transcript_range_for_session(session_id=session_id, chunk_from=chunk_from, chunk_to=chunk_to)
+        _set_transcript_backfill_status(session_id, {
+            "running": False,
+            "mode": "range",
+            "phase": "done",
+            "processed": int(result.get("retranscribedChunks") or 0),
+            "total": int(result.get("retranscribedChunks") or 0),
+            "error": "",
+            "rangeStart": int(result.get("rangeStart") or min(chunk_from, chunk_to)),
+            "rangeEnd": int(result.get("rangeEnd") or max(chunk_from, chunk_to)),
+            "updatedAt": int(time.time()),
+            "finishedAt": int(time.time()),
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+        })
+    except Exception as e:
+        _set_transcript_backfill_status(session_id, {
+            "running": False,
+            "mode": "range",
+            "phase": "error",
+            "error": str(e),
+            "rangeStart": int(min(chunk_from, chunk_to)),
+            "rangeEnd": int(max(chunk_from, chunk_to)),
             "updatedAt": int(time.time()),
             "finishedAt": int(time.time()),
             "jobId": str(job_id or ""),
@@ -2889,8 +3198,15 @@ def _run_clean_transcript_job(session_id: str, party_override: str, job_id: str 
 
 def transcribe_async(session_id: str, chunk_index: int, path: str):
     try:
-        text = transcribe_with_openai(path)
-        _append_transcript(session_id, chunk_index, text)
+        transcript_result = transcribe_with_openai(path)
+        _append_transcript(
+            session_id,
+            chunk_index,
+            transcript_result.get("text") or "",
+            speaker_text=transcript_result.get("speakerText") or "",
+            segments=transcript_result.get("segments") or [],
+            model=transcript_result.get("model") or "",
+        )
         try:
             with NOTES_LOCK:
                 notes_obj = generate_notes_with_openai(session_id, chunk_index)
@@ -3742,6 +4058,52 @@ class Handler(SimpleHTTPRequestHandler):
                     "started": True,
                     "jobId": job_id,
                     "missingTranscriptChunks": [int(item.get("chunkIndex") or -1) for item in missing if int(item.get("chunkIndex") or -1) >= 0],
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/transcripts/retranscribe-range/start":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                chunk_from = int(data.get("chunkFrom"))
+                chunk_to = int(data.get("chunkTo"))
+                status = read_json(_session_status_path(session_id), default={})
+                rep = _normalize_reprocess_status(session_id, status, persist=True)
+                if rep.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Notes rebuild is already running for this session."})
+                    return
+                clean_status = _normalize_clean_transcript_status(session_id, status, persist=True)
+                if clean_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Clean transcript rebuild is already running for this session."})
+                    return
+                backfill_status = _normalize_transcript_backfill_status(session_id, status, persist=True)
+                if backfill_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Another transcript job is already running for this session."})
+                    return
+
+                selected = _selected_audio_chunks_for_range(session_id, chunk_from, chunk_to)
+                normalized_from = int(selected[0].get("chunkIndex") or chunk_from)
+                normalized_to = int(selected[-1].get("chunkIndex") or chunk_to)
+
+                job_id = uuid.uuid4().hex
+                t = threading.Thread(
+                    target=_run_transcript_retranscribe_job,
+                    args=(session_id, normalized_from, normalized_to, job_id),
+                    daemon=True,
+                )
+                _register_transcript_backfill_job(session_id, job_id, t)
+                t.start()
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "started": True,
+                    "jobId": job_id,
+                    "chunkFrom": normalized_from,
+                    "chunkTo": normalized_to,
+                    "selectedChunkCount": len(selected),
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
