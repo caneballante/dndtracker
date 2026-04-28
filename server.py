@@ -6,9 +6,11 @@ import time
 import threading
 import uuid
 import hashlib
+import wave
+import http.client
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, urlencode
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
@@ -18,6 +20,7 @@ CAMPAIGNS_DIR = os.path.join(BASE_DIR, "campaigns")
 NOTES_LAB_RUNS_DIR = os.path.join(BASE_DIR, "notes-lab-runs")
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 OPENAI_API_KEY = None
+DEEPGRAM_API_KEY = None
 NOTES_LOCK = threading.Lock()
 REPROCESS_LOCK = threading.Lock()
 TRACKING_LOCK = threading.Lock()
@@ -28,13 +31,22 @@ CLEAN_TRANSCRIPT_LOCK = threading.Lock()
 CLEAN_TRANSCRIPT_JOBS = {}
 TRANSCRIPT_BACKFILL_LOCK = threading.Lock()
 TRANSCRIPT_BACKFILL_JOBS = {}
+FULL_DIARIZED_LOCK = threading.Lock()
+FULL_DIARIZED_JOBS = {}
 NOTES_MODEL_DEFAULT = "gpt-4o-mini"
 NOTES_WINDOW_DEFAULT = 2
+FULL_DIARIZED_BATCH_TARGET_BYTES = 90 * 1024 * 1024
+FULL_DIARIZED_BATCH_MAX_CHUNKS = 8
+FULL_DIARIZED_DEEPGRAM_BATCH_TARGET_BYTES = 180 * 1024 * 1024
+FULL_DIARIZED_DEEPGRAM_BATCH_MAX_CHUNKS = 16
+FULL_DIARIZED_DEEPGRAM_SINGLE_FILE_MAX_BYTES = 2 * 1024 * 1024 * 1024
+DEEPGRAM_UPLOAD_BLOCK_SIZE = 1024 * 1024
 REPROCESS_STALL_SECONDS_DEFAULT = 600
 SUMMARY_MODEL_DEFAULT = "gpt-4o-mini"
 CLEAN_TRANSCRIPT_MODEL_DEFAULT = "gpt-4o-mini"
 NARRATIVE_MODEL_DEFAULT = "gpt-4o-mini"
 TRANSCRIPTION_MODEL_DEFAULT = "gpt-4o-transcribe-diarize"
+DEEPGRAM_MODEL_DEFAULT = "nova-3"
 SERVER_STARTED_AT = int(time.time())
 CHUNK_AUDIO_RE = re.compile(r"^chunk_(\d+)\.(wav|webm|ogg|mp4|m4a|mp3)$", re.IGNORECASE)
 
@@ -220,6 +232,34 @@ def _active_transcript_backfill_job(session_id: str):
         thread = current.get("thread")
         if isinstance(thread, threading.Thread) and not thread.is_alive():
             TRANSCRIPT_BACKFILL_JOBS.pop(session_id, None)
+            return None
+        return dict(current)
+
+def _register_full_diarized_job(session_id: str, job_id: str, thread: threading.Thread):
+    with FULL_DIARIZED_LOCK:
+        FULL_DIARIZED_JOBS[session_id] = {
+            "jobId": str(job_id or ""),
+            "thread": thread,
+            "registeredAt": int(time.time()),
+        }
+
+def _unregister_full_diarized_job(session_id: str, job_id: str = ""):
+    with FULL_DIARIZED_LOCK:
+        current = FULL_DIARIZED_JOBS.get(session_id)
+        if not current:
+            return
+        if job_id and str(current.get("jobId") or "") != str(job_id):
+            return
+        FULL_DIARIZED_JOBS.pop(session_id, None)
+
+def _active_full_diarized_job(session_id: str):
+    with FULL_DIARIZED_LOCK:
+        current = FULL_DIARIZED_JOBS.get(session_id)
+        if not current:
+            return None
+        thread = current.get("thread")
+        if isinstance(thread, threading.Thread) and not thread.is_alive():
+            FULL_DIARIZED_JOBS.pop(session_id, None)
             return None
         return dict(current)
 
@@ -511,6 +551,58 @@ def _session_party_text(session_id: str) -> str:
         return str(snap.get("partyText") or "").strip()
     return ""
 
+def _parse_party_meta_text(raw_party: str) -> list:
+    rows = []
+    for raw_line in str(raw_party or "").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        row = {}
+        for part in [p.strip() for p in line.split("|")]:
+            if "=" not in part:
+                continue
+            key, value = part.split("=", 1)
+            row[str(key or "").strip()] = str(value or "").strip()
+        if row:
+            rows.append(row)
+    return rows
+
+def _speaker_map_candidate_labels(session_id: str) -> list:
+    seen = set()
+    labels = []
+    for row in _parse_party_meta_text(_session_party_text(session_id)):
+        role = str(row.get("role") or "").strip()
+        player = str(row.get("player") or row.get("playerName") or "").strip()
+        character = str(row.get("character") or row.get("characterName") or "").strip()
+        options = []
+        if role == "DM":
+            options.extend([
+                character or "DM",
+                player,
+                f"{player} / {character}" if player and character and player != character else "",
+            ])
+        else:
+            options.extend([
+                character,
+                player,
+                f"{player} / {character}" if player and character and player != character else "",
+            ])
+        for value in options:
+            s = str(value or "").strip()
+            if not s:
+                continue
+            lower = s.lower()
+            if lower in seen:
+                continue
+            seen.add(lower)
+            labels.append(s)
+    for fallback in ["DM", "Party Member", "Unknown Speaker"]:
+        lower = fallback.lower()
+        if lower not in seen:
+            seen.add(lower)
+            labels.append(fallback)
+    return labels
+
 def _session_prep_context(session_id: str):
     snap = _session_context_snapshot(session_id)
     prep = snap.get("prepContext")
@@ -736,10 +828,54 @@ def _normalize_transcript_backfill_status(session_id: str, status: dict, persist
     status["transcriptBackfillStatus"] = current
     return current
 
+def _normalize_full_diarized_status(session_id: str, status: dict, persist: bool = False) -> dict:
+    if not isinstance(status, dict):
+        status = {}
+    current = status.get("fullDiarizedStatus") or {}
+    if not isinstance(current, dict):
+        current = {}
+    if not current:
+        status["fullDiarizedStatus"] = {}
+        return {}
+
+    now = int(time.time())
+    running = bool(current.get("running"))
+    owner_started_at = int(current.get("ownerStartedAt") or 0)
+    job_id = str(current.get("jobId") or "")
+    active_job = _active_full_diarized_job(session_id) if running else None
+
+    if running:
+        orphan_reason = ""
+        if owner_started_at and owner_started_at != SERVER_STARTED_AT:
+            orphan_reason = "Full-session diarized transcript was started by a previous server process and is no longer running."
+        else:
+            if not active_job:
+                orphan_reason = "Full-session diarized transcript worker is no longer active in this server process."
+            elif job_id and str(active_job.get("jobId") or "") != job_id:
+                orphan_reason = "Full-session diarized transcript worker no longer matches the persisted job state."
+        if orphan_reason:
+            current.update({
+                "running": False,
+                "phase": "stale",
+                "error": orphan_reason,
+                "updatedAt": now,
+                "finishedAt": now,
+            })
+            status["fullDiarizedStatus"] = current
+            status["updatedAt"] = now
+            if persist:
+                _set_session_status_fields(session_id, status)
+            return current
+
+    status["fullDiarizedStatus"] = current
+    return current
+
 def read_session_text(session_id: str):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
     transcript_path = os.path.join(session_dir, "transcript.txt")
     clean_transcript_path = os.path.join(session_dir, "clean_transcript.txt")
+    full_diarized_path = os.path.join(session_dir, "full_diarized_transcript.txt")
+    full_diarized_mapped_path = _full_diarized_mapped_path(session_id)
     notes_path = os.path.join(session_dir, "notes.txt")
     summary_path = os.path.join(session_dir, "notes_summary.txt")
     game_summary_path = os.path.join(session_dir, "game_summary.txt")
@@ -749,13 +885,28 @@ def read_session_text(session_id: str):
     _normalize_reprocess_status(session_id, status, persist=True)
     _normalize_clean_transcript_status(session_id, status, persist=True)
     _normalize_transcript_backfill_status(session_id, status, persist=True)
+    _normalize_full_diarized_status(session_id, status, persist=True)
     tracking_state = status.get("trackingState") or _get_tracking_state(session_id)
     prep_context = _session_prep_context(session_id)
     snap = _session_context_snapshot(session_id)
     missing_chunks = _missing_transcript_audio_chunks(session_id)
+    full_diarized_segments = _read_full_diarized_segments(session_id)
+    full_diarized_speaker_map = _read_full_diarized_speaker_map(session_id)
+    full_diarized_mapped = read_text(full_diarized_mapped_path, "")
+    if full_diarized_segments and not full_diarized_mapped:
+        try:
+            rebuilt = _rebuild_full_diarized_mapped_text(session_id)
+            full_diarized_mapped = str(rebuilt.get("mappedTranscript") or "")
+        except Exception:
+            full_diarized_mapped = ""
     return {
         "transcript": read_text(transcript_path, ""),
         "cleanTranscript": read_text(clean_transcript_path, ""),
+        "fullDiarizedTranscript": read_text(full_diarized_path, ""),
+        "fullDiarizedMappedTranscript": full_diarized_mapped,
+        "fullDiarizedSpeakers": _speaker_stats_from_segments(full_diarized_segments, speaker_map=full_diarized_speaker_map),
+        "fullDiarizedSpeakerMap": full_diarized_speaker_map,
+        "fullDiarizedSpeakerCandidates": _speaker_map_candidate_labels(session_id),
         "notes": structured.get("timelineText") or read_text(notes_path, ""),
         "party": _session_party_text(session_id),
         "summary": read_text(summary_path, ""),
@@ -768,6 +919,7 @@ def read_session_text(session_id: str):
         "reprocessStatus": status.get("reprocessStatus") or {},
         "cleanTranscriptStatus": status.get("cleanTranscriptStatus") or {},
         "transcriptBackfillStatus": status.get("transcriptBackfillStatus") or {},
+        "fullDiarizedStatus": status.get("fullDiarizedStatus") or {},
         "missingTranscriptChunks": [int(item.get("chunkIndex") or -1) for item in missing_chunks if int(item.get("chunkIndex") or -1) >= 0],
         "notesState": structured.get("state") or {},
         "notesTimeline": structured.get("timelineItems") or [],
@@ -833,6 +985,27 @@ def _openai_api_key() -> str:
     load_env_file(ENV_PATH)
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
     return OPENAI_API_KEY
+
+def _deepgram_api_key() -> str:
+    global DEEPGRAM_API_KEY
+    if DEEPGRAM_API_KEY:
+        return DEEPGRAM_API_KEY
+    load_env_file(ENV_PATH)
+    DEEPGRAM_API_KEY = os.environ.get("DEEPGRAM_API_KEY", "").strip()
+    return DEEPGRAM_API_KEY
+
+def _deepgram_model() -> str:
+    load_env_file(ENV_PATH)
+    return (os.environ.get("DEEPGRAM_MODEL") or DEEPGRAM_MODEL_DEFAULT).strip()
+
+def _full_diarized_provider() -> str:
+    load_env_file(ENV_PATH)
+    provider = (os.environ.get("FULL_DIARIZED_PROVIDER") or "").strip().lower()
+    if provider in {"deepgram", "openai"}:
+        return provider
+    if _deepgram_api_key():
+        return "deepgram"
+    return "openai"
 
 def _notes_model() -> str:
     load_env_file(ENV_PATH)
@@ -978,6 +1151,156 @@ def _speaker_text_from_segments(segments) -> str:
     if current_parts:
         lines.append(f"{current_speaker}: {' '.join(current_parts).strip()}".strip())
     return "\n".join([line for line in lines if line.strip()]).strip()
+
+def _prefix_batch_speaker_labels(segments, batch_index: int, batch_count: int) -> list:
+    normalized = _normalize_transcription_segments(segments)
+    if batch_count <= 1:
+        return normalized
+    out = []
+    for seg in normalized:
+        entry = dict(seg)
+        speaker = str(entry.get("speaker") or "").strip() or "Speaker"
+        entry["speaker"] = f"Batch {batch_index} {speaker}"
+        out.append(entry)
+    return out
+
+def _full_diarized_segments_path(session_id: str) -> str:
+    return os.path.join(init_session(session_id), "full_diarized_segments.json")
+
+def _full_diarized_speaker_map_path(session_id: str) -> str:
+    return os.path.join(init_session(session_id), "full_diarized_speaker_map.json")
+
+def _full_diarized_mapped_path(session_id: str) -> str:
+    return os.path.join(init_session(session_id), "full_diarized_mapped_transcript.txt")
+
+def _read_full_diarized_segments(session_id: str) -> list:
+    data = read_json(_full_diarized_segments_path(session_id), default=[])
+    items = data if isinstance(data, list) else []
+    batch_indexes = sorted({int(item.get("batchIndex") or 0) for item in items if isinstance(item, dict) and int(item.get("batchIndex") or 0) > 0})
+    batch_count = len(batch_indexes)
+    out = []
+    for seg in _normalize_transcription_segments(items):
+        entry = dict(seg)
+        raw_speaker = str(entry.get("speaker") or "").strip()
+        if batch_count > 1 and raw_speaker and not raw_speaker.lower().startswith("batch "):
+            try:
+                source = next(
+                    item for item in items
+                    if isinstance(item, dict)
+                    and str(item.get("text") or "").strip() == str(entry.get("text") or "").strip()
+                    and str(item.get("speaker") or "").strip() == raw_speaker
+                    and float(item.get("start") or 0) == float(entry.get("start") or 0)
+                )
+            except StopIteration:
+                source = None
+            batch_index = int((source or {}).get("batchIndex") or 0)
+            if batch_index > 0:
+                entry["speaker"] = f"Batch {batch_index} {raw_speaker}"
+        out.append(entry)
+    return out
+
+def _read_full_diarized_speaker_map(session_id: str) -> dict:
+    data = read_json(_full_diarized_speaker_map_path(session_id), default={})
+    if not isinstance(data, dict):
+        return {}
+    out = {}
+    for key, value in data.items():
+        speaker = str(key or "").strip()
+        if not speaker:
+            continue
+        entry = value if isinstance(value, dict) else {"label": value}
+        label = str(entry.get("label") or "").strip()
+        if not label:
+            continue
+        out[speaker] = {
+            "label": label,
+            "updatedAt": int(entry.get("updatedAt") or 0),
+        }
+    return out
+
+def _speaker_stats_from_segments(segments, speaker_map: dict = None) -> list:
+    speaker_map = speaker_map if isinstance(speaker_map, dict) else {}
+    stats = {}
+    for seg in _normalize_transcription_segments(segments):
+        speaker = str(seg.get("speaker") or "").strip() or "Speaker"
+        text = str(seg.get("text") or "").strip()
+        if not text:
+            continue
+        info = stats.get(speaker)
+        if info is None:
+            info = {
+                "speaker": speaker,
+                "mappedLabel": str((speaker_map.get(speaker) or {}).get("label") or "").strip(),
+                "turns": 0,
+                "words": 0,
+                "sample": "",
+                "sample2": "",
+            }
+            stats[speaker] = info
+        info["turns"] += 1
+        info["words"] += len([w for w in re.split(r"\s+", text) if w])
+        if not info["sample"]:
+            info["sample"] = text[:180]
+        elif not info["sample2"] and text[:180] != info["sample"]:
+            info["sample2"] = text[:180]
+    def sort_key(item):
+        match = re.search(r"(\d+)$", str(item.get("speaker") or ""))
+        order = int(match.group(1)) if match else 999999
+        return (order, str(item.get("speaker") or ""))
+    return sorted(stats.values(), key=sort_key)
+
+def _should_skip_diarized_fragment(text: str) -> bool:
+    s = str(text or "").strip()
+    if not s:
+        return True
+    normalized = re.sub(r"[^a-z']", "", s.lower())
+    filler = {
+        "uh", "um", "erm", "hmm", "mm", "mhm", "uhh", "umm", "yeah", "yep", "nope", "oh",
+    }
+    if normalized in filler:
+        return True
+    if len(s.split()) == 1 and normalized in {"i", "we", "so", "and"}:
+        return True
+    return False
+
+def _clean_full_diarized_mapped_text(segments, speaker_map: dict = None) -> str:
+    speaker_map = speaker_map if isinstance(speaker_map, dict) else {}
+    merged = []
+    current = None
+    for seg in _normalize_transcription_segments(segments):
+        text = re.sub(r"\s+", " ", str(seg.get("text") or "").strip()).strip()
+        if _should_skip_diarized_fragment(text):
+            continue
+        speaker = str(seg.get("speaker") or "").strip() or "Speaker"
+        mapped = str((speaker_map.get(speaker) or {}).get("label") or "").strip() or speaker
+        if current and current.get("speaker") == mapped:
+            current["text"] = f"{current['text']} {text}".strip()
+        else:
+            current = {"speaker": mapped, "text": text}
+            merged.append(current)
+    lines = []
+    for item in merged:
+        speaker = str(item.get("speaker") or "").strip() or "Speaker"
+        text = str(item.get("text") or "").strip()
+        if not text:
+            continue
+        lines.append(f"{speaker}: {text}")
+    return "\n\n".join(lines).strip()
+
+def _rebuild_full_diarized_mapped_text(session_id: str) -> dict:
+    segments = _read_full_diarized_segments(session_id)
+    speaker_map = _read_full_diarized_speaker_map(session_id)
+    mapped_text = _clean_full_diarized_mapped_text(segments, speaker_map=speaker_map)
+    write_text(_full_diarized_mapped_path(session_id), (mapped_text + "\n") if mapped_text else "")
+    now = int(time.time())
+    _set_session_status_fields(session_id, {
+        "fullDiarizedMappedUpdatedAt": now,
+    })
+    return {
+        "mappedTranscript": mapped_text,
+        "speakerMap": speaker_map,
+        "speakers": _speaker_stats_from_segments(segments, speaker_map=speaker_map),
+    }
 
 def _transcript_entry_display_text(item) -> str:
     if not isinstance(item, dict):
@@ -1442,6 +1765,84 @@ def _selected_audio_chunks_for_range(session_id: str, chunk_from, chunk_to):
         raise RuntimeError(f"No saved audio chunks found between {start} and {end}.")
     return selected
 
+def _saved_wav_chunks(session_id: str):
+    return [item for item in _saved_audio_chunks(session_id) if str(item.get("filename") or "").lower().endswith(".wav")]
+
+def _full_session_merged_wav_path(session_id: str) -> str:
+    return os.path.join(init_session(session_id), "full_session_merged.wav")
+
+def _merge_wav_chunk_files(chunk_items, out_path: str):
+    items = [item for item in (chunk_items or []) if isinstance(item, dict)]
+    if not items:
+        raise RuntimeError("No WAV chunks available to merge.")
+    ensure_dir(os.path.dirname(out_path))
+    params = None
+    frames = []
+    for item in items:
+        path = str(item.get("path") or "")
+        if not path or not os.path.isfile(path):
+            continue
+        with wave.open(path, "rb") as wav_in:
+            current_params = (
+                wav_in.getnchannels(),
+                wav_in.getsampwidth(),
+                wav_in.getframerate(),
+                wav_in.getcomptype(),
+                wav_in.getcompname(),
+            )
+            if params is None:
+                params = current_params
+            elif current_params != params:
+                raise RuntimeError("Saved WAV chunks do not share the same audio format, so they cannot be merged safely.")
+            frames.append(wav_in.readframes(wav_in.getnframes()))
+    if params is None or not frames:
+        raise RuntimeError("No readable WAV chunk data found to merge.")
+    with wave.open(out_path, "wb") as wav_out:
+        wav_out.setnchannels(params[0])
+        wav_out.setsampwidth(params[1])
+        wav_out.setframerate(params[2])
+        wav_out.setcomptype(params[3], params[4])
+        for block in frames:
+            wav_out.writeframes(block)
+    return out_path
+
+def _prepare_full_session_merged_wav(session_id: str, wav_chunks) -> str:
+    merged_path = _full_session_merged_wav_path(session_id)
+    try:
+        if os.path.isfile(merged_path) and os.path.getsize(merged_path) > 0:
+            return merged_path
+    except Exception:
+        pass
+    return _merge_wav_chunk_files(wav_chunks, merged_path)
+
+def _batch_audio_chunks_for_full_diarization(chunk_items, target_bytes: int = FULL_DIARIZED_BATCH_TARGET_BYTES, max_chunks: int = FULL_DIARIZED_BATCH_MAX_CHUNKS):
+    items = sorted(
+        [item for item in (chunk_items or []) if isinstance(item, dict)],
+        key=lambda item: int(item.get("chunkIndex", -1)),
+    )
+    if not items:
+        return []
+    batches = []
+    current = []
+    current_bytes = 0
+    for item in items:
+        item_bytes = max(0, int(item.get("bytes") or 0))
+        should_flush = bool(
+            current and (
+                (target_bytes > 0 and current_bytes + item_bytes > int(target_bytes)) or
+                (max_chunks > 0 and len(current) >= int(max_chunks))
+            )
+        )
+        if should_flush:
+            batches.append(current)
+            current = []
+            current_bytes = 0
+        current.append(item)
+        current_bytes += item_bytes
+    if current:
+        batches.append(current)
+    return batches
+
 def _tracking_events_path(session_id: str) -> str:
     session_dir = init_session(session_id)
     return os.path.join(session_dir, "tracking_events.jsonl")
@@ -1892,6 +2293,155 @@ def transcribe_with_openai(path: str, model: str = "") -> dict:
         "segments": segments,
         "model": model,
     }
+
+def _deepgram_segments_from_utterances(utterances) -> list:
+    out = []
+    for item in utterances or []:
+        if not isinstance(item, dict):
+            continue
+        text = str(item.get("transcript") or item.get("text") or "").strip()
+        if not text:
+            continue
+        speaker_raw = item.get("speaker")
+        speaker = f"Speaker {speaker_raw}" if str(speaker_raw).strip() != "" else "Speaker"
+        try:
+            start = float(item.get("start") or 0)
+        except Exception:
+            start = 0.0
+        try:
+            end = float(item.get("end") or 0)
+        except Exception:
+            end = 0.0
+        out.append({
+            "speaker": speaker,
+            "text": text,
+            "start": start,
+            "end": end,
+        })
+    return out
+
+def _deepgram_segments_from_words(words) -> list:
+    grouped = []
+    current = None
+    for item in words or []:
+        if not isinstance(item, dict):
+            continue
+        token = str(item.get("punctuated_word") or item.get("word") or "").strip()
+        if not token:
+            continue
+        speaker_raw = item.get("speaker")
+        speaker = f"Speaker {speaker_raw}" if str(speaker_raw).strip() != "" else "Speaker"
+        try:
+            start = float(item.get("start") or 0)
+        except Exception:
+            start = 0.0
+        try:
+            end = float(item.get("end") or start)
+        except Exception:
+            end = start
+        if current and current.get("speaker") == speaker:
+            current["text"] = f"{current['text']} {token}".strip()
+            current["end"] = end
+        else:
+            current = {
+                "speaker": speaker,
+                "text": token,
+                "start": start,
+                "end": end,
+            }
+            grouped.append(current)
+    return grouped
+
+def _deepgram_transcription_from_payload(payload: str, model: str) -> dict:
+    data = json.loads(payload)
+    results = data.get("results") or {}
+    utterances = results.get("utterances") or []
+    segments = _deepgram_segments_from_utterances(utterances)
+    if not segments:
+        channels = results.get("channels") or []
+        alternatives = channels[0].get("alternatives") if channels and isinstance(channels[0], dict) else []
+        alt0 = alternatives[0] if alternatives and isinstance(alternatives[0], dict) else {}
+        segments = _deepgram_segments_from_words(alt0.get("words") or [])
+        text = str(alt0.get("transcript") or "").strip()
+    else:
+        text = " ".join(str(item.get("text") or "").strip() for item in segments).strip()
+    speaker_text = _speaker_text_from_segments(segments)
+    if not text and not speaker_text:
+        raise RuntimeError("Empty Deepgram transcription response.")
+    return {
+        "text": text or speaker_text,
+        "speakerText": speaker_text,
+        "segments": segments,
+        "model": model,
+        "provider": "deepgram",
+    }
+
+def _stream_deepgram_prerecorded(path: str, url: str, api_key: str, content_type: str, timeout: int = 600) -> str:
+    file_size = os.path.getsize(path)
+    parsed = urlparse(url)
+    request_path = parsed.path + (f"?{parsed.query}" if parsed.query else "")
+    last_err = None
+    attempts = len(_openai_retry_delays()) + 1
+    for attempt in range(attempts):
+        conn = http.client.HTTPSConnection(parsed.netloc, timeout=timeout)
+        try:
+            conn.putrequest("POST", request_path)
+            conn.putheader("Authorization", f"Token {api_key}")
+            conn.putheader("Content-Type", content_type or "audio/wav")
+            conn.putheader("Content-Length", str(file_size))
+            conn.endheaders()
+            with open(path, "rb") as f:
+                while True:
+                    block = f.read(DEEPGRAM_UPLOAD_BLOCK_SIZE)
+                    if not block:
+                        break
+                    conn.send(block)
+            resp = conn.getresponse()
+            payload = resp.read().decode("utf-8", errors="ignore")
+            if 200 <= int(resp.status) < 300:
+                return payload
+            last_err = RuntimeError(f"Deepgram API error: HTTP {resp.status} {payload}")
+            if attempt < attempts - 1 and _openai_should_retry_http(resp.status):
+                time.sleep(_openai_retry_delays()[attempt])
+                continue
+            raise last_err
+        except (OSError, TimeoutError, http.client.HTTPException) as e:
+            last_err = RuntimeError(f"Deepgram API connection error: {e}")
+            if attempt < attempts - 1:
+                time.sleep(_openai_retry_delays()[attempt])
+                continue
+            raise last_err
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+    if last_err is not None:
+        raise last_err
+    raise RuntimeError("Deepgram API request failed.")
+
+def transcribe_with_deepgram(path: str, model: str = "") -> dict:
+    api_key = _deepgram_api_key()
+    if not api_key:
+        raise RuntimeError("DEEPGRAM_API_KEY not set. Add it to .env or your environment.")
+    model = str(model or "").strip() or _deepgram_model()
+    content_type = _mime_for_filename(os.path.basename(path)) or "audio/wav"
+    query = urlencode({
+        "diarize": "true",
+        "utterances": "true",
+        "smart_format": "true",
+        "language": "en",
+        "model": model,
+        "punctuate": "true",
+    })
+    payload = _stream_deepgram_prerecorded(
+        path=path,
+        url=f"https://api.deepgram.com/v1/listen?{query}",
+        api_key=api_key,
+        content_type=content_type,
+        timeout=600,
+    )
+    return _deepgram_transcription_from_payload(payload, model=model)
 
 def _default_notes_system_prompt() -> str:
     return (
@@ -2684,6 +3234,34 @@ def _set_transcript_backfill_status(session_id: str, patch: dict):
         return dict(current)
     return _update_session_status(session_id, mutate, default={})
 
+def _set_full_diarized_status(session_id: str, patch: dict):
+    def mutate(status):
+        current = status.get("fullDiarizedStatus") or {}
+        current.update(patch or {})
+        status["fullDiarizedStatus"] = current
+        status["updatedAt"] = int(time.time())
+        return dict(current)
+    return _update_session_status(session_id, mutate, default={})
+
+def _start_full_diarized_heartbeat(session_id: str, build_patch, interval_sec: float = 5.0):
+    stop_event = threading.Event()
+
+    def run():
+        while not stop_event.wait(interval_sec):
+            try:
+                patch = dict(build_patch() or {})
+                now = int(time.time())
+                patch.setdefault("running", True)
+                patch.setdefault("heartbeatAt", now)
+                patch.setdefault("updatedAt", now)
+                _set_full_diarized_status(session_id, patch)
+            except Exception:
+                pass
+
+    t = threading.Thread(target=run, name=f"full-diarized-heartbeat-{session_id}", daemon=True)
+    t.start()
+    return stop_event
+
 def _run_reprocess_job(session_id: str, party_override: str, regenerate_summary: bool, window_override: int = None, job_id: str = "", stop_event: threading.Event = None):
     def progress(p):
         payload = {
@@ -3067,6 +3645,245 @@ def retranscribe_transcript_range_for_session(session_id: str, chunk_from, chunk
         })
         raise
 
+def generate_full_diarized_transcript_for_session(session_id: str):
+    session_dir = init_session(session_id)
+    wav_chunks = _saved_wav_chunks(session_id)
+    if not wav_chunks:
+        raise RuntimeError("No saved WAV chunks found for this session.")
+
+    full_diarized_path = os.path.join(session_dir, "full_diarized_transcript.txt")
+    full_diarized_segments_path = os.path.join(session_dir, "full_diarized_segments.json")
+    full_diarized_mapped_path = _full_diarized_mapped_path(session_id)
+    total = len(wav_chunks)
+    started_at = int(time.time())
+    provider = _full_diarized_provider()
+    deepgram_single_mode = False
+    full_session_merged_path = ""
+    merged_bytes = 0
+    fallback_reason = ""
+    if provider == "deepgram":
+        model_name = _deepgram_model()
+        transcribe_batch = lambda path: transcribe_with_deepgram(path, model=model_name)
+        provider_label = "deepgram"
+        full_session_merged_path = _prepare_full_session_merged_wav(session_id, wav_chunks)
+        merged_bytes = os.path.getsize(full_session_merged_path)
+        if merged_bytes <= FULL_DIARIZED_DEEPGRAM_SINGLE_FILE_MAX_BYTES:
+            deepgram_single_mode = True
+            batches = [wav_chunks]
+        else:
+            fallback_reason = f"Merged WAV exceeds the 2 GB Deepgram upload limit ({merged_bytes} bytes)."
+            batches = _batch_audio_chunks_for_full_diarization(
+                wav_chunks,
+                target_bytes=FULL_DIARIZED_DEEPGRAM_BATCH_TARGET_BYTES,
+                max_chunks=FULL_DIARIZED_DEEPGRAM_BATCH_MAX_CHUNKS,
+            )
+    else:
+        batches = _batch_audio_chunks_for_full_diarization(wav_chunks)
+        model_name = "gpt-4o-transcribe-diarize"
+        transcribe_batch = lambda path: transcribe_with_openai(path, model=model_name)
+        provider_label = "openai"
+    batch_count = len(batches)
+    processed = 0
+    all_text_blocks = []
+    all_segments = []
+    for stale_path in [full_diarized_path, full_diarized_segments_path, full_diarized_mapped_path]:
+        try:
+            if os.path.exists(stale_path):
+                os.remove(stale_path)
+        except Exception:
+            pass
+    _set_full_diarized_status(session_id, {
+        "running": True,
+        "phase": "merging",
+        "processed": 0,
+        "total": total,
+        "error": "",
+        "updatedAt": started_at,
+        "heartbeatAt": started_at,
+        "finishedAt": None,
+        "batchIndex": 0,
+        "batchCount": batch_count,
+        "provider": provider_label,
+        "model": model_name,
+        "fallbackReason": fallback_reason,
+        "mergedBytes": merged_bytes if provider == "deepgram" else 0,
+    })
+    try:
+        if not batch_count:
+            raise RuntimeError("No WAV chunks were available for full-session diarization.")
+        for batch_index, batch in enumerate(batches, start=1):
+            batch_start = int(batch[0].get("chunkIndex", -1))
+            batch_end = int(batch[-1].get("chunkIndex", -1))
+            merged_path = full_session_merged_path if deepgram_single_mode else os.path.join(session_dir, f"_merged_diarized_{uuid.uuid4().hex}_{batch_index:02d}.wav")
+            _set_full_diarized_status(session_id, {
+                "running": True,
+                "phase": "merging",
+                "processed": processed,
+                "total": total,
+                "error": "",
+                "updatedAt": int(time.time()),
+                "heartbeatAt": int(time.time()),
+                "finishedAt": None,
+                "batchIndex": batch_index,
+                "batchCount": batch_count,
+                "rangeStart": batch_start,
+                "rangeEnd": batch_end,
+                "provider": provider_label,
+                "model": model_name,
+                "fallbackReason": fallback_reason,
+                "mergedBytes": merged_bytes if provider == "deepgram" else 0,
+            })
+            try:
+                if not deepgram_single_mode:
+                    _merge_wav_chunk_files(batch, merged_path)
+                transcribing_now = int(time.time())
+                _set_full_diarized_status(session_id, {
+                    "running": True,
+                    "phase": "transcribing",
+                    "processed": processed,
+                    "total": total,
+                    "error": "",
+                    "updatedAt": transcribing_now,
+                    "heartbeatAt": transcribing_now,
+                    "finishedAt": None,
+                    "batchIndex": batch_index,
+                    "batchCount": batch_count,
+                    "rangeStart": batch_start,
+                    "rangeEnd": batch_end,
+                    "provider": provider_label,
+                    "model": model_name,
+                    "fallbackReason": fallback_reason,
+                    "mergedBytes": merged_bytes if provider == "deepgram" else 0,
+                })
+                heartbeat = _start_full_diarized_heartbeat(
+                    session_id,
+                    lambda: {
+                        "running": True,
+                        "phase": "transcribing",
+                        "processed": processed,
+                        "total": total,
+                        "error": "",
+                        "finishedAt": None,
+                        "batchIndex": batch_index,
+                        "batchCount": batch_count,
+                        "rangeStart": batch_start,
+                        "rangeEnd": batch_end,
+                        "provider": provider_label,
+                        "model": model_name,
+                        "fallbackReason": fallback_reason,
+                        "mergedBytes": merged_bytes if provider == "deepgram" else 0,
+                    },
+                )
+                try:
+                    result = transcribe_batch(merged_path)
+                finally:
+                    heartbeat.set()
+                if deepgram_single_mode:
+                    batch_segments = result.get("segments") or []
+                else:
+                    batch_segments = _prefix_batch_speaker_labels(
+                        result.get("segments") or [],
+                        batch_index=batch_index,
+                        batch_count=batch_count,
+                    )
+                diarized_text = _speaker_text_from_segments(batch_segments).strip() or str(result.get("speakerText") or result.get("text") or "").strip()
+                if not diarized_text:
+                    raise RuntimeError(f"Full-session diarized transcript batch {batch_index} came back empty.")
+                all_text_blocks.append(diarized_text)
+                for segment in batch_segments:
+                    if isinstance(segment, dict):
+                        entry = dict(segment)
+                        if not deepgram_single_mode:
+                            entry.setdefault("batchIndex", batch_index)
+                        entry.setdefault("chunkStart", batch_start)
+                        entry.setdefault("chunkEnd", batch_end)
+                        all_segments.append(entry)
+                    else:
+                        all_segments.append(segment)
+                processed += len(batch)
+                combined_text = "\n\n".join(block.strip() for block in all_text_blocks if str(block or "").strip()).strip()
+                if combined_text:
+                    write_text(full_diarized_path, combined_text + "\n")
+                write_text(full_diarized_segments_path, json.dumps(all_segments, indent=2))
+                now = int(time.time())
+                _set_session_status_fields(session_id, {
+                    "fullDiarizedTranscriptUpdatedAt": now,
+                })
+                _set_full_diarized_status(session_id, {
+                    "running": True,
+                    "phase": "transcribing",
+                    "processed": processed,
+                    "total": total,
+                    "error": "",
+                    "updatedAt": now,
+                    "heartbeatAt": now,
+                    "finishedAt": None,
+                    "model": str(result.get("model") or model_name),
+                    "provider": str(result.get("provider") or provider_label),
+                    "segments": len(all_segments),
+                    "batchIndex": batch_index,
+                    "batchCount": batch_count,
+                    "rangeStart": batch_start,
+                    "rangeEnd": batch_end,
+                    "fallbackReason": fallback_reason,
+                    "mergedBytes": merged_bytes if provider == "deepgram" else 0,
+                })
+            finally:
+                try:
+                    if (not deepgram_single_mode) and os.path.exists(merged_path):
+                        os.remove(merged_path)
+                except Exception:
+                    pass
+        combined_text = "\n\n".join(block.strip() for block in all_text_blocks if str(block or "").strip()).strip()
+        if not combined_text:
+            raise RuntimeError("Full-session diarized transcript came back empty.")
+        rebuilt = _rebuild_full_diarized_mapped_text(session_id)
+        now = int(time.time())
+        _set_full_diarized_status(session_id, {
+            "running": False,
+            "phase": "done",
+            "processed": total,
+            "total": total,
+            "error": "",
+            "updatedAt": now,
+            "heartbeatAt": now,
+            "finishedAt": now,
+            "model": model_name,
+            "provider": provider_label,
+            "segments": len(all_segments),
+            "mappedTurns": len([line for line in str(rebuilt.get("mappedTranscript") or "").splitlines() if line.strip()]),
+            "batchIndex": batch_count,
+            "batchCount": batch_count,
+            "fallbackReason": fallback_reason,
+            "mergedBytes": merged_bytes if provider == "deepgram" else 0,
+        })
+        return {
+            "fullDiarizedTranscript": combined_text,
+            "fullDiarizedMappedTranscript": str(rebuilt.get("mappedTranscript") or ""),
+            "segments": len(all_segments),
+            "chunkCount": total,
+            "batchCount": batch_count,
+            "provider": provider_label,
+        }
+    except Exception as e:
+        _set_full_diarized_status(session_id, {
+            "running": False,
+            "phase": "error",
+            "processed": processed,
+            "total": total,
+            "error": str(e),
+            "updatedAt": int(time.time()),
+            "heartbeatAt": int(time.time()),
+            "finishedAt": int(time.time()),
+            "segments": len(all_segments),
+            "batchCount": batch_count,
+            "provider": provider_label,
+            "model": model_name,
+            "fallbackReason": fallback_reason,
+            "mergedBytes": merged_bytes if provider == "deepgram" else 0,
+        })
+        raise
+
 def _run_transcript_backfill_job(session_id: str, job_id: str = ""):
     try:
         _set_transcript_backfill_status(session_id, {
@@ -3157,6 +3974,46 @@ def _run_transcript_retranscribe_job(session_id: str, chunk_from: int, chunk_to:
         })
     finally:
         _unregister_transcript_backfill_job(session_id, job_id=job_id)
+
+def _run_full_diarized_job(session_id: str, job_id: str = ""):
+    try:
+        _set_full_diarized_status(session_id, {
+            "running": True,
+            "phase": "starting",
+            "processed": 0,
+            "total": 0,
+            "error": "",
+            "startedAt": int(time.time()),
+            "updatedAt": int(time.time()),
+            "finishedAt": None,
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+        })
+        result = generate_full_diarized_transcript_for_session(session_id=session_id)
+        _set_full_diarized_status(session_id, {
+            "running": False,
+            "phase": "done",
+            "processed": int(result.get("chunkCount") or 0),
+            "total": int(result.get("chunkCount") or 0),
+            "error": "",
+            "segments": int(result.get("segments") or 0),
+            "updatedAt": int(time.time()),
+            "finishedAt": int(time.time()),
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+        })
+    except Exception as e:
+        _set_full_diarized_status(session_id, {
+            "running": False,
+            "phase": "error",
+            "error": str(e),
+            "updatedAt": int(time.time()),
+            "finishedAt": int(time.time()),
+            "jobId": str(job_id or ""),
+            "ownerStartedAt": SERVER_STARTED_AT,
+        })
+    finally:
+        _unregister_full_diarized_job(session_id, job_id=job_id)
 
 def _run_clean_transcript_job(session_id: str, party_override: str, job_id: str = ""):
     try:
@@ -3962,6 +4819,10 @@ class Handler(SimpleHTTPRequestHandler):
                 if backfill_status.get("running"):
                     self._send_json(409, {"ok": False, "error": "Transcript backfill is already running for this session."})
                     return
+                full_diarized_status = _normalize_full_diarized_status(session_id, status, persist=True)
+                if full_diarized_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Full-session diarized transcript is already running for this session."})
+                    return
 
                 job_id = uuid.uuid4().hex
                 stop_event = threading.Event()
@@ -3995,6 +4856,10 @@ class Handler(SimpleHTTPRequestHandler):
                 clean_status = _normalize_clean_transcript_status(session_id, status, persist=True)
                 if clean_status.get("running"):
                     self._send_json(409, {"ok": False, "error": "Clean transcript rebuild already running for this session."})
+                    return
+                full_diarized_status = _normalize_full_diarized_status(session_id, status, persist=True)
+                if full_diarized_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Full-session diarized transcript is already running for this session."})
                     return
 
                 job_id = uuid.uuid4().hex
@@ -4032,6 +4897,10 @@ class Handler(SimpleHTTPRequestHandler):
                 backfill_status = _normalize_transcript_backfill_status(session_id, status, persist=True)
                 if backfill_status.get("running"):
                     self._send_json(409, {"ok": False, "error": "Transcript backfill already running for this session."})
+                    return
+                full_diarized_status = _normalize_full_diarized_status(session_id, status, persist=True)
+                if full_diarized_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Full-session diarized transcript is already running for this session."})
                     return
 
                 missing = _missing_transcript_audio_chunks(session_id)
@@ -4083,6 +4952,10 @@ class Handler(SimpleHTTPRequestHandler):
                 if backfill_status.get("running"):
                     self._send_json(409, {"ok": False, "error": "Another transcript job is already running for this session."})
                     return
+                full_status = _normalize_full_diarized_status(session_id, status, persist=True)
+                if full_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Full-session diarized transcript is already running for this session."})
+                    return
 
                 selected = _selected_audio_chunks_for_range(session_id, chunk_from, chunk_to)
                 normalized_from = int(selected[0].get("chunkIndex") or chunk_from)
@@ -4104,6 +4977,85 @@ class Handler(SimpleHTTPRequestHandler):
                     "chunkFrom": normalized_from,
                     "chunkTo": normalized_to,
                     "selectedChunkCount": len(selected),
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/full-diarized-transcript/start":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                status = read_json(_session_status_path(session_id), default={})
+                rep = _normalize_reprocess_status(session_id, status, persist=True)
+                if rep.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Notes rebuild is already running for this session."})
+                    return
+                clean_status = _normalize_clean_transcript_status(session_id, status, persist=True)
+                if clean_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Clean transcript rebuild is already running for this session."})
+                    return
+                backfill_status = _normalize_transcript_backfill_status(session_id, status, persist=True)
+                if backfill_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Another transcript job is already running for this session."})
+                    return
+                full_status = _normalize_full_diarized_status(session_id, status, persist=True)
+                if full_status.get("running"):
+                    self._send_json(409, {"ok": False, "error": "Full-session diarized transcript is already running for this session."})
+                    return
+
+                wav_chunks = _saved_wav_chunks(session_id)
+                if not wav_chunks:
+                    self._send_json(400, {"ok": False, "error": "No saved WAV chunks found for this session."})
+                    return
+
+                job_id = uuid.uuid4().hex
+                t = threading.Thread(
+                    target=_run_full_diarized_job,
+                    args=(session_id, job_id),
+                    daemon=True,
+                )
+                _register_full_diarized_job(session_id, job_id, t)
+                t.start()
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "started": True,
+                    "jobId": job_id,
+                    "chunkCount": len(wav_chunks),
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/full-diarized/speaker-map":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                raw_map = data.get("speakerMap")
+                if not isinstance(raw_map, dict):
+                    raise ValueError("speakerMap must be an object.")
+                cleaned = {}
+                for key, value in raw_map.items():
+                    speaker = str(key or "").strip()
+                    label = str(value or "").strip()
+                    if not speaker:
+                        continue
+                    if label:
+                        cleaned[speaker] = {
+                            "label": label,
+                            "updatedAt": int(time.time()),
+                        }
+                write_json_atomic(_full_diarized_speaker_map_path(session_id), cleaned)
+                rebuilt = _rebuild_full_diarized_mapped_text(session_id)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "fullDiarizedMappedTranscript": str(rebuilt.get("mappedTranscript") or ""),
+                    "fullDiarizedSpeakers": rebuilt.get("speakers") or [],
+                    "fullDiarizedSpeakerMap": rebuilt.get("speakerMap") or {},
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})

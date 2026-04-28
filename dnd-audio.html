@@ -603,6 +603,7 @@
                   <button id="sessions-refresh" class="btn btn-outline-secondary btn-sm">Refresh</button>
                   <button id="sessions-backfill-transcripts" class="btn btn-outline-secondary btn-sm">Backfill Missing Audio</button>
                   <button id="sessions-retranscribe-range" class="btn btn-outline-secondary btn-sm">Retranscribe Chunk Range</button>
+                  <button id="sessions-full-diarized" class="btn btn-outline-secondary btn-sm">Build Full Diarized Transcript</button>
                   <button id="sessions-clean-transcript" class="btn btn-outline-secondary btn-sm">Rebuild Clean Transcript</button>
                   <button id="sessions-reprocess" class="btn btn-outline-primary btn-sm">Rebuild Notes + Summary</button>
                   <button id="sessions-stop-reprocess" class="btn btn-outline-danger btn-sm" disabled>Stop / Clear Rebuild</button>
@@ -718,6 +719,38 @@
                       <button id="copy-sessions-transcript" class="btn btn-outline-secondary btn-sm">Copy</button>
                     </div>
                     <pre id="sessions-transcript" class="tall-pane"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;"></pre>
+                    <div class="d-flex justify-content-between align-items-center mb-1 mt-3">
+                      <div class="small text-muted">Full Session Diarized Transcript (Experimental)</div>
+                      <button id="copy-sessions-full-diarized" class="btn btn-outline-secondary btn-sm">Copy</button>
+                    </div>
+                    <div class="small text-muted mb-1">This is a separate post-session diarized pass over merged audio chunks. It is meant for attribution experiments, not yet the primary readable record.</div>
+                    <pre id="sessions-full-diarized-transcript" class="tall-pane"
+                      style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;"></pre>
+                    <div class="d-flex justify-content-between align-items-center mb-1 mt-3">
+                      <div class="small text-muted">Session Speaker Map</div>
+                      <button id="sessions-speaker-map-save" class="btn btn-outline-primary btn-sm">Save Speaker Map</button>
+                    </div>
+                    <div class="small text-muted mb-1">Assign diarized speakers to DM, players, or characters. This drives the cleaned mapped transcript below.</div>
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle">
+                        <thead>
+                          <tr>
+                            <th style="min-width:100px;">Speaker</th>
+                            <th style="min-width:220px;">Assign As</th>
+                            <th>Sample</th>
+                          </tr>
+                        </thead>
+                        <tbody id="sessions-speaker-map-body"></tbody>
+                      </table>
+                    </div>
+                    <div id="sessions-speaker-map-status" class="small text-muted mt-1 mb-2"></div>
+                    <div class="d-flex justify-content-between align-items-center mb-1 mt-3">
+                      <div class="small text-muted">Mapped / Cleaned Diarized Transcript</div>
+                      <button id="copy-sessions-full-diarized-mapped" class="btn btn-outline-secondary btn-sm">Copy</button>
+                    </div>
+                    <div class="small text-muted mb-1">This view merges adjacent turns, drops low-value filler fragments, and replaces generic speaker labels with your session speaker map.</div>
+                    <pre id="sessions-full-diarized-mapped-transcript" class="tall-pane"
                       style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;"></pre>
                   </div>
                   <div class="col-12 col-md-6">
@@ -2813,6 +2846,7 @@ async function postMetaOnce() {
   const sessionsRefreshEl = document.getElementById("sessions-refresh");
   const sessionsBackfillTranscriptsEl = document.getElementById("sessions-backfill-transcripts");
   const sessionsRetranscribeRangeEl = document.getElementById("sessions-retranscribe-range");
+  const sessionsFullDiarizedEl = document.getElementById("sessions-full-diarized");
   const sessionsRetranscribeFromEl = document.getElementById("sessions-retranscribe-from");
   const sessionsRetranscribeToEl = document.getElementById("sessions-retranscribe-to");
   const sessionsCleanTranscriptEl = document.getElementById("sessions-clean-transcript");
@@ -2825,6 +2859,11 @@ async function postMetaOnce() {
   const sessionsNarrativeGuidanceEl = document.getElementById("sessions-narrative-guidance");
   const sessionsGameSummaryEl = document.getElementById("sessions-game-summary");
   const sessionsGameNarrativeEl = document.getElementById("sessions-game-narrative");
+  const sessionsFullDiarizedTranscriptEl = document.getElementById("sessions-full-diarized-transcript");
+  const sessionsFullDiarizedMappedTranscriptEl = document.getElementById("sessions-full-diarized-mapped-transcript");
+  const sessionsSpeakerMapBodyEl = document.getElementById("sessions-speaker-map-body");
+  const sessionsSpeakerMapSaveEl = document.getElementById("sessions-speaker-map-save");
+  const sessionsSpeakerMapStatusEl = document.getElementById("sessions-speaker-map-status");
   const sessionsRosterBodyEl = document.getElementById("sessions-roster-body");
   const sessionsPartyMetaEl = document.getElementById("sessions-party-meta");
   const sessionsPartyStatusEl = document.getElementById("sessions-party-status");
@@ -2836,12 +2875,15 @@ async function postMetaOnce() {
   const copySessionsGameSummaryEl = document.getElementById("copy-sessions-game-summary");
   const copySessionsGameNarrativeEl = document.getElementById("copy-sessions-game-narrative");
   const copySessionsTranscriptEl = document.getElementById("copy-sessions-transcript");
+  const copySessionsFullDiarizedEl = document.getElementById("copy-sessions-full-diarized");
+  const copySessionsFullDiarizedMappedEl = document.getElementById("copy-sessions-full-diarized-mapped");
   const copySessionsNotesEl = document.getElementById("copy-sessions-notes");
   const copySessionsNotesSummaryEl = document.getElementById("copy-sessions-notes-summary");
   const copySessionsNotesStateEl = document.getElementById("copy-sessions-notes-state");
   let reprocessPollTimer = null;
   let cleanTranscriptPollTimer = null;
   let transcriptBackfillPollTimer = null;
+  let fullDiarizedPollTimer = null;
   let currentReprocessStatus = {};
   let currentTranscriptBackfillStatus = {};
   let currentMissingTranscriptChunks = [];
@@ -2853,11 +2895,19 @@ async function postMetaOnce() {
   let cleanTranscriptStartPending = false;
   let transcriptBackfillStartPending = false;
   let transcriptRetranscribeStartPending = false;
+  let fullDiarizedStartPending = false;
+  let speakerMapSavePending = false;
   let sessionsPartyRoster = [];
   let sessionsPartyDirty = false;
+  let currentFullDiarizedSpeakers = [];
+  let currentFullDiarizedSpeakerMap = {};
 
   function setSessionsPartyStatus(msg) {
     if (sessionsPartyStatusEl) sessionsPartyStatusEl.textContent = msg || '';
+  }
+
+  function setSessionsSpeakerMapStatus(msg) {
+    if (sessionsSpeakerMapStatusEl) sessionsSpeakerMapStatusEl.textContent = msg || '';
   }
 
   function currentHistorySessionId() {
@@ -2939,6 +2989,94 @@ async function postMetaOnce() {
     sessionsPartyDirty = false;
     setSessionsPartyStatus(`Saved roster to session ${sessionId}. Rebuild notes or clean transcript when ready.`);
     return true;
+  }
+
+  function setSpeakerMapState(speakers, speakerMap, candidates, mappedTranscript = '') {
+    currentFullDiarizedSpeakers = Array.isArray(speakers) ? speakers : [];
+    currentFullDiarizedSpeakerMap = speakerMap && typeof speakerMap === 'object' ? { ...speakerMap } : {};
+    const options = Array.isArray(candidates) ? candidates : [];
+    renderSpeakerMapEditor(options);
+    if (sessionsFullDiarizedMappedTranscriptEl) {
+      sessionsFullDiarizedMappedTranscriptEl.textContent = mappedTranscript || '(no mapped full-session diarized transcript yet)';
+    }
+  }
+
+  function renderSpeakerMapEditor(candidates = []) {
+    if (!sessionsSpeakerMapBodyEl) return;
+    const options = Array.isArray(candidates) ? candidates.filter(Boolean) : [];
+    sessionsSpeakerMapBodyEl.innerHTML = '';
+    currentFullDiarizedSpeakers.forEach((item, index) => {
+      const speaker = String(item?.speaker || `Speaker ${index}`).trim();
+      const mappedLabel = String(currentFullDiarizedSpeakerMap?.[speaker]?.label || '').trim();
+      const tr = document.createElement('tr');
+      const optionHtml = [
+        '<option value="">Unassigned</option>',
+        ...options.map((label) => {
+          const safe = escapeHtml(label);
+          const selected = safe === escapeHtml(mappedLabel) ? ' selected' : '';
+          return `<option value="${safe}"${selected}>${safe}</option>`;
+        })
+      ].join('');
+      const sampleBits = [item?.sample, item?.sample2].filter(Boolean).map((text) => `<div>${escapeHtml(text)}</div>`).join('');
+      tr.innerHTML = `
+        <td>
+          <div class="fw-semibold">${escapeHtml(speaker)}</div>
+          <div class="small text-muted">${Number(item?.turns || 0)} turns • ${Number(item?.words || 0)} words</div>
+        </td>
+        <td>
+          <select class="form-select form-select-sm mb-1" data-speaker-map-select="${escapeHtml(speaker)}">
+            ${optionHtml}
+          </select>
+          <input class="form-control form-control-sm" data-speaker-map-custom="${escapeHtml(speaker)}" value="${escapeHtml(mappedLabel)}" placeholder="Or type a custom label">
+        </td>
+        <td class="small text-muted">${sampleBits || '<div>(no sample)</div>'}</td>
+      `;
+      sessionsSpeakerMapBodyEl.appendChild(tr);
+    });
+    if (sessionsSpeakerMapSaveEl) {
+      sessionsSpeakerMapSaveEl.disabled = speakerMapSavePending || !currentFullDiarizedSpeakers.length;
+    }
+    setSessionsSpeakerMapStatus(currentFullDiarizedSpeakers.length
+      ? 'Review assignments and save when ready.'
+      : 'No diarized speakers detected for this session yet.');
+  }
+
+  function collectSpeakerMapFromEditor() {
+    const out = {};
+    if (!sessionsSpeakerMapBodyEl) return out;
+    sessionsSpeakerMapBodyEl.querySelectorAll('[data-speaker-map-custom]').forEach((input) => {
+      const speaker = String(input.getAttribute('data-speaker-map-custom') || '').trim();
+      if (!speaker) return;
+      const select = sessionsSpeakerMapBodyEl.querySelector(`[data-speaker-map-select="${CSS.escape(speaker)}"]`);
+      const customValue = String(input.value || '').trim();
+      const selectValue = String(select?.value || '').trim();
+      const label = customValue || selectValue;
+      if (label) out[speaker] = label;
+    });
+    return out;
+  }
+
+  async function saveSpeakerMapForSession() {
+    const sessionId = currentHistorySessionId();
+    if (!sessionId) throw new Error('Select a History session first.');
+    const speakerMap = collectSpeakerMapFromEditor();
+    setSessionsSpeakerMapStatus(`Saving speaker map for session ${sessionId}...`);
+    const res = await fetch('/api/session/full-diarized/speaker-map', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, speakerMap })
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) {
+      throw new Error(json?.error || `Speaker map save failed (${res.status})`);
+    }
+    setSpeakerMapState(
+      json.fullDiarizedSpeakers || currentFullDiarizedSpeakers,
+      json.fullDiarizedSpeakerMap || {},
+      window.__currentFullDiarizedSpeakerCandidates || [],
+      json.fullDiarizedMappedTranscript || ''
+    );
+    setSessionsSpeakerMapStatus(`Saved speaker map to session ${sessionId}.`);
   }
 
   function escapeHtml(value) {
@@ -3048,7 +3186,10 @@ async function postMetaOnce() {
       sessionsCleanTranscriptEl.disabled = Boolean(cleanTranscriptStartPending || cleanStatus.running || currentReprocessStatus.running || backfillRunning);
     }
     if (sessionsRetranscribeRangeEl) {
-      sessionsRetranscribeRangeEl.disabled = Boolean(transcriptRetranscribeStartPending || backfillRunning || currentReprocessStatus.running || window.__currentCleanTranscriptStatus?.running);
+      sessionsRetranscribeRangeEl.disabled = Boolean(transcriptRetranscribeStartPending || backfillRunning || currentReprocessStatus.running || window.__currentCleanTranscriptStatus?.running || window.__currentFullDiarizedStatus?.running);
+    }
+    if (sessionsFullDiarizedEl) {
+      sessionsFullDiarizedEl.disabled = Boolean(fullDiarizedStartPending || backfillRunning || currentReprocessStatus.running || window.__currentCleanTranscriptStatus?.running || window.__currentFullDiarizedStatus?.running);
     }
     if (!sessionsStopReprocessEl) return;
     const phase = String(currentReprocessStatus.phase || '').trim();
@@ -3072,7 +3213,17 @@ async function postMetaOnce() {
         transcriptRetranscribeStartPending ||
         window.__currentCleanTranscriptStatus.running ||
         currentReprocessStatus.running ||
-        currentTranscriptBackfillStatus.running
+        currentTranscriptBackfillStatus.running ||
+        window.__currentFullDiarizedStatus?.running
+      );
+    }
+    if (sessionsFullDiarizedEl) {
+      sessionsFullDiarizedEl.disabled = Boolean(
+        fullDiarizedStartPending ||
+        window.__currentCleanTranscriptStatus.running ||
+        currentReprocessStatus.running ||
+        currentTranscriptBackfillStatus.running ||
+        window.__currentFullDiarizedStatus?.running
       );
     }
   }
@@ -3100,12 +3251,36 @@ async function postMetaOnce() {
         transcriptRetranscribeStartPending ||
         isRunning ||
         currentReprocessStatus.running ||
-        window.__currentCleanTranscriptStatus?.running
+        window.__currentCleanTranscriptStatus?.running ||
+        window.__currentFullDiarizedStatus?.running
       );
       sessionsRetranscribeRangeEl.textContent = isRunning && mode === 'range'
         ? 'Retranscribing Range...'
         : 'Retranscribe Chunk Range';
     }
+    if (sessionsFullDiarizedEl) {
+      sessionsFullDiarizedEl.disabled = Boolean(
+        fullDiarizedStartPending ||
+        isRunning ||
+        currentReprocessStatus.running ||
+        window.__currentCleanTranscriptStatus?.running ||
+        window.__currentFullDiarizedStatus?.running
+      );
+    }
+  }
+
+  function updateFullDiarizedControls(status) {
+    window.__currentFullDiarizedStatus = status && typeof status === 'object' ? status : {};
+    if (!sessionsFullDiarizedEl) return;
+    const isRunning = Boolean(window.__currentFullDiarizedStatus.running);
+    sessionsFullDiarizedEl.disabled = Boolean(
+      fullDiarizedStartPending ||
+      isRunning ||
+      currentTranscriptBackfillStatus.running ||
+      currentReprocessStatus.running ||
+      window.__currentCleanTranscriptStatus?.running
+    );
+    sessionsFullDiarizedEl.textContent = isRunning ? 'Building Full Diarized Transcript...' : 'Build Full Diarized Transcript';
   }
 
   function reprocessStatusMessage(sessionId, rep, fallback = '') {
@@ -3169,6 +3344,33 @@ async function postMetaOnce() {
     return fallback || `Session ${sessionId}`;
   }
 
+  function fullDiarizedStatusMessage(sessionId, status, fallback = '') {
+    const phase = String(status?.phase || '').trim();
+    const processed = Number(status?.processed || 0);
+    const total = Number(status?.total || 0);
+    const segments = Number(status?.segments || 0);
+    const provider = String(status?.provider || '').trim();
+    const batchIndex = Number(status?.batchIndex || 0);
+    const batchCount = Number(status?.batchCount || 0);
+    const rangeStart = Number(status?.rangeStart);
+    const rangeEnd = Number(status?.rangeEnd);
+    const heartbeatAt = Number(status?.heartbeatAt || 0);
+    const heartbeatAgeSec = heartbeatAt > 0 ? Math.max(0, Math.floor((Date.now() / 1000) - heartbeatAt)) : 0;
+    if (status?.running) {
+      const providerText = provider ? `${provider} ` : '';
+      const batchText = batchIndex > 0 && batchCount > 0 ? ` batch ${batchIndex}/${batchCount}` : '';
+      const rangeText = Number.isFinite(rangeStart) && Number.isFinite(rangeEnd) && rangeStart >= 0 && rangeEnd >= 0
+        ? ` (chunks ${rangeStart}-${rangeEnd})`
+        : '';
+      const heartbeatText = heartbeatAt > 0 ? `, alive ${heartbeatAgeSec}s ago` : '';
+      return `Session ${sessionId} (building full diarized transcript: ${providerText}${phase}${batchText}${rangeText}, ${processed}/${total || '?'} chunks complete${heartbeatText})`;
+    }
+    if (phase === 'error') return `Session ${sessionId} (full diarized transcript error: ${status?.error || 'unknown error'})`;
+    if (phase === 'stale') return `Session ${sessionId} (full diarized transcript stale: ${status?.error || 'worker is no longer active'})`;
+    if (phase === 'done') return `Session ${sessionId} (full diarized transcript ready${segments > 0 ? `, ${segments} segments` : ''})`;
+    return fallback || `Session ${sessionId}`;
+  }
+
   function statusUpdatedAt(status) {
     if (!status || typeof status !== 'object') return 0;
     const candidates = [
@@ -3180,15 +3382,17 @@ async function postMetaOnce() {
     return Math.max(...candidates.filter((n) => Number.isFinite(n)));
   }
 
-  function historyStatusText(sessionId, rep, cleanStatus, backfillStatus, missingChunks, fallback = '') {
+  function historyStatusText(sessionId, rep, cleanStatus, backfillStatus, missingChunks, fullDiarizedStatus, fallback = '') {
     if (rep?.running) return reprocessStatusMessage(sessionId, rep, fallback);
     if (cleanStatus?.running) return cleanTranscriptStatusMessage(sessionId, cleanStatus, fallback);
     if (backfillStatus?.running) return transcriptBackfillStatusMessage(sessionId, backfillStatus, missingChunks, fallback);
+    if (fullDiarizedStatus?.running) return fullDiarizedStatusMessage(sessionId, fullDiarizedStatus, fallback);
 
     const statuses = [
       { kind: 'reprocess', status: rep, updatedAt: statusUpdatedAt(rep) },
       { kind: 'clean', status: cleanStatus, updatedAt: statusUpdatedAt(cleanStatus) },
       { kind: 'backfill', status: backfillStatus, updatedAt: statusUpdatedAt(backfillStatus) },
+      { kind: 'full-diarized', status: fullDiarizedStatus, updatedAt: statusUpdatedAt(fullDiarizedStatus) },
     ].filter((item) => {
       const phase = String(item?.status?.phase || '').trim();
       return Boolean(phase) && phase !== 'starting';
@@ -3198,6 +3402,7 @@ async function postMetaOnce() {
     if (latest?.kind === 'reprocess') return reprocessStatusMessage(sessionId, rep, fallback);
     if (latest?.kind === 'clean') return cleanTranscriptStatusMessage(sessionId, cleanStatus, fallback);
     if (latest?.kind === 'backfill') return transcriptBackfillStatusMessage(sessionId, backfillStatus, missingChunks, fallback);
+    if (latest?.kind === 'full-diarized') return fullDiarizedStatusMessage(sessionId, fullDiarizedStatus, fallback);
 
     if ((missingChunks || []).length > 0) {
       return transcriptBackfillStatusMessage(sessionId, backfillStatus, missingChunks, fallback);
@@ -3297,6 +3502,8 @@ async function postMetaOnce() {
         opt.textContent = activeCampaignId ? 'No sessions found for this campaign' : 'No sessions found';
         sessionsSelectEl.appendChild(opt);
         setSessionsRosterFromText('', 'Select a session to load its saved roster.');
+        if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = '';
+        if (sessionsFullDiarizedTranscriptEl) sessionsFullDiarizedTranscriptEl.textContent = '';
         if (sessionsInfoEl) sessionsInfoEl.textContent = activeCampaignId ? `No history yet for ${activeCampaignId}.` : '';
         return;
       }
@@ -3332,6 +3539,14 @@ async function postMetaOnce() {
       if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = json.gameSummary || '(no game summary yet)';
       if (sessionsGameNarrativeEl) sessionsGameNarrativeEl.textContent = json.gameNarrative || '(no narrative yet)';
       if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = sessionTranscriptText(json);
+      if (sessionsFullDiarizedTranscriptEl) sessionsFullDiarizedTranscriptEl.textContent = json.fullDiarizedTranscript || '(no full-session diarized transcript yet)';
+      window.__currentFullDiarizedSpeakerCandidates = Array.isArray(json.fullDiarizedSpeakerCandidates) ? json.fullDiarizedSpeakerCandidates : [];
+      setSpeakerMapState(
+        json.fullDiarizedSpeakers || [],
+        json.fullDiarizedSpeakerMap || {},
+        window.__currentFullDiarizedSpeakerCandidates,
+        json.fullDiarizedMappedTranscript || ''
+      );
       editingTimelineItemId = '';
       setNotesTimeline(json.notesTimeline || [], json.notesTimelineText || json.notes || '');
       if (sessionsNotesSummaryEl) {
@@ -3343,26 +3558,37 @@ async function postMetaOnce() {
       const rep = json.reprocessStatus || {};
       const cleanStatus = json.cleanTranscriptStatus || {};
       const backfillStatus = json.transcriptBackfillStatus || {};
+      const fullDiarizedStatus = json.fullDiarizedStatus || {};
       const missingChunks = Array.isArray(json.missingTranscriptChunks) ? json.missingTranscriptChunks : [];
       updateTranscriptBackfillControls(backfillStatus, missingChunks);
       updateCleanTranscriptControls(cleanStatus);
+      updateFullDiarizedControls(fullDiarizedStatus);
       updateReprocessControls(rep);
       const fallbackText = 'Session ' + sessionId + (json.campaignName ? ` | Campaign: ${json.campaignName}` : '');
       if (backfillStatus.running) {
         stopReprocessPolling();
         startTranscriptBackfillPolling(sessionId);
         stopCleanTranscriptPolling();
-        if (sessionsInfoEl) sessionsInfoEl.textContent = historyStatusText(sessionId, rep, cleanStatus, backfillStatus, missingChunks, fallbackText);
+        stopFullDiarizedPolling();
+        if (sessionsInfoEl) sessionsInfoEl.textContent = historyStatusText(sessionId, rep, cleanStatus, backfillStatus, missingChunks, fullDiarizedStatus, fallbackText);
       } else if (cleanStatus.running) {
         stopReprocessPolling();
         stopTranscriptBackfillPolling();
         startCleanTranscriptPolling(sessionId);
-        if (sessionsInfoEl) sessionsInfoEl.textContent = historyStatusText(sessionId, rep, cleanStatus, backfillStatus, missingChunks, fallbackText);
+        stopFullDiarizedPolling();
+        if (sessionsInfoEl) sessionsInfoEl.textContent = historyStatusText(sessionId, rep, cleanStatus, backfillStatus, missingChunks, fullDiarizedStatus, fallbackText);
+      } else if (fullDiarizedStatus.running) {
+        stopReprocessPolling();
+        stopTranscriptBackfillPolling();
+        stopCleanTranscriptPolling();
+        startFullDiarizedPolling(sessionId);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = historyStatusText(sessionId, rep, cleanStatus, backfillStatus, missingChunks, fullDiarizedStatus, fallbackText);
       } else {
         stopTranscriptBackfillPolling();
         stopCleanTranscriptPolling();
         stopReprocessPolling();
-        if (sessionsInfoEl) sessionsInfoEl.textContent = historyStatusText(sessionId, rep, cleanStatus, backfillStatus, missingChunks, fallbackText);
+        stopFullDiarizedPolling();
+        if (sessionsInfoEl) sessionsInfoEl.textContent = historyStatusText(sessionId, rep, cleanStatus, backfillStatus, missingChunks, fullDiarizedStatus, fallbackText);
       }
     } catch (e) {
       if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
@@ -3450,6 +3676,42 @@ async function postMetaOnce() {
     });
   }
 
+  if (sessionsSpeakerMapBodyEl) {
+    sessionsSpeakerMapBodyEl.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const speaker = String(target.getAttribute('data-speaker-map-select') || '').trim();
+      if (!speaker) return;
+      const custom = sessionsSpeakerMapBodyEl.querySelector(`[data-speaker-map-custom="${CSS.escape(speaker)}"]`);
+      if (custom && 'value' in custom) {
+        custom.value = String(target.value || '').trim();
+      }
+      setSessionsSpeakerMapStatus('Speaker map updated. Save when ready.');
+    });
+    sessionsSpeakerMapBodyEl.addEventListener('input', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (!target.hasAttribute('data-speaker-map-custom')) return;
+      setSessionsSpeakerMapStatus('Speaker map updated. Save when ready.');
+    });
+  }
+
+  if (sessionsSpeakerMapSaveEl) {
+    sessionsSpeakerMapSaveEl.addEventListener('click', async () => {
+      if (speakerMapSavePending) return;
+      try {
+        speakerMapSavePending = true;
+        sessionsSpeakerMapSaveEl.disabled = true;
+        await saveSpeakerMapForSession();
+      } catch (e) {
+        setSessionsSpeakerMapStatus(`Error: ${e.message}`);
+      } finally {
+        speakerMapSavePending = false;
+        sessionsSpeakerMapSaveEl.disabled = false;
+      }
+    });
+  }
+
   function stopReprocessPolling() {
     if (reprocessPollTimer) clearInterval(reprocessPollTimer);
     reprocessPollTimer = null;
@@ -3465,9 +3727,15 @@ async function postMetaOnce() {
     transcriptBackfillPollTimer = null;
   }
 
+  function stopFullDiarizedPolling() {
+    if (fullDiarizedPollTimer) clearInterval(fullDiarizedPollTimer);
+    fullDiarizedPollTimer = null;
+  }
+
   function startTranscriptBackfillPolling(sessionId) {
     stopReprocessPolling();
     stopCleanTranscriptPolling();
+    stopFullDiarizedPolling();
     stopTranscriptBackfillPolling();
     transcriptBackfillPollTimer = setInterval(async () => {
       try {
@@ -3476,10 +3744,12 @@ async function postMetaOnce() {
         if (!res.ok || !json.ok) return;
         const backfillStatus = json.transcriptBackfillStatus || {};
         const cleanStatus = json.cleanTranscriptStatus || {};
+        const fullDiarizedStatus = json.fullDiarizedStatus || {};
         const rep = json.reprocessStatus || {};
         const missingChunks = Array.isArray(json.missingTranscriptChunks) ? json.missingTranscriptChunks : [];
         updateTranscriptBackfillControls(backfillStatus, missingChunks);
         updateCleanTranscriptControls(cleanStatus);
+        updateFullDiarizedControls(fullDiarizedStatus);
         updateReprocessControls(rep);
         if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = sessionTranscriptText(json);
         if (sessionsInfoEl) {
@@ -3496,6 +3766,7 @@ async function postMetaOnce() {
   function startCleanTranscriptPolling(sessionId) {
     stopReprocessPolling();
     stopTranscriptBackfillPolling();
+    stopFullDiarizedPolling();
     stopCleanTranscriptPolling();
     cleanTranscriptPollTimer = setInterval(async () => {
       try {
@@ -3504,9 +3775,11 @@ async function postMetaOnce() {
         if (!res.ok || !json.ok) return;
         const cleanStatus = json.cleanTranscriptStatus || {};
         const backfillStatus = json.transcriptBackfillStatus || {};
+        const fullDiarizedStatus = json.fullDiarizedStatus || {};
         const missingChunks = Array.isArray(json.missingTranscriptChunks) ? json.missingTranscriptChunks : [];
         updateTranscriptBackfillControls(backfillStatus, missingChunks);
         updateCleanTranscriptControls(cleanStatus);
+        updateFullDiarizedControls(fullDiarizedStatus);
         if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = sessionTranscriptText(json);
         if (sessionsInfoEl) {
           sessionsInfoEl.textContent = cleanTranscriptStatusMessage(sessionId, cleanStatus, sessionsInfoEl.textContent || `Session ${sessionId}`);
@@ -3519,7 +3792,46 @@ async function postMetaOnce() {
     }, 1500);
   }
 
+  function startFullDiarizedPolling(sessionId) {
+    stopReprocessPolling();
+    stopTranscriptBackfillPolling();
+    stopCleanTranscriptPolling();
+    stopFullDiarizedPolling();
+    fullDiarizedPollTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/sessions/get?sessionId=${encodeURIComponent(sessionId)}&_t=${Date.now()}`);
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) return;
+        const fullDiarizedStatus = json.fullDiarizedStatus || {};
+        const cleanStatus = json.cleanTranscriptStatus || {};
+        const backfillStatus = json.transcriptBackfillStatus || {};
+        const rep = json.reprocessStatus || {};
+        const missingChunks = Array.isArray(json.missingTranscriptChunks) ? json.missingTranscriptChunks : [];
+        updateTranscriptBackfillControls(backfillStatus, missingChunks);
+        updateCleanTranscriptControls(cleanStatus);
+        updateFullDiarizedControls(fullDiarizedStatus);
+        updateReprocessControls(rep);
+        if (sessionsFullDiarizedTranscriptEl) sessionsFullDiarizedTranscriptEl.textContent = json.fullDiarizedTranscript || '(no full-session diarized transcript yet)';
+        window.__currentFullDiarizedSpeakerCandidates = Array.isArray(json.fullDiarizedSpeakerCandidates) ? json.fullDiarizedSpeakerCandidates : (window.__currentFullDiarizedSpeakerCandidates || []);
+        setSpeakerMapState(
+          json.fullDiarizedSpeakers || currentFullDiarizedSpeakers,
+          json.fullDiarizedSpeakerMap || currentFullDiarizedSpeakerMap,
+          window.__currentFullDiarizedSpeakerCandidates,
+          json.fullDiarizedMappedTranscript || (sessionsFullDiarizedMappedTranscriptEl?.textContent || '')
+        );
+        if (sessionsInfoEl) {
+          sessionsInfoEl.textContent = fullDiarizedStatusMessage(sessionId, fullDiarizedStatus, sessionsInfoEl.textContent || `Session ${sessionId}`);
+        }
+        if (!fullDiarizedStatus.running) {
+          stopFullDiarizedPolling();
+          await loadSessionDetail(sessionId);
+        }
+      } catch (_) {}
+    }, 2000);
+  }
+
   function startReprocessPolling(sessionId) {
+    stopFullDiarizedPolling();
     stopCleanTranscriptPolling();
     stopTranscriptBackfillPolling();
     stopReprocessPolling();
@@ -3531,9 +3843,11 @@ async function postMetaOnce() {
         const rep = json.reprocessStatus || {};
         const cleanStatus = json.cleanTranscriptStatus || {};
         const backfillStatus = json.transcriptBackfillStatus || {};
+        const fullDiarizedStatus = json.fullDiarizedStatus || {};
         const missingChunks = Array.isArray(json.missingTranscriptChunks) ? json.missingTranscriptChunks : [];
         updateTranscriptBackfillControls(backfillStatus, missingChunks);
         updateCleanTranscriptControls(cleanStatus);
+        updateFullDiarizedControls(fullDiarizedStatus);
         updateReprocessControls(rep);
         if (sessionsInfoEl) {
           sessionsInfoEl.textContent = reprocessStatusMessage(sessionId, rep, sessionsInfoEl.textContent || `Session ${sessionId}`);
@@ -3550,6 +3864,7 @@ async function postMetaOnce() {
     sessionsSelectEl.addEventListener('change', () => {
       stopTranscriptBackfillPolling();
       stopCleanTranscriptPolling();
+      stopFullDiarizedPolling();
       editingTimelineItemId = '';
       loadSessionDetail(sessionsSelectEl.value);
     });
@@ -3701,6 +4016,38 @@ async function postMetaOnce() {
       } finally {
         transcriptBackfillStartPending = false;
         updateTranscriptBackfillControls(currentTranscriptBackfillStatus || {}, currentMissingTranscriptChunks || []);
+      }
+    });
+  }
+  if (sessionsFullDiarizedEl) {
+    sessionsFullDiarizedEl.addEventListener('click', async () => {
+      const sessionId = sessionsSelectEl?.value || '';
+      if (!sessionId) {
+        if (sessionsInfoEl) sessionsInfoEl.textContent = 'Select a session first.';
+        return;
+      }
+      if (fullDiarizedStartPending) return;
+      try {
+        fullDiarizedStartPending = true;
+        updateFullDiarizedControls(window.__currentFullDiarizedStatus || {});
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Building full-session diarized transcript for ${sessionId}...`;
+        if (sessionsFullDiarizedTranscriptEl) sessionsFullDiarizedTranscriptEl.textContent = 'Building merged-session diarized transcript...';
+        startFullDiarizedPolling(sessionId);
+        const res = await fetch('/api/session/full-diarized-transcript/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (building full-session diarized transcript from ${json.chunkCount || '?'} chunks)`;
+      } catch (e) {
+        stopFullDiarizedPolling();
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
+        if (sessionsFullDiarizedTranscriptEl) sessionsFullDiarizedTranscriptEl.textContent = `Error: ${e.message}`;
+      } finally {
+        fullDiarizedStartPending = false;
+        updateFullDiarizedControls(window.__currentFullDiarizedStatus || {});
       }
     });
   }
@@ -3958,6 +4305,16 @@ async function postMetaOnce() {
       copyTextToClipboard(sessionsTranscriptEl?.textContent || '', 'transcript');
     });
   }
+  if (copySessionsFullDiarizedEl) {
+    copySessionsFullDiarizedEl.addEventListener('click', () => {
+      copyTextToClipboard(sessionsFullDiarizedTranscriptEl?.textContent || '', 'full-session diarized transcript');
+    });
+  }
+  if (copySessionsFullDiarizedMappedEl) {
+    copySessionsFullDiarizedMappedEl.addEventListener('click', () => {
+      copyTextToClipboard(sessionsFullDiarizedMappedTranscriptEl?.textContent || '', 'mapped full-session diarized transcript');
+    });
+  }
   if (copySessionsNotesEl) {
     copySessionsNotesEl.addEventListener('click', () => {
       copyTextToClipboard(currentNotesTimelineText || '', 'DM notes timeline');
@@ -3977,6 +4334,7 @@ async function postMetaOnce() {
   // Initial load
   updateTranscriptBackfillControls({}, []);
   updateCleanTranscriptControls({});
+  updateFullDiarizedControls({});
   updateReprocessControls({});
   window.refreshSessionsForActiveCampaign = loadSessions;
   loadSessions();
