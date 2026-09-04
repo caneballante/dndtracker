@@ -41,14 +41,15 @@ function ext_from_mime($mime) {
   return 'webm';
 }
 
-// ---------- optional shared-secret check ----------
-// If you want to REQUIRE a token, set $REQUIRED_TOKEN to a non-empty string.
-$REQUIRED_TOKEN = '2766'; // e.g. 'my-secret'
-if ($REQUIRED_TOKEN !== '') {
-  $provided = $_POST['token'] ?? '';
-  if (!hash_equals($REQUIRED_TOKEN, $provided)) {
-    bad_request('Unauthorized', 401);
-  }
+// ---------- shared-secret check ----------
+// Configure this outside the repo, for example in web server env.
+$REQUIRED_TOKEN = getenv('DND_UPLOAD_TOKEN');
+if ($REQUIRED_TOKEN === false || $REQUIRED_TOKEN === '') {
+  bad_request('Upload token not configured', 500);
+}
+$provided = $_POST['token'] ?? '';
+if (!hash_equals($REQUIRED_TOKEN, $provided)) {
+  bad_request('Unauthorized', 401);
 }
 
 // ---------- metadata save ----------

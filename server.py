@@ -19,6 +19,7 @@ UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 CAMPAIGNS_DIR = os.path.join(BASE_DIR, "campaigns")
 NOTES_LAB_RUNS_DIR = os.path.join(BASE_DIR, "notes-lab-runs")
 ENV_PATH = os.path.join(BASE_DIR, ".env")
+DUNGEONSHARE_ENV_PATH = os.path.join(BASE_DIR, ".dungeonshare.env")
 OPENAI_API_KEY = None
 DEEPGRAM_API_KEY = None
 NOTES_LOCK = threading.Lock()
@@ -49,9 +50,11 @@ TRANSCRIPTION_MODEL_DEFAULT = "gpt-4o-transcribe-diarize"
 DEEPGRAM_MODEL_DEFAULT = "nova-3"
 SERVER_STARTED_AT = int(time.time())
 CHUNK_AUDIO_RE = re.compile(r"^chunk_(\d+)\.(wav|webm|ogg|mp4|m4a|mp3)$", re.IGNORECASE)
+PUBLIC_STATIC_FILES = {"dnd-audio.html", "favicon.svg"}
 
 SESSION_ID_RE = re.compile(r"^[0-9]{8,20}$")  # timestamp-ish
 SESSION_NAME_MAX_LEN = 120
+GAME_SUMMARY_MAX_CHARS = 100_000
 
 def safe_session_id(s: str) -> str:
     s = (s or "").strip()
@@ -93,6 +96,9 @@ def write_text(path: str, text: str):
         f.write(str(text or ""))
 
 class ReprocessStopped(Exception):
+    pass
+
+class DungeonShareConfigurationError(Exception):
     pass
 
 def _reprocess_stall_seconds() -> int:
@@ -325,6 +331,74 @@ def load_env_file(path: str):
     except Exception:
         # If .env can't be read, we just fall back to existing env.
         pass
+
+def _dungeonshare_base_url() -> str:
+    load_env_file(DUNGEONSHARE_ENV_PATH)
+    load_env_file(ENV_PATH)
+    value = (os.environ.get("DUNGEONSHARE_URL") or "https://dungeonshare.vercel.app").strip().rstrip("/")
+    parsed = urlparse(value)
+    local_http = parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost"}
+    if not parsed.netloc or (parsed.scheme != "https" and not local_http):
+        raise DungeonShareConfigurationError("DUNGEONSHARE_URL must be HTTPS (or localhost for development).")
+    return value
+
+def _dungeonshare_tracker_token() -> str:
+    load_env_file(DUNGEONSHARE_ENV_PATH)
+    load_env_file(ENV_PATH)
+    token = (os.environ.get("DUNGEONSHARE_TRACKER_TOKEN") or "").strip()
+    if len(token) < 32:
+        raise DungeonShareConfigurationError("Dungeon Share is not connected to Dungeon Tracker yet.")
+    return token
+
+def _dungeonshare_request(path: str, method: str = "GET", payload=None):
+    url = _dungeonshare_base_url() + path
+    token = _dungeonshare_tracker_token()
+    data = None
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = Request(url, data=data, headers=headers, method=method)
+    raw = _urlopen_with_retry(req, timeout=30, read_error_prefix="Dungeon Share")
+    result = json.loads(raw) if raw else {}
+    if not isinstance(result, dict) or not result.get("ok"):
+        raise RuntimeError(str((result or {}).get("error") or "Dungeon Share returned an invalid response."))
+    return result
+
+def _dungeonshare_campaigns():
+    result = _dungeonshare_request("/api/source/campaigns")
+    campaigns = result.get("campaigns") or []
+    return campaigns if isinstance(campaigns, list) else []
+
+def _publish_session_to_dungeonshare(session_id: str, campaign_slug: str):
+    sid = safe_session_id(session_id)
+    slug = str(campaign_slug or "").strip().lower()
+    if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", slug) or len(slug) > 120:
+        raise ValueError("Choose a valid Dungeon Share campaign.")
+
+    session = read_session_text(sid)
+    summary = str(session.get("gameSummary") or "").strip()
+    if not summary:
+        raise ValueError("Generate a game summary before sending this session.")
+
+    status = read_json(_session_status_path(sid), default={})
+    created_at = int(status.get("createdAt") or os.path.getmtime(init_session(sid)))
+    event_date = time.strftime("%Y-%m-%d", time.localtime(created_at))
+    session_name = str(session.get("sessionName") or "").strip()
+    title = session_name or f"Session recap — {event_date}"
+    payload = {
+        "campaignSlug": slug,
+        "kind": "session",
+        "title": title,
+        "body": summary,
+        "eventDate": event_date,
+        "sourceRef": f"session-{sid}-summary",
+        "media": [],
+    }
+    return _dungeonshare_request("/api/ingest", method="POST", payload=payload)
 
 def _campaign_dir(campaign_id: str) -> str:
     return os.path.join(CAMPAIGNS_DIR, campaign_id)
@@ -567,6 +641,56 @@ def _parse_party_meta_text(raw_party: str) -> list:
             rows.append(row)
     return rows
 
+def _party_character_names_from_text(raw_party: str) -> list:
+    seen = set()
+    names = []
+    for row in _parse_party_meta_text(raw_party):
+        values = [
+            row.get("character"),
+            row.get("characterName"),
+        ]
+        aliases = str(row.get("aliases") or "").strip()
+        if aliases:
+            values.extend([part.strip() for part in aliases.split(",")])
+        for value in values:
+            name = str(value or "").strip()
+            if not name:
+                continue
+            lower = name.lower()
+            if lower in seen:
+                continue
+            seen.add(lower)
+            names.append(name)
+    return names
+
+def _absent_historical_party_names(session_id: str) -> list:
+    current = {name.lower() for name in _party_character_names_from_text(_session_party_text(session_id))}
+    if not current:
+        return []
+
+    status = _read_session_status(session_id)
+    historical_texts = []
+    snap = status.get("contextSnapshot")
+    if isinstance(snap, dict):
+        historical_texts.append(str(snap.get("partyText") or ""))
+    campaign_id = str(status.get("campaignId") or "").strip()
+    if campaign_id:
+        try:
+            historical_texts.append(str(read_campaign(campaign_id).get("party") or ""))
+        except Exception:
+            pass
+
+    seen = set()
+    absent = []
+    for text in historical_texts:
+        for name in _party_character_names_from_text(text):
+            lower = name.lower()
+            if lower in current or lower in seen:
+                continue
+            seen.add(lower)
+            absent.append(name)
+    return absent
+
 def _speaker_map_candidate_labels(session_id: str) -> list:
     seen = set()
     labels = []
@@ -682,7 +806,7 @@ def list_sessions(limit: int = 50, campaign_id: str = ""):
             "updatedAt": status.get("updatedAt") or mtime,
             "createdAt": status.get("createdAt") or mtime,
             "chunkCount": len(status.get("chunks") or []),
-            "statusUrl": f"/uploads/{name}/status.json",
+            "statusUrl": _session_status_url(name),
         })
     sessions.sort(key=lambda s: s.get("updatedAt", 0), reverse=True)
     return sessions[:limit]
@@ -882,6 +1006,23 @@ def read_session_text(session_id: str):
     game_narrative_path = os.path.join(session_dir, "game_narrative.txt")
     structured = _latest_notes_structured(session_id)
     status = read_json(os.path.join(session_dir, "status.json"), default={})
+    game_summary = read_text(game_summary_path, "")
+    game_summary_hash = hashlib.sha256(game_summary.strip().encode("utf-8")).hexdigest() if game_summary.strip() else ""
+    handoff_hash = str(status.get("gameSummaryHandoffHash") or "").strip()
+    handoff_campaign_id = str(status.get("gameSummaryHandoffCampaignId") or "").strip()
+    session_campaign_id = str(status.get("campaignId") or "").strip()
+    handoff_current = False
+    if game_summary_hash and game_summary_hash == handoff_hash and handoff_campaign_id == session_campaign_id:
+        try:
+            campaign = read_campaign(session_campaign_id)
+            handoff_current = any(
+                str(item.get("sessionId") or "").strip() == session_id
+                and str(item.get("text") or "").strip() == game_summary.strip()
+                for item in campaign.get("sessionSummaries") or []
+                if isinstance(item, dict)
+            )
+        except Exception:
+            handoff_current = False
     _normalize_reprocess_status(session_id, status, persist=True)
     _normalize_clean_transcript_status(session_id, status, persist=True)
     _normalize_transcript_backfill_status(session_id, status, persist=True)
@@ -910,7 +1051,9 @@ def read_session_text(session_id: str):
         "notes": structured.get("timelineText") or read_text(notes_path, ""),
         "party": _session_party_text(session_id),
         "summary": read_text(summary_path, ""),
-        "gameSummary": read_text(game_summary_path, ""),
+        "gameSummary": game_summary,
+        "gameSummaryHandoffCurrent": handoff_current,
+        "gameSummaryHandoffCampaignId": handoff_campaign_id,
         "gameNarrative": read_text(game_narrative_path, ""),
         "sessionName": str(status.get("sessionName") or ""),
         "campaignId": str(status.get("campaignId") or ""),
@@ -925,6 +1068,8 @@ def read_session_text(session_id: str):
         "notesTimeline": structured.get("timelineItems") or [],
         "notesTimelineText": structured.get("timelineText") or "",
         "notesLatestStructured": structured.get("latest"),
+        "liveGuidance": str(status.get("liveGuidance") or _read_live_guidance(session_id)),
+        "liveGuidanceUpdatedAt": int(status.get("liveGuidanceUpdatedAt") or 0),
         "trackingState": tracking_state,
         "prepContext": prep_context,
         "prepContextText": _prep_context_text(prep_context),
@@ -966,6 +1111,31 @@ def _mime_for_filename(filename: str) -> str:
         return "audio/wav"
     return "application/octet-stream"
 
+def _audio_chunk_response_path(session_id: str, filename: str) -> str:
+    filename = os.path.basename(str(filename or ""))
+    if not CHUNK_AUDIO_RE.match(filename):
+        raise ValueError("Invalid audio chunk filename.")
+    session_dir = init_session(session_id)
+    path = os.path.abspath(os.path.join(session_dir, filename))
+    session_root = os.path.abspath(session_dir)
+    if os.path.commonpath([session_root, path]) != session_root:
+        raise ValueError("Invalid audio chunk path.")
+    if not os.path.isfile(path):
+        raise FileNotFoundError("Audio chunk not found.")
+    return path
+
+def _session_status_response(session_id: str) -> dict:
+    status = read_json(_session_status_path(session_id), default={})
+    if not isinstance(status, dict):
+        status = {}
+    return status
+
+def _session_status_url(session_id: str) -> str:
+    return f"/api/session/status?{urlencode({'sessionId': session_id})}"
+
+def _audio_chunk_url(session_id: str, filename: str) -> str:
+    return f"/api/session/audio?{urlencode({'sessionId': session_id, 'filename': filename})}"
+
 def _ext_from_content_type(content_type: str) -> str:
     ct = (content_type or "").lower()
     if "audio/wav" in ct or "audio/x-wav" in ct:
@@ -1003,8 +1173,6 @@ def _full_diarized_provider() -> str:
     provider = (os.environ.get("FULL_DIARIZED_PROVIDER") or "").strip().lower()
     if provider in {"deepgram", "openai"}:
         return provider
-    if _deepgram_api_key():
-        return "deepgram"
     return "openai"
 
 def _notes_model() -> str:
@@ -1539,6 +1707,21 @@ def _write_notes_overrides(session_id: str, overrides: dict):
         "notesOverridesUpdatedAt": int(time.time()),
     })
 
+def _live_guidance_path(session_id: str) -> str:
+    return os.path.join(init_session(session_id), "live_guidance.txt")
+
+def _read_live_guidance(session_id: str) -> str:
+    return read_text(_live_guidance_path(session_id), "").strip()
+
+def _write_live_guidance(session_id: str, text: str):
+    value = str(text or "").strip()[:4000]
+    write_text(_live_guidance_path(session_id), (value + "\n") if value else "")
+    _set_session_status_fields(session_id, {
+        "liveGuidance": value,
+        "liveGuidanceUpdatedAt": int(time.time()),
+        "updatedAt": int(time.time()),
+    })
+
 def _timeline_item_id(chunk_index: int, position: int, text: str) -> str:
     key = f"{int(chunk_index)}|{int(position)}|{str(text or '').strip()}"
     digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
@@ -1576,6 +1759,7 @@ def _timeline_entries(session_id: str):
             edited_text = str(override.get("editedText") or "").strip()
             display_text = edited_text or original_text
             priority = _coerce_priority(override.get("priority"))
+            is_rejected = bool(override.get("rejected"))
             items.append({
                 "id": item_id,
                 "chunkIndex": chunk_index,
@@ -1584,19 +1768,26 @@ def _timeline_entries(session_id: str):
                 "editedText": edited_text,
                 "text": display_text,
                 "priority": priority,
+                "isRejected": is_rejected,
                 "isEdited": bool(edited_text),
             })
     return items
 
 def _compiled_notes_timeline_text(session_id: str) -> str:
     items = _timeline_entries(session_id)
-    lines = [f"[{int(item.get('chunkIndex', -1)):04d}] {str(item.get('text') or '').strip()}" for item in items if str(item.get("text") or "").strip()]
+    lines = [
+        f"[{int(item.get('chunkIndex', -1)):04d}] {str(item.get('text') or '').strip()}"
+        for item in items
+        if str(item.get("text") or "").strip() and not bool(item.get("isRejected"))
+    ]
     return "\n".join(lines).strip()
 
 def _timeline_priority_texts(session_id: str):
     promoted = []
     deemphasized = []
     for item in _timeline_entries(session_id):
+        if bool(item.get("isRejected")):
+            continue
         text = str(item.get("text") or "").strip()
         if not text:
             continue
@@ -1610,6 +1801,47 @@ def _timeline_priority_texts(session_id: str):
         "promoted": "\n".join(promoted).strip(),
         "deemphasized": "\n".join(deemphasized).strip(),
     }
+
+def _reviewed_timeline_context_text(session_id: str, before_chunk: int = None, limit: int = 20) -> str:
+    reviewed = []
+    try:
+        cutoff = int(before_chunk) if before_chunk is not None else None
+    except Exception:
+        cutoff = None
+    for item in _timeline_entries(session_id):
+        chunk_index = int(item.get("chunkIndex", -1))
+        if cutoff is not None and chunk_index >= cutoff:
+            continue
+        original_text = str(item.get("originalText") or "").strip()
+        text = str(item.get("text") or "").strip()
+        if not original_text and not text:
+            continue
+        priority = _coerce_priority(item.get("priority"))
+        labels = []
+        if bool(item.get("isRejected")):
+            labels.append("rejected")
+        if bool(item.get("isEdited")):
+            labels.append("edited")
+        if priority > 0:
+            labels.append("promoted")
+        elif priority < 0:
+            labels.append("de-emphasized")
+        if not labels:
+            continue
+        if bool(item.get("isRejected")):
+            line = f"[{chunk_index:04d}] rejected: {original_text or text}"
+        elif bool(item.get("isEdited")) and original_text and text and original_text != text:
+            line = f"[{chunk_index:04d}] edited: {text} (replaced: {original_text})"
+        else:
+            line = f"[{chunk_index:04d}] {', '.join(labels)}: {text or original_text}"
+        reviewed.append(line)
+    if not reviewed:
+        return ""
+    try:
+        n = max(1, min(100, int(limit or 20)))
+    except Exception:
+        n = 20
+    return "\n".join(reviewed[-n:]).strip()
 
 def _rewrite_notes_timeline_file(session_id: str):
     session_dir = init_session(session_id)
@@ -1666,7 +1898,11 @@ def _latest_notes_structured(session_id: str):
         "summary": _read_notes_summary(session_id),
         "timelineItems": timeline_items,
         "timelineText": "\n".join(
-            [f"[{int(item.get('chunkIndex', -1)):04d}] {str(item.get('text') or '').strip()}" for item in timeline_items if str(item.get("text") or "").strip()]
+            [
+                f"[{int(item.get('chunkIndex', -1)):04d}] {str(item.get('text') or '').strip()}"
+                for item in timeline_items
+                if str(item.get("text") or "").strip() and not bool(item.get("isRejected"))
+            ]
         ).strip(),
     }
 
@@ -2484,7 +2720,11 @@ def _default_notes_system_prompt() -> str:
         "Do not keep reusing the same colorful detail in later chunks once it is already established.\n\n"
         "Name handling:\n"
         "Use only facts in the transcript and provided context. Do not invent details.\n"
-        "Use the party roster to normalize names in the transcript. Match likely variants, mis-hearings, and shortened names to the roster when context supports it.\n"
+        "Use the current session party roster to normalize names in the transcript when the transcript already supports the identity. The roster is a list of allowed current-session names, not evidence that a named character performed an action.\n"
+        "Match likely variants, mis-hearings, and shortened names to the roster only when the current transcript window, live reviewer guidance, tracker state, or reviewer-confirmed timeline corrections support the match.\n"
+        "The current session party roster is authoritative for current-session attribution. Campaign context and rolling summaries may mention absent or former characters; treat those names as historical unless the current transcript window explicitly supports them.\n"
+        "Do not infer the actor solely from class abilities, spell names, prior campaign summaries, historical character prominence, the order of names in the roster, or anonymous speaker labels such as A/B/C/D.\n"
+        "If the actor is unclear, prefer neutral wording such as 'a party member', 'someone in the party', or 'the party' instead of guessing a character name.\n"
         "Prefer character names in timeline and summary. If helpful, include the player name once in parentheses on first mention.\n"
         "If a speaker or action cannot be confidently matched to the roster, keep the transcript wording or use a neutral label instead of guessing.\n\n"
         "Output guidance:\n"
@@ -2501,16 +2741,22 @@ def _default_notes_system_prompt() -> str:
         "- Do not let repeated ongoing scene details dominate the summary.\n"
     )
 
-def _default_game_summary_system_prompt() -> str:
+def _default_game_summary_system_prompt(recap_word_count: int = 350) -> str:
+    recap_word_count = max(250, min(900, int(recap_word_count or 350)))
     return (
         "You are a D&D campaign recapper. Produce a readable game summary in plain text Markdown.\n"
+        "The opening Summary section is the primary factual recap and must stand on its own for players who will not read a separate narrative.\n"
+        f"Write the Summary section as 2 to 4 connected, substantial paragraphs totaling approximately {recap_word_count} words.\n"
+        "That word target applies only to the Summary section, not to the entire output. Keep the remaining sections compact and easy to scan.\n"
+        "Do not pad a sparse session, repeat facts, or invent detail merely to reach the target.\n"
         "Prioritize chronological events, major discoveries, NPC interactions, combat outcomes, loot, and open hooks.\n"
         "If promoted DM notes events are provided, make sure they are included unless they directly conflict with stronger source evidence.\n"
         "If de-emphasized DM notes events are provided, keep them low priority and do not center them unless needed for coherence.\n"
         "Treat tracker HP/damage state as authoritative when it conflicts with transcript narration.\n"
         "Do not invent facts. Use the party roster to normalize transcript names to the correct character names whenever context supports it.\n"
         "Prefer character names consistently. If a name is unclear and cannot be matched confidently, use a neutral description.\n"
-        "Format with short sections: Summary, Timeline, Key NPCs, Loot/Treasure, Outstanding Hooks.\n"
+        "Format with sections: Summary, Timeline, Key NPCs, Loot/Treasure, Outstanding Hooks.\n"
+        "Use concise bullets in Timeline, Key NPCs, Loot/Treasure, and Outstanding Hooks. Omit empty bullets rather than filling them speculatively.\n"
     )
 
 def _default_game_narrative_system_prompt(target_word_count: int = 600) -> str:
@@ -2585,16 +2831,29 @@ def generate_game_summary_from_text(
     tracker_state_text: str = "",
     tracker_events_text: str = "",
     prep_context_text: str = "",
+    selected_notes_only: bool = False,
+    summary_guidance: str = "",
+    recap_word_count: int = 350,
 ) -> str:
     transcript_text = (transcript_text or "").strip()
     if not transcript_text:
         raise RuntimeError("No transcript text available for summary generation.")
 
-    system_prompt = _default_game_summary_system_prompt()
+    recap_word_count = max(250, min(900, int(recap_word_count or 350)))
+    guidance_text = (summary_guidance or "").strip()[:4000]
+    system_prompt = _default_game_summary_system_prompt(recap_word_count)
+    notes_label = "Selected promoted DM notes timeline" if selected_notes_only else "Existing DM notes timeline"
+    selection_rule = (
+        "Only summarize events listed in the selected promoted DM notes timeline. "
+        "Use the transcript, tracker, and context only to verify or add detail to those selected events; "
+        "do not add unselected transcript events to the summary.\n\n"
+        if selected_notes_only else ""
+    )
     user_prompt = (
+        f"{selection_rule}"
         "Party roster (if any):\n"
         f"{party.strip() if party else '(none)'}\n\n"
-        "Existing DM notes timeline (if any):\n"
+        f"{notes_label} (if any):\n"
         f"{notes_text.strip() if notes_text else '(none)'}\n\n"
         "Existing rolling notes summary (if any):\n"
         f"{notes_summary.strip() if notes_summary else '(none)'}\n\n"
@@ -2608,6 +2867,10 @@ def generate_game_summary_from_text(
         f"{tracker_events_text.strip() if tracker_events_text else '(none)'}\n\n"
         "Campaign and session context (if any):\n"
         f"{prep_context_text.strip() if prep_context_text else '(none)'}\n\n"
+        f"Target word count for the opening factual Summary section only: {recap_word_count}\n"
+        "Keep the Timeline, Key NPCs, Loot/Treasure, and Outstanding Hooks sections concise regardless of that target.\n\n"
+        "One-time summary guidance for this run (follow only when consistent with the selected events and source facts):\n"
+        f"{guidance_text if guidance_text else '(none)'}\n\n"
         "Transcript for the full game session:\n"
         f"{transcript_text}\n"
     )
@@ -2652,15 +2915,26 @@ def generate_game_narrative_from_text(
     )
     return _chat_complete_text(system_prompt, user_prompt, _narrative_model())
 
-def generate_game_summary_for_session(session_id: str) -> str:
+def generate_game_summary_for_session(
+    session_id: str,
+    promoted_only: bool = False,
+    summary_guidance: str = "",
+    recap_word_count: int = 350,
+) -> str:
     session_dir = os.path.join(UPLOADS_DIR, session_id)
     clean_transcript = read_text(os.path.join(session_dir, "clean_transcript.txt"), "").strip()
     raw_transcript = read_text(os.path.join(session_dir, "transcript.txt"), "").strip()
     transcript_text = clean_transcript or raw_transcript
-    notes_text = _compiled_notes_timeline_text(session_id) or read_text(os.path.join(session_dir, "notes.txt"), "")
-    notes_summary = read_text(os.path.join(session_dir, "notes_summary.txt"), "")
+    all_notes_text = _compiled_notes_timeline_text(session_id) or read_text(os.path.join(session_dir, "notes.txt"), "")
+    all_notes_summary = read_text(os.path.join(session_dir, "notes_summary.txt"), "")
     party = _read_party_meta(session_id)
     timeline_priority = _timeline_priority_texts(session_id)
+    promoted_notes_text = timeline_priority.get("promoted") or ""
+    if promoted_only and not promoted_notes_text.strip():
+        raise RuntimeError("No promoted timeline items selected. Click + on the timeline entries you want included, then generate the summary again.")
+    notes_text = promoted_notes_text if promoted_only else all_notes_text
+    notes_summary = "" if promoted_only else all_notes_summary
+    deemphasized_notes_text = "" if promoted_only else (timeline_priority.get("deemphasized") or "")
 
     tracking_state = _get_tracking_state(session_id)
     tracking_state_text = _tracking_state_text(tracking_state)
@@ -2672,21 +2946,93 @@ def generate_game_summary_for_session(session_id: str) -> str:
         party=party,
         notes_text=notes_text,
         notes_summary=notes_summary,
-        promoted_notes_text=timeline_priority.get("promoted") or "",
-        deemphasized_notes_text=timeline_priority.get("deemphasized") or "",
+        promoted_notes_text=promoted_notes_text,
+        deemphasized_notes_text=deemphasized_notes_text,
         tracker_state_text=tracking_state_text,
         tracker_events_text=tracking_events_text,
         prep_context_text=prep_context_text,
+        selected_notes_only=promoted_only,
+        summary_guidance=summary_guidance,
+        recap_word_count=recap_word_count,
     )
 
-    out_path = os.path.join(session_dir, "game_summary.txt")
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(summary.strip() + "\n")
+    return save_game_summary_for_session(session_id, summary)
 
-    _set_session_status_fields(session_id, {
+def save_game_summary_for_session(session_id: str, summary: str) -> str:
+    sid = safe_session_id(session_id)
+    value = str(summary or "").strip()
+    if not value:
+        raise ValueError("Game summary cannot be empty.")
+    if len(value) > GAME_SUMMARY_MAX_CHARS:
+        raise ValueError(f"Game summary is too long (maximum {GAME_SUMMARY_MAX_CHARS:,} characters).")
+
+    session_dir = os.path.join(UPLOADS_DIR, sid)
+    if not os.path.isdir(session_dir):
+        raise ValueError("Session not found.")
+    write_text(os.path.join(session_dir, "game_summary.txt"), value + "\n")
+    _set_session_status_fields(sid, {
         "gameSummaryUpdatedAt": int(time.time()),
+        "updatedAt": int(time.time()),
     })
-    return summary
+    return value
+
+def handoff_game_summary_to_campaign(session_id: str, summary: str) -> dict:
+    sid = safe_session_id(session_id)
+    value = str(summary or "").strip()
+    if not value:
+        raise ValueError("Game summary cannot be empty.")
+
+    status = _read_session_status(sid)
+    campaign_id = str(status.get("campaignId") or "").strip()
+    if not campaign_id:
+        return {
+            "included": False,
+            "campaignId": "",
+            "campaignName": "",
+            "reason": "Assign this session to a campaign before using its summary as handoff context.",
+        }
+
+    campaign = read_campaign(campaign_id)
+    entries = _normalize_session_summaries(campaign.get("sessionSummaries") or [])
+    session_name = str(status.get("sessionName") or "").strip()
+    created_at = int(status.get("createdAt") or time.time())
+    event_date = time.strftime("%Y-%m-%d", time.localtime(created_at))
+    label = session_name or f"Session recap — {event_date}"
+    now = int(time.time())
+    replacement = {
+        "text": value,
+        "label": label,
+        "sessionId": sid,
+        "updatedAt": now,
+    }
+
+    match_index = None
+    for index, item in enumerate(entries):
+        item_session_id = str(item.get("sessionId") or "").strip()
+        item_text = str(item.get("text") or "").strip()
+        if item_session_id == sid or (not item_session_id and item_text == value):
+            match_index = index
+            break
+    if match_index is None:
+        entries.append(replacement)
+    else:
+        entries[match_index] = replacement
+
+    campaign["sessionSummaries"] = entries
+    campaign = write_campaign(campaign_id, campaign)
+    summary_hash = hashlib.sha256(value.encode("utf-8")).hexdigest()
+    _set_session_status_fields(sid, {
+        "gameSummaryHandoffAt": now,
+        "gameSummaryHandoffHash": summary_hash,
+        "gameSummaryHandoffCampaignId": campaign_id,
+    })
+    return {
+        "included": True,
+        "campaignId": campaign_id,
+        "campaignName": str(campaign.get("name") or campaign_id),
+        "label": label,
+        "sessionSummaryCount": len(campaign.get("sessionSummaries") or []),
+    }
 
 def generate_game_narrative_for_session(session_id: str, narrative_guidance: str = "", target_word_count: int = 600) -> str:
     session_dir = os.path.join(UPLOADS_DIR, session_id)
@@ -2726,6 +3072,10 @@ def _generate_notes_with_context(session_id: str, chunk_index: int, recent: list
         raise RuntimeError("OPENAI_API_KEY not set. Add it to .env or your environment.")
 
     party = _read_party_meta(session_id)
+    absent_names = _absent_historical_party_names(session_id)
+    absent_names_text = ", ".join(absent_names[:20]).strip()
+    live_guidance = _read_live_guidance(session_id)
+    reviewed_timeline_context = _reviewed_timeline_context_text(session_id, before_chunk=chunk_index, limit=20)
     prep_context_text = _session_prompt_context_text(session_id)
     summary = (summary_override or "").strip() or _read_notes_summary(session_id)
     window = _notes_window()
@@ -2740,9 +3090,17 @@ def _generate_notes_with_context(session_id: str, chunk_index: int, recent: list
 
     system_prompt = _default_notes_system_prompt()
     user_prompt = (
-        "Party data (if any):\n"
+        "Current session party roster (authoritative for current transcript attribution):\n"
         f"{party if party else '(none)'}\n\n"
-        "Campaign and session context (if any):\n"
+        "Historical party names absent from the current session roster:\n"
+        f"{absent_names_text if absent_names_text else '(none)'}\n"
+        "If these names appear only in campaign context or rolling summary, do not attribute current transcript actions to them; use a current roster name or a neutral description when attribution is unclear.\n\n"
+        "Live reviewer guidance for upcoming notes:\n"
+        f"{live_guidance if live_guidance else '(none)'}\n\n"
+        "Reviewer-confirmed timeline corrections from earlier chunks:\n"
+        f"{reviewed_timeline_context if reviewed_timeline_context else '(none)'}\n"
+        "Use these corrections as stronger evidence than campaign history for ongoing session facts and attribution. Do not repeat earlier events unless something materially changes.\n\n"
+        "Campaign and historical session context (may mention absent or former characters):\n"
         f"{prep_context_text if prep_context_text else '(none)'}\n\n"
         "Rolling summary so far:\n"
         f"{summary if summary else '(none)'}\n\n"
@@ -2814,9 +3172,9 @@ def generate_notes_from_text(
     system_prompt = (system_prompt or "").strip() or _default_notes_system_prompt()
 
     user_prompt = (
-        "Party data (if any):\n"
+        "Current session party roster (authoritative for current transcript attribution):\n"
         f"{party.strip() if party else '(none)'}\n\n"
-        "Campaign and session context (if any):\n"
+        "Campaign and historical session context (may mention absent or former characters):\n"
         f"{prep_context_text.strip() if prep_context_text else '(none)'}\n\n"
         "Rolling summary so far:\n"
         f"{summary.strip() if summary else '(none)'}\n\n"
@@ -4141,6 +4499,15 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
 
+        if parsed.path == "/api/dungeonshare/campaigns":
+            try:
+                self._send_json(200, {"ok": True, "campaigns": _dungeonshare_campaigns()})
+            except DungeonShareConfigurationError as e:
+                self._send_json(503, {"ok": False, "error": str(e)})
+            except Exception as e:
+                self._send_json(502, {"ok": False, "error": str(e)})
+            return
+
         if parsed.path == "/api/sessions/get":
             try:
                 qs = parse_qs(parsed.query)
@@ -4149,6 +4516,50 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(200, {"ok": True, "sessionId": session_id, **data})
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/status":
+            try:
+                qs = parse_qs(parsed.query)
+                session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "status": _session_status_response(session_id),
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/audio":
+            try:
+                qs = parse_qs(parsed.query)
+                session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                filename = (qs.get("filename") or [""])[0]
+                path = _audio_chunk_response_path(session_id, filename)
+                size = os.path.getsize(path)
+                content_type = _mime_for_filename(filename)
+                file_obj = open(path, "rb")
+            except FileNotFoundError as e:
+                self._send_json(404, {"ok": False, "error": str(e)})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            else:
+                with file_obj:
+                    self.send_response(200)
+                    self.send_header("Content-Type", content_type)
+                    self.send_header("Content-Length", str(size))
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.end_headers()
+                    try:
+                        while True:
+                            chunk = file_obj.read(1024 * 1024)
+                            if not chunk:
+                                break
+                            self.wfile.write(chunk)
+                    except (BrokenPipeError, ConnectionResetError):
+                        pass
             return
 
         if parsed.path == "/api/tracking/state":
@@ -4183,7 +4594,11 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
 
-        return super().do_GET()
+        static_name = parsed.path.lstrip("/")
+        if static_name in PUBLIC_STATIC_FILES and "/" not in static_name and "\\" not in static_name:
+            return super().do_GET()
+
+        self._send_json(404, {"ok": False, "error": "Not found."})
 
     def do_POST(self):
         parsed = urlparse(self.path)
@@ -4210,6 +4625,48 @@ class Handler(SimpleHTTPRequestHandler):
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/dungeonshare/publish-session":
+            try:
+                body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                campaign_slug = str(data.get("campaignSlug") or "").strip()
+                result = _publish_session_to_dungeonshare(session_id, campaign_slug)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "campaignSlug": campaign_slug,
+                    "action": str(result.get("action") or "created"),
+                    "state": str(result.get("state") or "draft"),
+                    "post": result.get("post") or {},
+                })
+            except DungeonShareConfigurationError as e:
+                self._send_json(503, {"ok": False, "error": str(e)})
+            except ValueError as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            except Exception as e:
+                self._send_json(502, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/summary/save":
+            try:
+                body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                summary = save_game_summary_for_session(session_id, str(data.get("gameSummary") or ""))
+                handoff = handoff_game_summary_to_campaign(session_id, summary)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "gameSummary": summary,
+                    "handoff": handoff,
+                })
+            except ValueError as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            except Exception as e:
+                self._send_json(500, {"ok": False, "error": str(e)})
             return
 
         if parsed.path == "/api/campaign/import-dungeon":
@@ -4302,7 +4759,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "campaignName": campaign.get("name") or campaign_id,
                     "contextSnapshot": status.get("contextSnapshot") or {},
                     "sessionDir": os.path.relpath(session_dir, BASE_DIR),
-                    "statusUrl": f"/uploads/{session_id}/status.json",
+                    "statusUrl": _session_status_url(session_id),
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
@@ -4343,8 +4800,9 @@ class Handler(SimpleHTTPRequestHandler):
                     "sessionId": session_id,
                     "chunkIndex": chunk_index,
                     "filename": filename,
+                    "url": _audio_chunk_url(session_id, filename),
                     "bytes": len(blob),
-                    "statusUrl": f"/uploads/{session_id}/status.json",
+                    "statusUrl": _session_status_url(session_id),
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
@@ -4413,24 +4871,34 @@ class Handler(SimpleHTTPRequestHandler):
                 if item_id not in timeline_items:
                     raise ValueError("Timeline item not found.")
 
-                edited_text = str(data.get("editedText") or "").strip()
-                priority = _coerce_priority(data.get("priority"))
-
                 overrides = _read_notes_overrides(session_id)
                 current = overrides.get(item_id)
                 if not isinstance(current, dict):
                     current = {}
 
-                original_text = str(timeline_items[item_id].get("originalText") or "").strip()
-                if edited_text and edited_text != original_text:
-                    current["editedText"] = edited_text
-                else:
-                    current.pop("editedText", None)
+                if "editedText" in data:
+                    edited_text = str(data.get("editedText") or "").strip()
+                    original_text = str(timeline_items[item_id].get("originalText") or "").strip()
+                    if edited_text and edited_text != original_text:
+                        current["editedText"] = edited_text
+                    else:
+                        current.pop("editedText", None)
 
-                if priority != 0:
-                    current["priority"] = priority
-                else:
-                    current.pop("priority", None)
+                if "priority" in data:
+                    priority = _coerce_priority(data.get("priority"))
+                    if priority != 0:
+                        current["priority"] = priority
+                        current.pop("rejected", None)
+                    else:
+                        current.pop("priority", None)
+
+                if "rejected" in data:
+                    rejected = bool(data.get("rejected"))
+                    if rejected:
+                        current["rejected"] = True
+                        current.pop("priority", None)
+                    else:
+                        current.pop("rejected", None)
 
                 if current:
                     current["updatedAt"] = int(time.time())
@@ -4448,6 +4916,22 @@ class Handler(SimpleHTTPRequestHandler):
                     "item": updated_item,
                     "notesTimeline": structured.get("timelineItems") or [],
                     "notesTimelineText": structured.get("timelineText") or "",
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/live-guidance":
+            try:
+                body = self._read_body().decode("utf-8")
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId", "")))
+                guidance = str(data.get("guidance") or "").strip()
+                _write_live_guidance(session_id, guidance)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "liveGuidance": _read_live_guidance(session_id),
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
@@ -4695,11 +5179,20 @@ class Handler(SimpleHTTPRequestHandler):
                 body = self._read_body().decode("utf-8")
                 data = json.loads(body) if body else {}
                 session_id = safe_session_id(str(data.get("sessionId", "")))
-                summary = generate_game_summary_for_session(session_id)
+                summary_guidance = str(data.get("summaryGuidance") or "")
+                requested_recap_word_count = data.get("summaryRecapWordCount", data.get("summaryWordCount", 350))
+                recap_word_count = max(250, min(900, int(requested_recap_word_count or 350)))
+                summary = generate_game_summary_for_session(
+                    session_id,
+                    promoted_only=True,
+                    summary_guidance=summary_guidance,
+                    recap_word_count=recap_word_count,
+                )
                 self._send_json(200, {
                     "ok": True,
                     "sessionId": session_id,
                     "gameSummary": summary,
+                    "summaryRecapWordCount": recap_word_count,
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})

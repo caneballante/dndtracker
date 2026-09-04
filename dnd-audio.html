@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>Session Recorder</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 
   <!-- Bootstrap 5 (CDN) -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -56,6 +57,31 @@
       border-radius: 14px;
       padding: 16px;
       background: #fcfcfb;
+      min-width: 0;
+    }
+    .history-workflow {
+      border-left: 4px solid #dce6df;
+      background: #fff;
+    }
+    .history-workflow + .history-workflow {
+      margin-top: 12px;
+    }
+    .history-output {
+      min-height: 110px;
+      background: #f5f5f5;
+      padding: 12px;
+      border-radius: 8px;
+      overflow: auto;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+    .history-output.compact {
+      min-height: 76px;
+    }
+    .history-inputs-note {
+      border-radius: 10px;
+      background: #f6faf7;
+      padding: 10px 12px;
     }
     .soft-label {
       text-transform: uppercase;
@@ -98,6 +124,11 @@
     .timeline-item.downplayed {
       border-color: #d9d9d9;
       background: #fafafa;
+    }
+    .timeline-item.rejected {
+      border-color: #e4b6b6;
+      background: #fff8f8;
+      opacity: 0.78;
     }
     .timeline-meta {
       display: flex;
@@ -208,6 +239,9 @@
             <ul class="nav nav-tabs" id="sessionTabs" role="tablist">
               <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="tab-recording" data-bs-toggle="tab" data-bs-target="#pane-recording" type="button" role="tab">Session</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-live-review" data-bs-toggle="tab" data-bs-target="#pane-live-review" type="button" role="tab">Live Review</button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="tab-prep" data-bs-toggle="tab" data-bs-target="#pane-prep" type="button" role="tab">Campaign</button>
@@ -373,6 +407,44 @@
                     </div>
                   </div>
                 </details>
+              </div>
+
+              <div class="tab-pane fade" id="pane-live-review" role="tabpanel">
+                <div class="row g-3">
+                  <div class="col-12 col-xl-8">
+                    <div class="section-card h-100">
+                      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                        <div>
+                          <div class="soft-label mb-1">Live Notes Review</div>
+                          <div id="live-review-session-label" class="small text-muted">Start a session to review incoming notes.</div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                          <button id="live-review-refresh" class="btn btn-outline-secondary btn-sm" type="button">Refresh</button>
+                          <button id="live-review-follow" class="btn btn-outline-primary btn-sm" type="button">Follow Latest</button>
+                        </div>
+                      </div>
+                      <div id="live-review-status" class="small text-muted mb-2"></div>
+                      <div id="live-review-timeline" class="timeline-pane tall-pane"></div>
+                    </div>
+                  </div>
+                  <div class="col-12 col-xl-4">
+                    <div class="section-card mb-3">
+                      <div class="soft-label mb-1">Steer Future Notes</div>
+                      <label class="form-label small mb-1" for="live-guidance-text">Live guidance</label>
+                      <textarea id="live-guidance-text" class="form-control" rows="7" placeholder="Examples: Pippin opened the gas door. Sermeq is Geir's character. Ignore table food chatter. Track the ruby carefully."></textarea>
+                      <div class="d-flex flex-wrap gap-2 mt-2">
+                        <button id="live-guidance-save" class="btn btn-primary btn-sm" type="button">Save Guidance</button>
+                        <button id="live-guidance-clear" class="btn btn-outline-secondary btn-sm" type="button">Clear</button>
+                      </div>
+                      <div id="live-guidance-status" class="small text-muted mt-2"></div>
+                    </div>
+                    <div class="help-callout">
+                      <div class="small text-muted">
+                        Use + for final recap candidates, - for low-signal notes, x for wrong notes, and Edit for attribution or wording fixes.
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div class="tab-pane fade" id="pane-prep" role="tabpanel">
@@ -589,137 +661,240 @@
                 <div class="help-callout mb-3">
                   <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
                     <div>
-                      <div class="soft-label mb-1">History Help</div>
+                      <div class="soft-label mb-1">History workflow</div>
                       <div class="small text-muted">
-                        This page is for reviewing and repairing a finished session. DM notes rebuilds now use the settled default context window behind the scenes, so the History page stays focused on repair and review.
-                        Use <strong>Notes Lab</strong> when you want to experiment with chunk windows or prompt changes.
+                        Choose a finished session, confirm its roster, review the DM notes, then generate the player-facing outputs.
+                        Transcript repair and experimental tools are grouped at the end.
                       </div>
                     </div>
                     <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#helpModal">Open full help</button>
                   </div>
                 </div>
-                <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-                  <div class="small text-muted">Campaign history</div>
-                  <button id="sessions-refresh" class="btn btn-outline-secondary btn-sm">Refresh</button>
-                  <button id="sessions-backfill-transcripts" class="btn btn-outline-secondary btn-sm">Backfill Missing Audio</button>
-                  <button id="sessions-retranscribe-range" class="btn btn-outline-secondary btn-sm">Retranscribe Chunk Range</button>
-                  <button id="sessions-full-diarized" class="btn btn-outline-secondary btn-sm">Build Full Diarized Transcript</button>
-                  <button id="sessions-clean-transcript" class="btn btn-outline-secondary btn-sm">Rebuild Clean Transcript</button>
-                  <button id="sessions-reprocess" class="btn btn-outline-primary btn-sm">Rebuild Notes + Summary</button>
-                  <button id="sessions-stop-reprocess" class="btn btn-outline-danger btn-sm" disabled>Stop / Clear Rebuild</button>
-                  <button id="sessions-generate-summary" class="btn btn-primary btn-sm">Generate Game Summary</button>
-                  <button id="sessions-generate-narrative" class="btn btn-primary btn-sm">Generate Narrative</button>
-                  <button id="sessions-open-notes-lab" class="btn btn-outline-dark btn-sm">Open Notes Lab</button>
-                </div>
-                <div class="row g-2">
-                  <div class="col-12 col-md-4">
-                    <label class="form-label small mb-1">Sessions</label>
-                    <select id="sessions-select" class="form-select"></select>
+                <div class="section-card mb-3">
+                  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                    <div>
+                      <div class="soft-label mb-1">Selected session</div>
+                      <h2 class="h5 mb-1">Session history</h2>
+                      <div class="small text-muted">Everything below applies to the session selected here.</div>
+                    </div>
+                    <button id="sessions-refresh" class="btn btn-outline-secondary btn-sm">Refresh Sessions</button>
                   </div>
-                  <div class="col-12 col-md-4">
-                    <label class="form-label small mb-1">Session name</label>
-                    <div class="d-flex gap-2">
-                      <input id="sessions-name-input" type="text" class="form-control" placeholder="Name this session">
-                      <button id="sessions-save-name" class="btn btn-outline-secondary btn-sm">Save Name</button>
+                  <div class="row g-2">
+                    <div class="col-12 col-lg-4">
+                      <label class="form-label small mb-1">Session</label>
+                      <select id="sessions-select" class="form-select"></select>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                      <label class="form-label small mb-1">Session name</label>
+                      <div class="d-flex gap-2">
+                        <input id="sessions-name-input" type="text" class="form-control" placeholder="Name this session">
+                        <button id="sessions-save-name" class="btn btn-outline-secondary btn-sm">Save Name</button>
+                      </div>
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-2">
+                      <label class="form-label small mb-1">Campaign</label>
+                      <div class="d-flex gap-2">
+                        <select id="sessions-campaign-select" class="form-select form-select-sm"></select>
+                        <button id="sessions-assign-campaign" class="btn btn-outline-secondary btn-sm">Assign</button>
+                      </div>
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-2">
+                      <label class="form-label small mb-1">Status</label>
+                      <div id="sessions-info" class="small text-muted"></div>
                     </div>
                   </div>
-                  <div class="col-12 col-md-2">
-                    <label class="form-label small mb-1">Campaign</label>
-                    <div class="d-grid gap-2">
-                      <select id="sessions-campaign-select" class="form-select form-select-sm"></select>
-                      <button id="sessions-assign-campaign" class="btn btn-outline-secondary btn-sm">Assign</button>
+                </div>
+
+                <div class="d-grid gap-3">
+                  <div class="section-card">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                      <div>
+                        <div class="soft-label mb-1">Names and attribution</div>
+                        <h2 class="h5 mb-1">Session roster</h2>
+                        <div class="small text-muted">This saved roster influences name correction in notes, summaries, and cleaned transcripts.</div>
+                      </div>
+                      <div class="d-flex flex-wrap gap-2">
+                        <button id="sessions-roster-load-session" class="btn btn-outline-secondary btn-sm">Reload Saved Roster</button>
+                        <button id="sessions-roster-add-player" class="btn btn-outline-primary btn-sm">Add Player</button>
+                        <button id="sessions-roster-add-npc" class="btn btn-outline-primary btn-sm">Add NPC</button>
+                        <button id="sessions-roster-add-dm" class="btn btn-outline-secondary btn-sm">Add DM</button>
+                        <button id="sessions-roster-save" class="btn btn-primary btn-sm">Save Roster</button>
+                      </div>
+                    </div>
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle">
+                        <thead>
+                          <tr>
+                            <th style="width:90px;">Include</th>
+                            <th style="min-width:90px;">Role</th>
+                            <th style="min-width:130px;">Player / Controller</th>
+                            <th style="min-width:130px;">Character / NPC</th>
+                            <th style="min-width:110px;">Class</th>
+                            <th style="min-width:110px;">Race</th>
+                            <th style="min-width:150px;">Aliases</th>
+                            <th style="width:1%;"></th>
+                          </tr>
+                        </thead>
+                        <tbody id="sessions-roster-body"></tbody>
+                      </table>
+                    </div>
+                    <label class="form-label small mt-2" for="sessions-party-meta">Generated session roster text</label>
+                    <textarea id="sessions-party-meta" class="form-control mono" rows="4" readonly placeholder="Session roster text is generated from the table above."></textarea>
+                    <div id="sessions-party-status" class="small text-muted mt-1"></div>
+                  </div>
+
+                  <div class="section-card history-workflow">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                      <div>
+                        <div class="soft-label mb-1">Source material</div>
+                        <h2 class="h5 mb-1">Review and rebuild DM notes</h2>
+                        <div class="small text-muted">Edit or select timeline events before generating a summary. Rebuilding replaces the derived notes and creates a default summary from the saved transcript; use the summary row below afterward for selected events, guidance, and length.</div>
+                      </div>
+                      <div class="d-flex flex-wrap gap-2">
+                        <button id="open-sessions-timeline-editor" class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#timelineEditorModal">Open Timeline Editor</button>
+                        <button id="sessions-open-notes-lab" class="btn btn-outline-dark btn-sm">Open Notes Lab</button>
+                        <button id="sessions-reprocess" class="btn btn-outline-danger btn-sm">Rebuild DM Notes + Summary</button>
+                        <button id="sessions-stop-reprocess" class="btn btn-outline-danger btn-sm" disabled>Stop / Clear Rebuild</button>
+                      </div>
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-12 col-lg-7">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                          <div class="small fw-semibold">Rolling notes summary</div>
+                          <button id="copy-sessions-notes-summary" class="btn btn-outline-secondary btn-sm">Copy Summary</button>
+                        </div>
+                        <div id="sessions-notes-summary" class="history-output compact small"></div>
+                      </div>
+                      <div class="col-12 col-lg-5">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                          <div class="small fw-semibold">Tracked state snapshot</div>
+                          <button id="copy-sessions-notes-state" class="btn btn-outline-secondary btn-sm">Copy State</button>
+                        </div>
+                        <pre id="sessions-notes-state" class="history-output compact mb-0" style="max-height:180px;"></pre>
+                      </div>
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+                      <div class="small text-muted">The timeline editor is where you correct attribution and mark the events that belong in the game summary.</div>
+                      <button id="copy-sessions-notes" class="btn btn-outline-secondary btn-sm">Copy Timeline</button>
                     </div>
                   </div>
-                  <div class="col-12 col-md-2">
-                    <label class="form-label small mb-1">Session info</label>
-                    <div id="sessions-info" class="small text-muted"></div>
+
+                  <div class="section-card history-workflow">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                      <div>
+                        <div class="soft-label mb-1">Player-facing recap</div>
+                        <h2 class="h5 mb-1">Generate game summary</h2>
+                        <div class="small text-muted">Uses only <strong>+ Selected</strong> timeline events. The transcript, roster, tracker, and campaign context provide supporting detail.</div>
+                      </div>
+                      <div class="d-flex flex-wrap gap-2">
+                        <button id="sessions-generate-summary" class="btn btn-primary btn-sm">Generate Game Summary</button>
+                        <button id="sessions-save-summary" class="btn btn-outline-primary btn-sm" type="button" disabled>Save &amp; Use as Handoff</button>
+                        <button id="copy-sessions-game-summary" class="btn btn-outline-secondary btn-sm">Copy</button>
+                      </div>
+                    </div>
+                    <div id="sessions-summary-inputs" class="history-inputs-note small text-muted mb-3">Select a session to review summary inputs.</div>
+                    <div class="row g-3 mb-3">
+                      <div class="col-12 col-lg-3">
+                        <label class="form-label small mb-1" for="sessions-summary-word-count">Factual recap detail</label>
+                        <select id="sessions-summary-word-count" class="form-select">
+                          <option value="350" selected>Standard — about 350 words</option>
+                          <option value="500">Detailed — about 500 words</option>
+                          <option value="700">Extended — about 700 words</option>
+                        </select>
+                        <div class="form-text">Controls the opening factual recap only. Timeline, NPCs, loot, and hooks stay concise.</div>
+                      </div>
+                      <div class="col-12 col-lg-9">
+                        <label class="form-label small mb-1" for="sessions-summary-guidance">Summary guidance (optional, this run only)</label>
+                        <textarea id="sessions-summary-guidance" class="form-control" rows="3"
+                          placeholder="Example: Emphasize the party's decisions and unresolved mysteries. Keep combat detail brief."></textarea>
+                        <div class="form-text">This affects only the next summary and does not change campaign canon or DM notes.</div>
+                      </div>
+                    </div>
+                    <label class="small fw-semibold mb-1" for="sessions-game-summary">Latest game summary</label>
+                    <textarea id="sessions-game-summary" class="form-control history-output mb-0" rows="14"
+                      maxlength="100000" spellcheck="true" placeholder="Generate a game summary, then edit it here before sharing."></textarea>
+                    <div id="sessions-summary-edit-status" class="form-text" role="status">Select a session to edit and vet its summary.</div>
+                    <div class="history-inputs-note mt-3">
+                      <div class="d-flex flex-wrap align-items-end gap-2">
+                        <label class="form-label small mb-0 flex-grow-1" for="sessions-dungeonshare-campaign">
+                          Dungeon Share campaign
+                          <select id="sessions-dungeonshare-campaign" class="form-select form-select-sm mt-1" disabled>
+                            <option value="">Loading Dungeon Share campaignsâ€¦</option>
+                          </select>
+                        </label>
+                        <button id="sessions-share-summary" class="btn btn-outline-primary btn-sm" type="button" disabled>
+                          Send summary to Dungeon Share
+                        </button>
+                      </div>
+                      <div id="sessions-share-status" class="small text-muted mt-2" role="status">
+                        The summary will arrive in the manager as a draft.
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div class="row g-2 mt-1 mb-2">
-                  <div class="col-12 col-md-3">
-                    <label class="form-label small mb-1" for="sessions-retranscribe-from">Retranscribe chunk from</label>
-                    <input id="sessions-retranscribe-from" type="number" class="form-control form-control-sm" min="0" step="1" placeholder="e.g. 10">
+
+                  <div class="section-card history-workflow">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                      <div>
+                        <div class="soft-label mb-1">Story version</div>
+                        <h2 class="h5 mb-1">Generate narrative</h2>
+                        <div class="small text-muted">Creates the humorous high-fantasy retelling after the notes and summary have been reviewed.</div>
+                      </div>
+                      <div class="d-flex flex-wrap gap-2">
+                        <button id="sessions-generate-narrative" class="btn btn-primary btn-sm">Generate Narrative</button>
+                        <button id="copy-sessions-game-narrative" class="btn btn-outline-secondary btn-sm">Copy</button>
+                      </div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                      <div class="col-12 col-lg-3">
+                        <label class="form-label small mb-1" for="sessions-narrative-word-count">Narrative target words</label>
+                        <input id="sessions-narrative-word-count" type="number" class="form-control" value="600" min="150" max="5000" step="50">
+                        <div class="form-text">Approximate length for this run only.</div>
+                      </div>
+                      <div class="col-12 col-lg-9">
+                        <label class="form-label small mb-1" for="sessions-narrative-guidance">Narrative guidance (optional, this run only)</label>
+                        <textarea id="sessions-narrative-guidance" class="form-control" rows="3"
+                          placeholder="Example: Make sure to include the missing room in Yurga and the dinner at Pushel Manor. Prefer the DM notes timeline if the transcript is unclear."></textarea>
+                        <div class="form-text">This affects only the next narrative and does not change campaign canon.</div>
+                      </div>
+                    </div>
+                    <div class="small fw-semibold mb-1">Latest narrative</div>
+                    <pre id="sessions-game-narrative" class="history-output mb-0" style="max-height:420px;"></pre>
                   </div>
-                  <div class="col-12 col-md-3">
-                    <label class="form-label small mb-1" for="sessions-retranscribe-to">Retranscribe chunk to</label>
-                    <input id="sessions-retranscribe-to" type="number" class="form-control form-control-sm" min="0" step="1" placeholder="e.g. 30">
-                  </div>
-                  <div class="col-12 col-md-6 d-flex align-items-end">
-                    <div class="small text-muted">Use this when you want to replace existing transcript entries for a specific saved audio range, not just recover missing chunks.</div>
-                  </div>
-                </div>
-                <div class="row g-2 mt-2">
-                  <div class="col-12">
-                    <div class="section-card">
+
+                  <div class="section-card history-workflow">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                      <div>
+                        <div class="soft-label mb-1">Transcript</div>
+                        <h2 class="h5 mb-1">Review transcript and repair source audio</h2>
+                        <div class="small text-muted">The readable transcript is used to verify details in summaries. Open advanced repair only when something is missing or misattributed.</div>
+                      </div>
+                      <button id="copy-sessions-transcript" class="btn btn-outline-secondary btn-sm">Copy Transcript</button>
+                    </div>
+                    <pre id="sessions-transcript" class="history-output tall-pane mb-0"></pre>
+
+                    <details class="mt-3">
+                      <summary class="fw-semibold">Advanced transcript repair and diarization</summary>
+                      <div class="history-inputs-note small text-muted mt-2 mb-3">Backfill recovers missing saved audio. Range retranscription replaces specific chunks. Clean transcript rebuild improves readability without rebuilding DM notes.</div>
                       <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
-                        <div>
-                          <div class="small text-muted mb-1">Session Roster For This History Session</div>
-                          <div class="small text-muted">Load and edit the roster attached to this finished session before you rebuild notes, summary, or clean transcript.</div>
-                        </div>
                         <div class="d-flex flex-wrap gap-2">
-                          <button id="sessions-roster-load-session" class="btn btn-outline-secondary btn-sm">Reload Saved Session Roster</button>
-                          <button id="sessions-roster-add-player" class="btn btn-outline-primary btn-sm">Add Player</button>
-                          <button id="sessions-roster-add-npc" class="btn btn-outline-primary btn-sm">Add NPC</button>
-                          <button id="sessions-roster-add-dm" class="btn btn-outline-secondary btn-sm">Add DM</button>
-                          <button id="sessions-roster-save" class="btn btn-primary btn-sm">Save To Selected Session</button>
+                          <button id="sessions-backfill-transcripts" class="btn btn-outline-secondary btn-sm">Backfill Missing Audio</button>
+                          <button id="sessions-clean-transcript" class="btn btn-outline-secondary btn-sm">Rebuild Clean Transcript</button>
+                          <button id="sessions-full-diarized" class="btn btn-outline-secondary btn-sm">Build Full Diarized Transcript</button>
                         </div>
                       </div>
-                      <div class="table-responsive">
-                        <table class="table table-sm align-middle">
-                          <thead>
-                            <tr>
-                              <th style="width:90px;">Include</th>
-                              <th style="min-width:90px;">Role</th>
-                              <th style="min-width:130px;">Player / Controller</th>
-                              <th style="min-width:130px;">Character / NPC</th>
-                              <th style="min-width:110px;">Class</th>
-                              <th style="min-width:110px;">Race</th>
-                              <th style="min-width:150px;">Aliases</th>
-                              <th style="width:1%;"></th>
-                            </tr>
-                          </thead>
-                          <tbody id="sessions-roster-body"></tbody>
-                        </table>
+                      <div class="row g-2 mb-3">
+                        <div class="col-12 col-md-3">
+                          <label class="form-label small mb-1" for="sessions-retranscribe-from">Retranscribe chunk from</label>
+                          <input id="sessions-retranscribe-from" type="number" class="form-control form-control-sm" min="0" step="1" placeholder="e.g. 10">
+                        </div>
+                        <div class="col-12 col-md-3">
+                          <label class="form-label small mb-1" for="sessions-retranscribe-to">Retranscribe chunk to</label>
+                          <input id="sessions-retranscribe-to" type="number" class="form-control form-control-sm" min="0" step="1" placeholder="e.g. 30">
+                        </div>
+                        <div class="col-12 col-md-6 d-flex align-items-end">
+                          <button id="sessions-retranscribe-range" class="btn btn-outline-secondary btn-sm">Retranscribe Chunk Range</button>
+                        </div>
                       </div>
-                      <label class="form-label small mt-2" for="sessions-party-meta">Generated session roster text</label>
-                      <textarea id="sessions-party-meta" class="form-control mono" rows="4" readonly placeholder="Session roster text is generated from the table above."></textarea>
-                      <div id="sessions-party-status" class="small text-muted mt-1"></div>
-                    </div>
-                  </div>
-                  <div class="col-12 col-md-3">
-                    <label class="form-label small mb-1" for="sessions-narrative-word-count">Narrative target words</label>
-                    <input id="sessions-narrative-word-count" type="number" class="form-control" value="600" min="150" max="5000" step="50">
-                    <div class="form-text">Used only for the next narrative generation run.</div>
-                  </div>
-                  <div class="col-12 col-md-9">
-                    <label class="form-label small mb-1" for="sessions-narrative-guidance">Narrative guidance (optional, this run only)</label>
-                    <textarea id="sessions-narrative-guidance" class="form-control" rows="3"
-                      placeholder="Example: Make sure to include the missing room in Yurga and the dinner at Pushel Manor. Prefer the DM notes timeline if the transcript is unclear."></textarea>
-                    <div class="form-text">Used only for the next narrative generation run. It does not change campaign canon.</div>
-                  </div>
-                  <div class="col-12">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <div class="small text-muted">Game Summary</div>
-                      <button id="copy-sessions-game-summary" class="btn btn-outline-secondary btn-sm">Copy</button>
-                    </div>
-                    <pre id="sessions-game-summary"
-                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:220px; overflow:auto; white-space: pre-wrap;"></pre>
-                  </div>
-                  <div class="col-12">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <div class="small text-muted">Narrative (Humorous High Fantasy)</div>
-                      <button id="copy-sessions-game-narrative" class="btn btn-outline-secondary btn-sm">Copy</button>
-                    </div>
-                    <pre id="sessions-game-narrative"
-                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:260px; overflow:auto; white-space: pre-wrap;"></pre>
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <div class="small text-muted">Transcript</div>
-                      <button id="copy-sessions-transcript" class="btn btn-outline-secondary btn-sm">Copy</button>
-                    </div>
-                    <pre id="sessions-transcript" class="tall-pane"
-                      style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;"></pre>
                     <div class="d-flex justify-content-between align-items-center mb-1 mt-3">
                       <div class="small text-muted">Full Session Diarized Transcript (Experimental)</div>
                       <button id="copy-sessions-full-diarized" class="btn btn-outline-secondary btn-sm">Copy</button>
@@ -752,33 +927,7 @@
                     <div class="small text-muted mb-1">This view merges adjacent turns, drops low-value filler fragments, and replaces generic speaker labels with your session speaker map.</div>
                     <pre id="sessions-full-diarized-mapped-transcript" class="tall-pane"
                       style="background:#f5f5f5; padding:12px; border-radius:6px; overflow:auto; white-space: pre-wrap;"></pre>
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <div class="small text-muted">Rolling Notes Summary</div>
-                      <button id="copy-sessions-notes-summary" class="btn btn-outline-secondary btn-sm">Copy Summary</button>
-                    </div>
-                    <div id="sessions-notes-summary" class="small mb-3"
-                      style="background:#f5f5f5; padding:12px; border-radius:6px; white-space: pre-wrap;"></div>
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <div class="small text-muted">Tracked State Snapshot</div>
-                      <button id="copy-sessions-notes-state" class="btn btn-outline-secondary btn-sm">Copy State</button>
-                    </div>
-                    <pre id="sessions-notes-state"
-                      style="background:#f5f5f5; padding:12px; border-radius:6px; max-height:180px; overflow:auto; white-space: pre-wrap;"></pre>
-                    <div class="d-flex justify-content-between align-items-center mb-1 mt-3">
-                      <div class="small text-muted">DM Notes Timeline</div>
-                      <div class="d-flex gap-2">
-                        <button id="copy-sessions-notes" class="btn btn-outline-secondary btn-sm">Copy Timeline</button>
-                        <button id="open-sessions-timeline-editor" class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#timelineEditorModal">Open Timeline Editor</button>
-                      </div>
-                    </div>
-                    <div class="small text-muted mb-1">Use the timeline editor to correct attribution, promote key moments, and downplay noisy entries before regenerating summaries.</div>
-                    <div class="help-callout">
-                      <div class="small text-muted">
-                        The full DM Notes Timeline now opens in a dedicated editor so you can review the whole session in one scrollable workspace.
-                      </div>
-                    </div>
+                    </details>
                   </div>
                 </div>
               </div>
@@ -1613,7 +1762,8 @@ async function postMetaOnce() {
               latestChunkLinkEl.href = result.url;
               latestChunkLinkEl.style.display = 'inline';
             } else if (result?.filename) {
-              latestChunkLinkEl.href = `/uploads/${sessionId}/${result.filename}`;
+              const params = new URLSearchParams({ sessionId, filename: result.filename });
+              latestChunkLinkEl.href = `/api/session/audio?${params.toString()}`;
               latestChunkLinkEl.style.display = 'inline';
             }
           } else {
@@ -1836,7 +1986,7 @@ async function postMetaOnce() {
 <script>
 // ================================
 // LIVE STATUS POLLER MODULE
-// Polls /uploads/<sessionId>/status.json and displays it
+// Polls session status and displays it
 // ================================
 (() => {
   const statusLineEl = document.getElementById("status-line");
@@ -1883,11 +2033,12 @@ async function postMetaOnce() {
         return;
       }
 
-      const url = `/uploads/${encodeURIComponent(sid)}/status.json?t=${Date.now()}`;
+      const url = `/api/session/status?sessionId=${encodeURIComponent(sid)}&_t=${Date.now()}`;
       const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) throw new Error("HTTP " + res.status);
 
-      const data = await res.json();
+      const statusPayload = await res.json();
+      const data = statusPayload.status || {};
       const chunkCount = Array.isArray(data.chunks) ? data.chunks.length : 0;
 
       statusLineEl.textContent =
@@ -1948,6 +2099,255 @@ async function postMetaOnce() {
 
   refresh();
   setInterval(refresh, 2000);
+})();
+</script>
+
+<script>
+// ================================
+// LIVE REVIEW MODULE
+// Player/scribe surface for correcting and steering notes while recording.
+// ================================
+(() => {
+  const sessionIdEl = document.getElementById("sessionId");
+  const labelEl = document.getElementById("live-review-session-label");
+  const statusEl = document.getElementById("live-review-status");
+  const timelineEl = document.getElementById("live-review-timeline");
+  const refreshBtn = document.getElementById("live-review-refresh");
+  const followBtn = document.getElementById("live-review-follow");
+  const guidanceTextEl = document.getElementById("live-guidance-text");
+  const guidanceSaveBtn = document.getElementById("live-guidance-save");
+  const guidanceClearBtn = document.getElementById("live-guidance-clear");
+  const guidanceStatusEl = document.getElementById("live-guidance-status");
+
+  let liveTimeline = [];
+  let liveTimelineText = "";
+  let liveEditingId = "";
+  let liveSavePending = false;
+  let liveGuidanceDirty = false;
+  let followLatest = true;
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function activeSessionId() {
+    const raw = String(sessionIdEl?.textContent || "").trim();
+    return /^\d{8,20}$/.test(raw) ? raw : "";
+  }
+
+  function liveTag(label) {
+    return `<span class="timeline-tag">${escapeHtml(label)}</span>`;
+  }
+
+  function renderLiveTimeline(force = false) {
+    if (!timelineEl) return;
+    if (liveEditingId && !force) return;
+    const items = Array.isArray(liveTimeline) ? liveTimeline : [];
+    if (!items.length) {
+      timelineEl.innerHTML = '<div class="text-muted small">(waiting for incoming timeline notes)</div>';
+      return;
+    }
+    const visible = items.slice(-120);
+    timelineEl.innerHTML = visible.map((item) => {
+      const itemId = String(item?.id || "");
+      const chunkIndex = Number(item?.chunkIndex ?? -1);
+      const text = String(item?.text || "").trim();
+      const originalText = String(item?.originalText || "").trim();
+      const editedText = String(item?.editedText || "").trim();
+      const priority = Number(item?.priority || 0);
+      const isEdited = Boolean(item?.isEdited);
+      const isRejected = Boolean(item?.isRejected);
+      const isEditing = liveEditingId === itemId;
+      const classes = ["timeline-item"];
+      if (priority > 0) classes.push("promoted");
+      if (priority < 0) classes.push("downplayed");
+      if (isRejected) classes.push("rejected");
+      const tags = [
+        `<span class="timeline-tag mono">[${String(Number.isFinite(chunkIndex) ? chunkIndex : -1).padStart(4, "0")}]</span>`,
+        isEdited ? liveTag("Edited") : "",
+        priority > 0 ? liveTag("+ Selected") : "",
+        priority < 0 ? liveTag("- Low Signal") : "",
+        isRejected ? liveTag("x Rejected") : "",
+      ].filter(Boolean).join("");
+      const originalBlock = isEdited ? `<div class="small text-muted mt-2"><strong>Original:</strong> ${escapeHtml(originalText)}</div>` : "";
+      const editorBlock = isEditing ? `
+        <div class="timeline-editor">
+          <label class="form-label form-label-sm small mb-1">Fix this timeline note</label>
+          <textarea class="form-control form-control-sm live-timeline-edit-text" data-item-id="${escapeHtml(itemId)}" rows="3">${escapeHtml(editedText || text)}</textarea>
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            <button class="btn btn-primary btn-sm" data-live-action="save-edit" data-item-id="${escapeHtml(itemId)}"${liveSavePending ? " disabled" : ""}>Save Edit</button>
+            <button class="btn btn-outline-secondary btn-sm" data-live-action="cancel-edit" data-item-id="${escapeHtml(itemId)}"${liveSavePending ? " disabled" : ""}>Cancel</button>
+            <button class="btn btn-outline-danger btn-sm" data-live-action="clear-edit" data-item-id="${escapeHtml(itemId)}"${liveSavePending ? " disabled" : ""}>Clear Edit</button>
+          </div>
+        </div>` : "";
+      return `
+        <div class="${classes.join(" ")}" data-item-id="${escapeHtml(itemId)}">
+          <div class="timeline-meta">
+            <div class="timeline-tags">${tags}</div>
+            <div class="d-flex flex-wrap gap-2">
+              <button class="btn btn-outline-secondary btn-sm" data-live-action="edit" data-item-id="${escapeHtml(itemId)}"${liveSavePending ? " disabled" : ""}>Edit</button>
+              <button class="btn btn-outline-success btn-sm" data-live-action="promote" data-item-id="${escapeHtml(itemId)}"${liveSavePending || isRejected ? " disabled" : ""}>+</button>
+              <button class="btn btn-outline-warning btn-sm" data-live-action="downplay" data-item-id="${escapeHtml(itemId)}"${liveSavePending || isRejected ? " disabled" : ""}>-</button>
+              <button class="btn btn-outline-danger btn-sm" data-live-action="reject" data-item-id="${escapeHtml(itemId)}"${liveSavePending || isRejected ? " disabled" : ""}>x</button>
+              <button class="btn btn-outline-dark btn-sm" data-live-action="neutral" data-item-id="${escapeHtml(itemId)}"${liveSavePending ? " disabled" : ""}>Restore</button>
+            </div>
+          </div>
+          <div class="timeline-text">${escapeHtml(text)}</div>
+          ${originalBlock}
+          ${editorBlock}
+        </div>
+      `;
+    }).join("");
+    if (followLatest) timelineEl.scrollTop = timelineEl.scrollHeight;
+  }
+
+  async function loadLiveReview(force = false) {
+    const sid = activeSessionId();
+    if (!sid) {
+      if (labelEl) labelEl.textContent = "Start a session to review incoming notes.";
+      if (statusEl) statusEl.textContent = "";
+      if (timelineEl) timelineEl.innerHTML = '<div class="text-muted small">(no active recording session)</div>';
+      return;
+    }
+    if (labelEl) labelEl.textContent = `Active session ${sid}`;
+    try {
+      const res = await fetch(`/api/sessions/get?sessionId=${encodeURIComponent(sid)}&_t=${Date.now()}`, { cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      liveTimeline = Array.isArray(json.notesTimeline) ? json.notesTimeline : [];
+      liveTimelineText = String(json.notesTimelineText || "");
+      if (guidanceTextEl && !liveGuidanceDirty) {
+        guidanceTextEl.value = String(json.liveGuidance || "");
+      }
+      if (statusEl) {
+        const selected = liveTimeline.filter((item) => Number(item?.priority || 0) > 0).length;
+        const rejected = liveTimeline.filter((item) => Boolean(item?.isRejected)).length;
+        statusEl.textContent = `${liveTimeline.length} notes | ${selected} selected | ${rejected} rejected`;
+      }
+      renderLiveTimeline(force);
+    } catch (e) {
+      if (statusEl) statusEl.textContent = `Live review load failed: ${e.message}`;
+    }
+  }
+
+  async function updateLiveTimelineItem(itemId, patch, message) {
+    const sid = activeSessionId();
+    if (!sid || !itemId) return;
+    liveSavePending = true;
+    renderLiveTimeline(true);
+    try {
+      const res = await fetch("/api/session/notes/timeline/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sid, itemId, ...patch }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      liveTimeline = Array.isArray(json.notesTimeline) ? json.notesTimeline : liveTimeline;
+      liveTimelineText = String(json.notesTimelineText || liveTimelineText);
+      if (statusEl) statusEl.textContent = message || "Timeline note updated.";
+    } catch (e) {
+      if (statusEl) statusEl.textContent = `Error: ${e.message}`;
+    } finally {
+      liveSavePending = false;
+      renderLiveTimeline(true);
+    }
+  }
+
+  async function saveGuidance(value) {
+    const sid = activeSessionId();
+    if (!sid) {
+      if (guidanceStatusEl) guidanceStatusEl.textContent = "Start a session before saving guidance.";
+      return;
+    }
+    try {
+      if (guidanceStatusEl) guidanceStatusEl.textContent = "Saving guidance...";
+      const res = await fetch("/api/session/live-guidance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sid, guidance: value }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      liveGuidanceDirty = false;
+      if (guidanceTextEl) guidanceTextEl.value = String(json.liveGuidance || "");
+      if (guidanceStatusEl) guidanceStatusEl.textContent = "Guidance saved for upcoming note chunks.";
+    } catch (e) {
+      if (guidanceStatusEl) guidanceStatusEl.textContent = `Guidance save failed: ${e.message}`;
+    }
+  }
+
+  if (timelineEl) {
+    timelineEl.addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const action = String(target.dataset.liveAction || "").trim();
+      const itemId = String(target.dataset.itemId || "").trim();
+      if (!action || !itemId) return;
+      if (action === "edit") {
+        liveEditingId = itemId;
+        renderLiveTimeline(true);
+        return;
+      }
+      if (action === "cancel-edit") {
+        liveEditingId = "";
+        renderLiveTimeline(true);
+        return;
+      }
+      if (liveSavePending) return;
+      if (action === "save-edit") {
+        const textarea = timelineEl.querySelector(`textarea.live-timeline-edit-text[data-item-id="${CSS.escape(itemId)}"]`);
+        const editedText = textarea instanceof HTMLTextAreaElement ? textarea.value.trim() : "";
+        liveEditingId = "";
+        await updateLiveTimelineItem(itemId, { editedText }, "Timeline note fixed.");
+        return;
+      }
+      if (action === "clear-edit") {
+        liveEditingId = "";
+        await updateLiveTimelineItem(itemId, { editedText: "" }, "Timeline edit cleared.");
+        return;
+      }
+      if (action === "promote") {
+        await updateLiveTimelineItem(itemId, { priority: 1, rejected: false }, "Selected for final recap.");
+        return;
+      }
+      if (action === "downplay") {
+        await updateLiveTimelineItem(itemId, { priority: -1, rejected: false }, "Marked low signal.");
+        return;
+      }
+      if (action === "reject") {
+        await updateLiveTimelineItem(itemId, { rejected: true }, "Rejected from compiled notes.");
+        return;
+      }
+      if (action === "neutral") {
+        await updateLiveTimelineItem(itemId, { priority: 0, rejected: false }, "Timeline note restored.");
+      }
+    });
+  }
+
+  if (refreshBtn) refreshBtn.addEventListener("click", () => loadLiveReview(true));
+  if (followBtn) {
+    followBtn.addEventListener("click", () => {
+      followLatest = !followLatest;
+      followBtn.textContent = followLatest ? "Follow Latest" : "Follow Paused";
+      if (followLatest) renderLiveTimeline(true);
+    });
+  }
+  if (guidanceTextEl) {
+    guidanceTextEl.addEventListener("input", () => {
+      liveGuidanceDirty = true;
+      if (guidanceStatusEl) guidanceStatusEl.textContent = "Guidance has unsaved changes.";
+    });
+  }
+  if (guidanceSaveBtn) guidanceSaveBtn.addEventListener("click", () => saveGuidance(guidanceTextEl?.value || ""));
+  if (guidanceClearBtn) guidanceClearBtn.addEventListener("click", () => saveGuidance(""));
+
+  loadLiveReview(true);
+  setInterval(() => loadLiveReview(false), 2500);
 })();
 </script>
 
@@ -2853,11 +3253,19 @@ async function postMetaOnce() {
   const sessionsReprocessEl = document.getElementById("sessions-reprocess");
   const sessionsStopReprocessEl = document.getElementById("sessions-stop-reprocess");
   const sessionsGenerateSummaryEl = document.getElementById("sessions-generate-summary");
+  const sessionsSaveSummaryEl = document.getElementById("sessions-save-summary");
+  const sessionsDungeonShareCampaignEl = document.getElementById("sessions-dungeonshare-campaign");
+  const sessionsShareSummaryEl = document.getElementById("sessions-share-summary");
+  const sessionsShareStatusEl = document.getElementById("sessions-share-status");
   const sessionsGenerateNarrativeEl = document.getElementById("sessions-generate-narrative");
   const sessionsOpenNotesLabEl = document.getElementById("sessions-open-notes-lab");
+  const sessionsSummaryWordCountEl = document.getElementById("sessions-summary-word-count");
+  const sessionsSummaryGuidanceEl = document.getElementById("sessions-summary-guidance");
+  const sessionsSummaryInputsEl = document.getElementById("sessions-summary-inputs");
   const sessionsNarrativeWordCountEl = document.getElementById("sessions-narrative-word-count");
   const sessionsNarrativeGuidanceEl = document.getElementById("sessions-narrative-guidance");
   const sessionsGameSummaryEl = document.getElementById("sessions-game-summary");
+  const sessionsSummaryEditStatusEl = document.getElementById("sessions-summary-edit-status");
   const sessionsGameNarrativeEl = document.getElementById("sessions-game-narrative");
   const sessionsFullDiarizedTranscriptEl = document.getElementById("sessions-full-diarized-transcript");
   const sessionsFullDiarizedMappedTranscriptEl = document.getElementById("sessions-full-diarized-mapped-transcript");
@@ -2901,6 +3309,11 @@ async function postMetaOnce() {
   let sessionsPartyDirty = false;
   let currentFullDiarizedSpeakers = [];
   let currentFullDiarizedSpeakerMap = {};
+  let currentDungeonShareLocalCampaignId = '';
+  let savedGameSummary = '';
+  let handedOffGameSummary = '';
+  let summarySavePending = false;
+  let summarySharePending = false;
 
   function setSessionsPartyStatus(msg) {
     if (sessionsPartyStatusEl) sessionsPartyStatusEl.textContent = msg || '';
@@ -3113,7 +3526,28 @@ async function postMetaOnce() {
   function setNotesTimeline(items, explicitText = '') {
     currentNotesTimeline = Array.isArray(items) ? items.slice() : [];
     currentNotesTimelineText = String(explicitText || '').trim() || timelineTextFromItems(currentNotesTimeline);
+    updateSummaryInputsStatus();
     renderNotesTimeline();
+  }
+
+  function updateSummaryInputsStatus() {
+    const items = Array.isArray(currentNotesTimeline) ? currentNotesTimeline : [];
+    const available = items.filter((item) => String(item?.text || '').trim() && !Boolean(item?.isRejected));
+    const selected = available.filter((item) => Number(item?.priority || 0) > 0);
+    const corrected = selected.filter((item) => Boolean(item?.isEdited)).length;
+    if (sessionsSummaryInputsEl) {
+      if (!items.length) {
+        sessionsSummaryInputsEl.textContent = 'No DM notes timeline is available for this session yet.';
+      } else if (!selected.length) {
+        sessionsSummaryInputsEl.textContent = `0 of ${available.length} timeline events selected. Open the Timeline Editor and mark at least one event with + before generating.`;
+      } else {
+        const correctionText = corrected ? `, including ${corrected} corrected event${corrected === 1 ? '' : 's'}` : '';
+        sessionsSummaryInputsEl.textContent = `${selected.length} of ${available.length} timeline events selected${correctionText}. The saved roster, transcript, tracker, and campaign context will be used for supporting detail.`;
+      }
+    }
+    if (sessionsGenerateSummaryEl) {
+      sessionsGenerateSummaryEl.disabled = selected.length === 0;
+    }
   }
 
   function timelinePriorityTag(priority) {
@@ -3482,6 +3916,128 @@ async function postMetaOnce() {
     }
   }
 
+  function dungeonShareSlug(value) {
+    return String(value || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  function gameSummaryText() {
+    return String(sessionsGameSummaryEl?.value || '').trim();
+  }
+
+  function updateGameSummaryEditState(message = '') {
+    const sessionId = String(sessionsSelectEl?.value || '').trim();
+    const summary = gameSummaryText();
+    const dirty = summary !== savedGameSummary;
+    const handoffCurrent = Boolean(summary && summary === handedOffGameSummary);
+    if (sessionsSaveSummaryEl) {
+      sessionsSaveSummaryEl.disabled = summarySavePending || summarySharePending || !sessionId || !summary || (!dirty && handoffCurrent);
+    }
+    if (sessionsShareSummaryEl) {
+      const campaignSlug = String(sessionsDungeonShareCampaignEl?.value || '').trim();
+      sessionsShareSummaryEl.disabled = summarySavePending || summarySharePending || !sessionId || !campaignSlug || !summary;
+    }
+    if (!sessionsSummaryEditStatusEl) return;
+    if (message) {
+      sessionsSummaryEditStatusEl.textContent = message;
+    } else if (!sessionId) {
+      sessionsSummaryEditStatusEl.textContent = 'Select a session to edit and vet its summary.';
+    } else if (!summary) {
+      sessionsSummaryEditStatusEl.textContent = 'Generate a game summary before editing or sharing it.';
+    } else if (dirty) {
+      sessionsSummaryEditStatusEl.textContent = 'Unsaved edits. Save and approve this recap for the next session, or send it to Dungeon Share to do both automatically.';
+    } else if (!handoffCurrent) {
+      sessionsSummaryEditStatusEl.textContent = 'Saved locally, but not yet vetted for campaign handoff. Approve it before starting the next session.';
+    } else {
+      sessionsSummaryEditStatusEl.textContent = 'Vetted and included in this campaign’s next-session context.';
+    }
+  }
+
+  function setGameSummaryEditorValue(value, saved = true, handoffCurrent = false, message = '') {
+    const summary = String(value || '').trim();
+    if (sessionsGameSummaryEl) sessionsGameSummaryEl.value = summary;
+    if (saved) savedGameSummary = summary;
+    handedOffGameSummary = handoffCurrent ? summary : '';
+    updateGameSummaryEditState(message);
+  }
+
+  async function saveGameSummaryEdits(sessionId) {
+    const summary = gameSummaryText();
+    if (!sessionId) throw new Error('Select a session first.');
+    if (!summary) throw new Error('Game summary cannot be empty.');
+    summarySavePending = true;
+    updateGameSummaryEditState('Saving summary edits locally…');
+    try {
+      const res = await fetch('/api/summary/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, gameSummary: summary })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      summarySavePending = false;
+      const handoff = json.handoff && typeof json.handoff === 'object' ? json.handoff : {};
+      const included = Boolean(handoff.included);
+      const message = included
+        ? `Saved and approved for ${handoff.campaignName || handoff.campaignId || 'the campaign'} next-session context.`
+        : `Saved locally. ${handoff.reason || 'Assign this session to a campaign to use it as handoff context.'}`;
+      setGameSummaryEditorValue(json.gameSummary || summary, true, included, message);
+      return gameSummaryText();
+    } catch (e) {
+      summarySavePending = false;
+      updateGameSummaryEditState();
+      throw e;
+    }
+  }
+
+  async function loadDungeonShareCampaignOptions(localCampaignId = '', localCampaignName = '') {
+    if (!sessionsDungeonShareCampaignEl || !sessionsShareSummaryEl) return;
+    currentDungeonShareLocalCampaignId = String(localCampaignId || '').trim();
+    sessionsDungeonShareCampaignEl.disabled = true;
+    sessionsShareSummaryEl.disabled = true;
+    sessionsDungeonShareCampaignEl.innerHTML = '<option value="">Loading Dungeon Share campaignsâ€¦</option>';
+    try {
+      const res = await fetch('/api/dungeonshare/campaigns', { cache: 'no-store' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      const campaigns = Array.isArray(json.campaigns) ? json.campaigns : [];
+      sessionsDungeonShareCampaignEl.innerHTML = '';
+      campaigns.forEach((campaign) => {
+        const option = document.createElement('option');
+        option.value = String(campaign.slug || '');
+        option.textContent = String(campaign.name || campaign.slug || 'Campaign');
+        sessionsDungeonShareCampaignEl.appendChild(option);
+      });
+      if (!campaigns.length) {
+        sessionsDungeonShareCampaignEl.innerHTML = '<option value="">No Dungeon Share campaigns yet</option>';
+        if (sessionsShareStatusEl) sessionsShareStatusEl.textContent = 'Create a campaign in the Dungeon Share manager first.';
+        return;
+      }
+
+      const storageKey = currentDungeonShareLocalCampaignId
+        ? `dungeonShareCampaign:${currentDungeonShareLocalCampaignId}`
+        : '';
+      const saved = storageKey ? String(localStorage.getItem(storageKey) || '') : '';
+      const candidates = [
+        saved,
+        dungeonShareSlug(currentDungeonShareLocalCampaignId),
+        dungeonShareSlug(localCampaignName),
+      ].filter(Boolean);
+      const slugs = new Set(campaigns.map((campaign) => String(campaign.slug || '')));
+      const preferred = candidates.find((candidate) => slugs.has(candidate));
+      if (preferred) sessionsDungeonShareCampaignEl.value = preferred;
+      sessionsDungeonShareCampaignEl.disabled = false;
+      updateGameSummaryEditState();
+      if (sessionsShareStatusEl) sessionsShareStatusEl.textContent = 'The summary will arrive in the manager as a draft.';
+    } catch (e) {
+      sessionsDungeonShareCampaignEl.innerHTML = '<option value="">Dungeon Share unavailable</option>';
+      if (sessionsShareStatusEl) sessionsShareStatusEl.textContent = `Dungeon Share: ${e.message}`;
+    }
+  }
+
   async function loadSessions() {
     try {
       if (sessionsSelectEl) sessionsSelectEl.innerHTML = '';
@@ -3502,7 +4058,10 @@ async function postMetaOnce() {
         opt.textContent = activeCampaignId ? 'No sessions found for this campaign' : 'No sessions found';
         sessionsSelectEl.appendChild(opt);
         setSessionsRosterFromText('', 'Select a session to load its saved roster.');
+        setNotesTimeline([], '');
         if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = '';
+        setGameSummaryEditorValue('', true, false);
+        if (sessionsGameNarrativeEl) sessionsGameNarrativeEl.textContent = '';
         if (sessionsFullDiarizedTranscriptEl) sessionsFullDiarizedTranscriptEl.textContent = '';
         if (sessionsInfoEl) sessionsInfoEl.textContent = activeCampaignId ? `No history yet for ${activeCampaignId}.` : '';
         return;
@@ -3536,7 +4095,8 @@ async function postMetaOnce() {
       if (sessionsNameInputEl) sessionsNameInputEl.value = json.sessionName || '';
       setSessionsRosterFromText(json.party || '', json.party ? 'Loaded saved session roster.' : 'No saved roster found for this session.');
       await loadSessionCampaignOptions(json.campaignId || 'default');
-      if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = json.gameSummary || '(no game summary yet)';
+      setGameSummaryEditorValue(json.gameSummary || '', true, Boolean(json.gameSummaryHandoffCurrent));
+      await loadDungeonShareCampaignOptions(json.campaignId || '', json.campaignName || '');
       if (sessionsGameNarrativeEl) sessionsGameNarrativeEl.textContent = json.gameNarrative || '(no narrative yet)';
       if (sessionsTranscriptEl) sessionsTranscriptEl.textContent = sessionTranscriptText(json);
       if (sessionsFullDiarizedTranscriptEl) sessionsFullDiarizedTranscriptEl.textContent = json.fullDiarizedTranscript || '(no full-session diarized transcript yet)';
@@ -3913,20 +4473,87 @@ async function postMetaOnce() {
         return;
       }
       try {
-        if (sessionsInfoEl) sessionsInfoEl.textContent = `Generating game summary for ${sessionId}...`;
-        if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = 'Generating summary...';
+        const summaryGuidance = String(sessionsSummaryGuidanceEl?.value || '').trim();
+        const requestedRecapWordCount = Number(sessionsSummaryWordCountEl?.value || 350);
+        const summaryRecapWordCount = Number.isFinite(requestedRecapWordCount)
+          ? Math.min(900, Math.max(250, Math.round(requestedRecapWordCount)))
+          : 350;
+        const guidanceNote = summaryGuidance ? ' with guidance' : '';
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Generating game summary for ${sessionId}${guidanceNote} (~${summaryRecapWordCount}-word factual recap)...`;
+        if (sessionsGameSummaryEl) sessionsGameSummaryEl.disabled = true;
+        updateGameSummaryEditState('Generating a new summary…');
         const res = await fetch('/api/summary/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId })
+          body: JSON.stringify({ sessionId, summaryGuidance, summaryRecapWordCount })
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
-        if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = json.gameSummary || '(empty summary)';
-        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (game summary updated)`;
+        setGameSummaryEditorValue(json.gameSummary || '', true, false);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (game summary updated${guidanceNote}, factual recap target ${summaryRecapWordCount} words)`;
       } catch (e) {
         if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
-        if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = `Error: ${e.message}`;
+        updateGameSummaryEditState(`Could not generate summary: ${e.message}`);
+      } finally {
+        if (sessionsGameSummaryEl) sessionsGameSummaryEl.disabled = false;
+      }
+    });
+  }
+  if (sessionsGameSummaryEl) {
+    sessionsGameSummaryEl.addEventListener('input', () => updateGameSummaryEditState());
+  }
+  if (sessionsSaveSummaryEl) {
+    sessionsSaveSummaryEl.addEventListener('click', async () => {
+      const sessionId = String(sessionsSelectEl?.value || '').trim();
+      try {
+        await saveGameSummaryEdits(sessionId);
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} summary edits saved.`;
+      } catch (e) {
+        updateGameSummaryEditState(`Could not save summary: ${e.message}`);
+      }
+    });
+  }
+  if (sessionsDungeonShareCampaignEl) {
+    sessionsDungeonShareCampaignEl.addEventListener('change', () => {
+      if (currentDungeonShareLocalCampaignId) {
+        localStorage.setItem(
+          `dungeonShareCampaign:${currentDungeonShareLocalCampaignId}`,
+          String(sessionsDungeonShareCampaignEl.value || '')
+        );
+      }
+      updateGameSummaryEditState();
+    });
+  }
+  if (sessionsShareSummaryEl) {
+    sessionsShareSummaryEl.addEventListener('click', async () => {
+      const sessionId = String(sessionsSelectEl?.value || '').trim();
+      const campaignSlug = String(sessionsDungeonShareCampaignEl?.value || '').trim();
+      if (!sessionId || !campaignSlug || !gameSummaryText()) {
+        if (sessionsShareStatusEl) sessionsShareStatusEl.textContent = 'Select a session and Dungeon Share campaign, and make sure the summary is not empty.';
+        return;
+      }
+      summarySharePending = true;
+      updateGameSummaryEditState();
+      if (sessionsShareStatusEl) sessionsShareStatusEl.textContent = 'Sending summary to the Dungeon Share draft inboxâ€¦';
+      try {
+        if (gameSummaryText() !== handedOffGameSummary) {
+          await saveGameSummaryEdits(sessionId);
+        }
+        const res = await fetch('/api/dungeonshare/publish-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, campaignSlug })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        const verb = json.action === 'updated' ? 'updated' : 'sent';
+        if (sessionsShareStatusEl) sessionsShareStatusEl.textContent = `Summary ${verb}. Review it in the Dungeon Share draft inbox.`;
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} summary ${verb} to Dungeon Share.`;
+      } catch (e) {
+        if (sessionsShareStatusEl) sessionsShareStatusEl.textContent = `Could not send summary: ${e.message}`;
+      } finally {
+        summarySharePending = false;
+        updateGameSummaryEditState();
       }
     });
   }
@@ -4145,11 +4772,17 @@ async function postMetaOnce() {
         return;
       }
       if (reprocessStartPending) return;
+      const confirmed = window.confirm(
+        `Rebuild all derived DM notes and the game summary for ${sessionId}? ` +
+        'This replaces the current generated notes and summary from the saved transcript.'
+      );
+      if (!confirmed) return;
       try {
         reprocessStartPending = true;
         updateReprocessControls(currentReprocessStatus || {});
         if (sessionsInfoEl) sessionsInfoEl.textContent = `Starting rebuild for ${sessionId}...`;
-        if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = 'Rebuilding notes and summary...';
+        if (sessionsGameSummaryEl) sessionsGameSummaryEl.disabled = true;
+        updateGameSummaryEditState('Rebuilding DM notes and the game summary…');
         const partyOverride = sessionsPartyMetaEl?.value || '';
         const res = await fetch('/api/session/reprocess/start', {
           method: 'POST',
@@ -4166,8 +4799,9 @@ async function postMetaOnce() {
         startReprocessPolling(sessionId);
       } catch (e) {
         if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
-        if (sessionsGameSummaryEl) sessionsGameSummaryEl.textContent = `Error: ${e.message}`;
+        updateGameSummaryEditState(`Could not start rebuild: ${e.message}`);
       } finally {
+        if (sessionsGameSummaryEl) sessionsGameSummaryEl.disabled = false;
         reprocessStartPending = false;
         updateReprocessControls(currentReprocessStatus || {});
       }
@@ -4292,7 +4926,7 @@ async function postMetaOnce() {
 
   if (copySessionsGameSummaryEl) {
     copySessionsGameSummaryEl.addEventListener('click', () => {
-      copyTextToClipboard(sessionsGameSummaryEl?.textContent || '', 'game summary');
+      copyTextToClipboard(sessionsGameSummaryEl?.value || '', 'game summary');
     });
   }
   if (copySessionsGameNarrativeEl) {

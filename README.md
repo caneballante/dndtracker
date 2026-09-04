@@ -36,6 +36,7 @@ Optional:
 - `SUMMARY_MODEL`
 - `CLEAN_TRANSCRIPT_MODEL`
 - `NARRATIVE_MODEL`
+- `DND_UPLOAD_TOKEN` (only needed if deploying the legacy PHP uploader)
 
 Defaults are in `server.py`.
 
