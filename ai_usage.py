@@ -9,6 +9,7 @@ USAGE_FILENAME = "ai_usage.jsonl"
 KNOWN_STAGES = (
     "transcription",
     "live_notes",
+    "live_player_assistant",
     "notes_rebuild",
     "notes_lab",
     "clean_transcript",

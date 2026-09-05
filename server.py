@@ -8,6 +8,7 @@ import time
 import threading
 import uuid
 import hashlib
+import math
 import wave
 import http.client
 from functools import partial
@@ -23,6 +24,7 @@ if APP_DIR not in sys.path:
     sys.path.insert(0, APP_DIR)
 
 from ai_usage import estimate_cost, load_pricing_config, record_response_usage, summarize_usage
+import live_player_assistant
 from session_events import (
     apply_event_operation,
     apply_event_operations_batch,
@@ -1562,6 +1564,85 @@ def _reference_context_for_snapshot(
         "providers": providers,
         "sourceCatalog": catalog,
     }
+
+def _live_player_settings():
+    load_env_file(ENV_PATH)
+    enabled = str(os.environ.get("ENABLE_LIVE_PLAYER_ASSISTANT") or "").strip().lower() in {"1", "true", "yes", "on"}
+    try:
+        budget = float(os.environ.get("LIVE_PLAYER_ASSISTANT_SESSION_BUDGET_USD", "1.00"))
+    except ValueError:
+        raise ValueError("LIVE_PLAYER_ASSISTANT_SESSION_BUDGET_USD must be a dollar amount.") from None
+    if not math.isfinite(budget) or budget < 0:
+        raise ValueError("Live assistant session budget must be finite and nonnegative.")
+    return {"enabled": enabled, "budget": budget}
+
+
+def _live_player_reference_context(session_id):
+    # Read only: no fallback that creates/updates campaign or session metadata.
+    status = _read_session_status(session_id)
+    snapshot = status.get("contextSnapshot") or {}
+    campaign_id = str(status.get("campaignId") or snapshot.get("campaignId") or "")
+    if campaign_id:
+        campaign_id = _safe_campaign_id(campaign_id)
+        if not os.path.isfile(_campaign_path(campaign_id)):
+            raise ValueError("The session campaign is unavailable.")
+    context = _reference_context_for_snapshot(
+        {"campaignId": campaign_id}, arentoria_path=_arentoria_database_path(),
+        snapshot_provenance="live_player_identity_only",
+    )
+    if context["worldResolution"].get("errors"):
+        raise ValueError("Player-safe reference sources need attention.")
+    providers = context["providers"]
+    sources = sorted({p.source for p in providers if getattr(p, "authority_class", "") != "legacy"})
+    party = read_text(os.path.join(UPLOADS_DIR, session_id, "party.txt"), "")
+    players = [str(row.get("character") or "")[:100]
+               for row in _parse_party_meta_text(party)
+               if str(row.get("role") or "").lower() == "player"][:12]
+    orientation = {"playerCharacters": players}
+
+    def search(query, sources=None, entity_types=None, limit=5):
+        result = search_campaign_reference(
+            query, sources=sources, entity_types=entity_types, limit=limit,
+            providers=providers, campaign_id=campaign_id, world_id=context.get("worldId"),
+            visibility_mode="player_safe", include_legacy=False,
+        )
+        if result.get("providerErrors"):
+            raise ValueError("Player-safe reference lookup failed.")
+        # Do not return provenance, diagnostics, DM notes, or suppressed identities.
+        fields = ("canonicalName", "entityType", "shortDescriptor", "authorityClass", "match")
+        return {"resolution": result["resolution"], "results": [
+            {key: item[key] for key in fields if key in item}
+            for item in result["results"] if item.get("visibility") != "dm_only"
+        ]}
+
+    return orientation, search, sources
+
+
+def _request_live_player_model(payload):
+    key = _openai_api_key()
+    if not key:
+        raise ValueError("OpenAI is not configured.")
+    request = Request("https://api.openai.com/v1/responses",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"}, method="POST")
+    # One transport attempt only. Do not reuse the legacy retry wrapper.
+    try:
+        with urlopen(request, timeout=120) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except Exception:
+        raise RuntimeError("Player Companion model request failed. No retry was performed.") from None
+
+
+def player_missed(session_id, window_minutes=5, model_client=None):
+    session_id = safe_session_id(session_id)
+    settings = _live_player_settings()
+    return live_player_assistant.missed(
+        session_id, os.path.join(UPLOADS_DIR, session_id), window_minutes,
+        enabled=settings["enabled"], budget=settings["budget"], pricing_path=AI_PRICING_PATH,
+        model_client=model_client or _request_live_player_model,
+        reference_factory=lambda: _live_player_reference_context(session_id),
+    )
+
 
 def _notes_window() -> int:
     load_env_file(ENV_PATH)
@@ -6278,6 +6359,14 @@ class Handler(SimpleHTTPRequestHandler):
             return
 
         parsed = urlparse(self.path)
+        if parsed.path == "/api/session/player/status":
+            try:
+                settings = _live_player_settings()
+                self._send_json(200, {"ok": True, "enabled": settings["enabled"],
+                                     "sessionBudgetUsd": settings["budget"]})
+            except ValueError as exc:
+                self._send_json(400, {"ok": False, "error": str(exc)})
+            return
         if parsed.path == "/api/sessions/list":
             try:
                 qs = parse_qs(parsed.query)
@@ -6488,6 +6577,19 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+
+        if parsed.path == "/api/session/player/missed":
+            try:
+                data = json.loads(self._read_body().decode("utf-8"))
+                if not isinstance(data, dict) or set(data) - {"sessionId", "windowMinutes"}:
+                    raise ValueError("Supply only sessionId and windowMinutes.")
+                result = player_missed(data.get("sessionId") or "", data.get("windowMinutes", 5))
+                self._send_json(200, result)
+            except ValueError as exc:
+                self._send_json(400, {"ok": False, "error": str(exc)})
+            except Exception:
+                self._send_json(502, {"ok": False, "error": "PLAYER COMPANION NEEDS ATTENTION. No retry was performed."})
+            return
 
         if parsed.path == "/api/session/finalize":
             try:

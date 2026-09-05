@@ -111,6 +111,43 @@ World-aware bounded reference retrieval when enabled. The session History UI loa
 stores directly and uses an explicitly confirmed **Build/Rebuild Session Memory** action;
 it does not convert them into legacy Notes or regenerate a published recap.
 
+## Player Companion — What Did I Miss?
+
+Experimental, on-demand player assistance in Live Review and historical session detail.
+Enable explicitly with `ENABLE_LIVE_PLAYER_ASSISTANT=1` in your local `.env`, then restart
+through Quick Start. Disabled by default; no secret configuration is exposed in the UI.
+
+- Only pressing **WHAT DID I MISS?** requests a model answer. No polling summaries or retries.
+- Choose 2, 5 (default), or 10 minutes of completed transcript, anchored to its latest
+  completion timestamp. Whole chunks may include earlier speech; the panel shows the
+  transcript-through time and this timing limitation. Up to 90 seconds of separate
+  context-only lead-in can clarify pronouns, but is not part of the reported window.
+- `POST /api/session/player/missed` accepts only `sessionId` and `windowMinutes`.
+  Answers are concise, provisional, source-chunk-cited, and use player-safe references.
+  No full-session, full-canon, Session Memory, or campaign-history input is sent.
+- Uses `gpt-5.6-sol`, low reasoning: at most 2 model requests and 2 reference searches,
+  each returning at most 5 results. Oversized windows are refused before dispatch.
+- `LIVE_PLAYER_ASSISTANT_SESSION_BUDGET_USD` defaults to `1.00`. Estimated spending
+  persists in `ai_usage.jsonl` under `live_player_assistant`, separate from DM processing.
+  A conservative worst-case request reserve can block before the nominal cap is reached.
+  Missing pricing, uncertain charges, or an interrupted request block further billing
+  pending accounting review. Estimates depend on the local `ai_pricing.json` rates.
+- Identical evidence/window requests reuse `live_player_assistant.jsonl` for $0 new spend,
+  including after reload. Per-session concurrency protection prevents duplicate calls
+  within the normal single server process. Failed requests are not automatically retried.
+- Companion answers are replaceable assistance, not campaign history. Only the companion
+  audit and its usage records are written; Events, Highlights, legacy Notes, finalization,
+  recaps, handoff, and canon remain untouched and never consume companion answers.
+
+Offline verification: `python -m unittest discover -s tests -p 'test_*player*.py' -v`.
+The UI contract test uses Node with a fake DOM/fetch; no browser server or model is needed.
+
+Manual smoke test: enable the flag, restart, open a historical session, choose 5 MIN,
+and click the button. Check the answer, transcript-through time, and estimated cost.
+Click again for a cached answer with $0 new spend; switch to 10 MIN for a new bounded
+request. Confirm existing Events/Highlights are unchanged. At the next live recording,
+wait for completed transcript chunks and repeat; very recent speech may still be transcribing.
+
 ## Structured Session Events
 
 Structured events coexist with `notes.jsonl` and are changed only through the explicit

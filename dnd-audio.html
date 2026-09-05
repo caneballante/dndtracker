@@ -481,6 +481,7 @@
               </div>
 
               <div class="tab-pane fade" id="pane-live-review" role="tabpanel">
+                <div id="live-player-companion" class="section-card mb-3" data-player-companion="live"></div>
                 <div class="row g-3">
                   <div class="col-12 col-xl-8">
                     <div class="section-card h-100">
@@ -846,6 +847,8 @@
                       </section>
                     </div>
                   </div>
+
+                  <div id="history-player-companion" class="section-card" data-player-companion="history"></div>
 
                   <div class="section-card history-workflow">
                     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
@@ -4476,6 +4479,7 @@ async function postMetaOnce() {
 
   async function loadSessionDetail(sessionId) {
     if (!sessionId) return;
+    window.refreshPlayerCompanionPanels?.();
     try {
       if (sessionsInfoEl) sessionsInfoEl.textContent = `Loading ${sessionId}...`;
       const res = await fetch(`/api/sessions/get?sessionId=${encodeURIComponent(sessionId)}`);
@@ -5562,6 +5566,129 @@ async function postMetaOnce() {
   updateReprocessControls({});
   window.refreshSessionsForActiveCampaign = loadSessions;
   loadSessions();
+})();
+</script>
+
+<script>
+// PLAYER COMPANION P0: only a button click calls the billable endpoint.
+(() => {
+  let enabled = false;
+  let pending = false;
+  const panels = [];
+  const money = (value) => value == null ? 'unestimated' : `$${Number(value).toFixed(Number(value) > 0 && Number(value) < 0.01 ? 4 : 2)}`;
+  function selectedSession(mode) {
+    const raw = mode === 'live'
+      ? document.getElementById('sessionId')?.textContent
+      : document.getElementById('sessions-select')?.value;
+    return /^\d{8,20}$/.test(String(raw || '').trim()) ? String(raw).trim() : '';
+  }
+  function line(parent, tag, text, className = '') {
+    const el = document.createElement(tag);
+    el.textContent = text;
+    el.className = className;
+    parent.appendChild(el);
+    return el;
+  }
+  function refresh() {
+    panels.forEach((p) => {
+      p.button.disabled = !enabled || pending || !selectedSession(p.mode);
+      p.window.disabled = pending;
+      p.identity.textContent = selectedSession(p.mode)
+        ? `Session ${selectedSession(p.mode)}`
+        : (p.mode === 'live' ? 'Start a recording to use Player Companion here.' : 'Select a historical session.');
+    });
+  }
+  function renderAnswer(panel, json, sessionId) {
+    panel.answer.replaceChildren();
+    line(panel.answer, 'h3', 'What you missed', 'h6 mt-3');
+    line(panel.answer, 'div', `Session ${sessionId} · ${json.windowMinutes} minute window · Provisional`, 'small text-muted mb-2');
+    line(panel.answer, 'p', json.answer.summary);
+    const developments = json.answer.keyDevelopments || [];
+    if (developments.length) {
+      const list = line(panel.answer, 'ul', '');
+      developments.forEach((item) => line(list, 'li', item.text));
+    }
+    const people = json.answer.peopleMentioned || [];
+    if (people.length) {
+      line(panel.answer, 'h4', 'People', 'h6');
+      people.forEach((person) => line(panel.answer, 'div', `${person.name} — ${person.context}${person.confidence !== 'high' ? ` (${person.confidence} confidence)` : ''}`, 'small mb-1'));
+    }
+    (json.answer.uncertainties || []).forEach((text) => line(panel.answer, 'div', `Uncertain: ${text}`, 'small text-muted'));
+    if (json.evidence?.throughTimestamp) {
+      const through = new Date(json.evidence.throughTimestamp * 1000).toLocaleString();
+      line(panel.answer, 'div', `Based on transcript through ${through}`, 'small text-muted mt-3');
+      line(panel.answer, 'div', json.evidence.timingNote || '', 'small text-muted');
+      if (panel.mode === 'live') line(panel.answer, 'div', 'Recent speech may still be transcribing.', 'small text-muted');
+    }
+    line(panel.answer, 'div', `Cost: ${money(json.newSpend)} new spend · Live Assistant session spend: ${money(json.budget?.spent)} / ${money(json.budget?.limit)}${json.budget?.unestimated ? ' (some usage unestimated)' : ''}`, 'small mt-2');
+  }
+  async function requestMissed(panel) {
+    const sessionId = selectedSession(panel.mode);
+    if (pending || !enabled || !sessionId) return;
+    pending = true;
+    refresh();
+    panel.status.textContent = `Thinking about the last ${panel.window.value} minutes… Session ${sessionId}`;
+    try {
+      const response = await fetch('/api/session/player/missed', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, windowMinutes: Number(panel.window.value) })
+      });
+      const json = await response.json();
+      if (!response.ok || !json.ok) throw new Error(json.error || 'Request failed.');
+      if (json.state === 'complete') {
+        renderAnswer(panel, json, sessionId);
+        panel.status.textContent = json.cached ? 'No new transcript since this answer. $0 new spend.' : 'Caught up with the completed transcript.';
+      } else {
+        panel.status.textContent = `Session ${sessionId}: ${json.message || json.state}`;
+        if (json.budget) panel.status.textContent += ` Spent ${money(json.budget.spent)} / ${money(json.budget.limit)}.`;
+      }
+    } catch (error) {
+      panel.status.textContent = `PLAYER COMPANION NEEDS ATTENTION — Session ${sessionId}: ${error.message}`;
+      // Keep the previous successful answer, labelled with its own session/window.
+    } finally {
+      pending = false;
+      refresh();
+    }
+  }
+  document.querySelectorAll('[data-player-companion]').forEach((root) => {
+    line(root, 'div', 'Player Companion', 'soft-label mb-1');
+    line(root, 'div', 'What Did I Miss? — on demand, recent transcript only. Provisional help; does not change Session Memory.', 'small text-muted mb-2');
+    const identity = line(root, 'div', '', 'small text-muted mb-2');
+    const controls = line(root, 'div', '', 'd-flex flex-wrap gap-2 align-items-center');
+    const select = document.createElement('select');
+    select.className = 'form-select form-select-sm w-auto';
+    select.setAttribute('aria-label', 'Recent transcript window');
+    [2, 5, 10].forEach((minutes) => {
+      const option = line(select, 'option', `${minutes} MIN`);
+      option.value = String(minutes);
+      option.selected = minutes === 5;
+    });
+    controls.appendChild(select);
+    const button = line(controls, 'button', 'What Did I Miss?', 'btn btn-outline-primary btn-sm');
+    button.type = 'button';
+    button.disabled = true;
+    const status = line(root, 'div', 'Checking availability…', 'small text-muted mt-2');
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    const answer = line(root, 'div', '');
+    const panel = { mode: root.dataset.playerCompanion, window: select, button, status, answer, identity };
+    panels.push(panel);
+    button.addEventListener('click', () => requestMissed(panel));
+  });
+  window.refreshPlayerCompanionPanels = refresh;
+  document.getElementById('sessions-select')?.addEventListener('change', refresh);
+  const currentSession = document.getElementById('sessionId');
+  if (currentSession) new MutationObserver(refresh).observe(currentSession, { childList: true, characterData: true, subtree: true });
+  // Availability only; never a model request or periodic refresh.
+  fetch('/api/session/player/status').then((response) => response.json()).then((json) => {
+    enabled = json.ok && json.enabled === true;
+    panels.forEach((p) => { p.status.textContent = enabled
+      ? `Each press may use AI credit, up to ${money(json.sessionBudgetUsd)} per session. Identical evidence reuses the answer for free.`
+      : 'Experimental Player Companion is disabled in server configuration.'; });
+    refresh();
+  }).catch(() => {
+    panels.forEach((p) => { p.status.textContent = 'Player Companion availability could not be checked.'; });
+  });
 })();
 </script>
 
