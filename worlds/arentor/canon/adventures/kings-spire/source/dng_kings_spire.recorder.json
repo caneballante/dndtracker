@@ -1,0 +1,477 @@
+{
+  "export_type": "dm_recorder_context",
+  "exported_at": "2026-09-04T20:00:47.372Z",
+  "schema_version": "2.0",
+  "dungeon": {
+    "id": "dng_kings_spire",
+    "name": "Kings Spire",
+    "subtitle": "Sealed royal spire and Royal Path nexus",
+    "description": "",
+    "recommended_levels": {
+      "min": 3,
+      "max": 5
+    }
+  },
+  "rooms": [
+    {
+      "id": "rm_kings_entry_study",
+      "number": "1",
+      "short_name": "Entry Room and Study",
+      "run_this_room": {
+        "read_aloud": "*note: Geoff's character Visit is thrown out the window, hit's the blue magical barriers, is immediately electrified with magic and poof, dissappears.*\n\n# Room 1: The Royal Dining Room and Study\n\n## What the Party Sees\n\nCool air brushes past you as the black mirror ripples into stillness behind you. The room beyond is richly furnished but strangely intimate—a private retreat rather than a throne room.\n\nA dining table stands in the center of the room, set with silver dishes, crystal goblets, and candles whose flames have burned down but never gone out. Beneath it lies a deep-blue carpet embroidered with a great silver star.\n\nA massive black dog lies curled upon a worn cushion. As you enter, one dark eye opens. The animal stretches, gives an enormous yawn, and slowly raises its head.\n\nAgainst the wall stands an ornate silver writing desk. A sealed letter rests upon its polished surface, and a sunburst is worked into the front of its single locked drawer.\n\nThere is a window opposite the mirror you can see a sky and clouds that are oddly electric blue.\n\n---\n\n# Examining the Room\n\n## Looking out the window\n\nYou look out the window and notice that a blue energy field surrounds the tower about 10 feet from the outer wall. on the ground surrounding the tower is an encamped orc army. At the base of the tower the orcs seem to be trying to get through the magical shielding to enter the ground floor. \n\nCHECK\nroll a perception check DC 13 and you'll see flying dragon-like creatures with saddles and orcs preparing to mount them. \n\n---\n\n## The Dining Table\n\nThe table has been laid for a private meal between two people. Silver plates hold the preserved remains of bread, roasted vegetables, and sliced fruit. Two crystal goblets contain a dark red wine that still smells fresh.\n\nOne chair has been pushed back slightly, as though its occupant rose unexpectedly. A folded napkin lies beside the other plate.\n\nA character examining the place settings notices that both plates have been used. Whatever happened here occurred after the king and queen began their final meal.\n\n---\n\n## The Star-Loom Carpet\n\nThe carpet is woven from deep-blue wool, soft and almost completely untouched by age. An eight-pointed star spreads across it in fine silver thread.\n\nThe woven star gives off a faint vibration when touched.\n\nIf a character bearing an oath-mark steps onto the carpet, the silver threads blaze with blue light. The flash races across the floor, through the walls, and out beyond the windows.\n\nOutside, the blue nimbus surrounding the tower brightens noticeably.\n\n**DM Effect:** Begin the 30-minute countdown.\n\n---\n\n## The Black Dog\n\nThe dog is larger than any ordinary hound, with heavy shoulders, a broad head, and fur black enough to swallow the room’s candlelight. Despite its size, it does not initially appear aggressive.\n\nIt watches the party carefully, sniffs the air, and then looks expectantly toward the first person who approaches.\n\nThe first character to gently touch, feed, or reassure the dog becomes the object of its immediate loyalty. It rises, stretches, and follows close beside that character.\n\n### Guardian’s Loyalty\n\nWhile the dog is within 10 feet of the character it has bonded with, that character gains a **+1 bonus to AC**.\n\nThe dog answers to the name **Varney**, engraved on a small silver tag beneath its thick collar.\n\n---\n\n## The Silverwood Writing Desk\n\nThe desk is made from pale, metallic wood that reflects light like brushed silver. Its edges are carved with flowering branches, while a golden sunburst has been inlaid above the drawer.\n\nThe surface is pristine except for a few drops of hardened red sealing wax and faint scratches where a quill was pressed too firmly against the wood.\n\nThe drawer has no visible keyhole. Its sunburst briefly grows warm when touched.\n\nThe drawer opens automatically for anyone who has sworn an oath to Seralith or Aerlan. Otherwise, it can be opened with a **DC 13 Thieves’ Tools check**.\n\n---\n\n## Seralith’s Testament\n\nA folded sheet of heavy parchment rests openly upon the desk. It is sealed with dark blue wax bearing the impression of two crowns surrounded by an eight-pointed star.\n\nThe exterior bears a single line in an elegant but unsteady hand:\n\n**“Lest memory wither and truth be buried beneath ash.”**\n\nOpening it reveals the final testament of Queen Seralith, written shortly before the tower was sealed.\n\n---\n\n## Inside the Locked Drawer\n\nThe drawer slides open without a sound. Its interior is lined with dark-blue velvet and divided into fitted compartments.\n\nInside are:\n\n* A silver stamp and several sticks of royal signet wax.\n* Eight small blue crystal flasks, each containing a **Potion of Greater Healing**.\n* A neatly folded silk bag that is actually a **Bag of Holding**, capable of carrying up to 500 pounds.\n* A delicate silver tiara set with twelve small diamonds.\n\nNone of the objects show any tarnish, dust, or sign of age.\n\n---\n\n## The Wall Shrine\n\nA shallow niche in the wall contains a small silver statue of Queen Seralith. She is depicted in armor, holding a slender rapier upright before her like a ray of sunlight.\n\nA dish beneath the statue holds a curl of incense that still gives off a faint trace of myrrh and juniper.\n\nCarved beneath the figure are the words:\n\n**“Let truth be the first light.”**\n\nA character proficient in Religion recognizes the shrine as personal rather than ceremonial—something used for private prayer.\n\n---\n\n## The Spyglass\n\nA long brass-and-silver spyglass rests upon a tripod before one of the narrow windows. It has already been focused upon the mountainside below.\n\nLooking through it provides a clear view of the orc encampment. Fires burn between hide tents, wyverns shift upon crude wooden perches, and groups of orcs labor around the tower’s lower approaches.\n\nThe viewer can also see the blue barrier surrounding the spire shimmering wherever smoke or debris strikes it.\n\n---\n\n## The Signal Horn\n\nAn ornate horn hangs from a silver hook near the window. It is made from dark polished horn banded with gold, and small figures of armored guardians are engraved around its mouth.\n\nThe instrument produces no sound when blown casually.\n\nA character who succeeds on a **DC 15 Charisma (Performance) check** sounds a single clear note that rings throughout the tower.\n\nWhen the note is sounded, one of the tower’s ancient guardians awakens, marches onto the balcony, seizes an orc attacker, and carries it over the edge.\n\nAfterward, the guardian returns silently to its original position.\n\n---\n\n## The Black Mirror\n\nThe mirror through which the party arrived now appears perfectly black. Its surface occasionally trembles like water disturbed by a distant footstep.\n\nA **DC 12 Arcana or Religion check** reveals that the Royal Path is currently one-way. The mirror cannot return the party to their previous location.\n\nAnother keystone or linked portal must be activated elsewhere before a return journey becomes possible.\n",
+        "what_changes_reacts": "An oath-marked PC steps on the star-loom carpet: Blue light bursts through the room and window; start the 30-minute timer.\nDC 15 Performance check with the ornate signal horn: The guard comes to life, grabs one of the orcs, and walks off the edge of the balcony.",
+        "monster_behavior_notes": "mon_kings_guardian_dog: Friendly guardian; bonds with the first PC who touches it."
+      },
+      "checks_traps_loot": "",
+      "background_lore_notes": "",
+      "room_contents": {
+        "monsters": [
+          {
+            "id": "mon_kings_guardian_dog",
+            "count": 1,
+            "tactics": "Friendly guardian; bonds with the first PC who touches it."
+          }
+        ],
+        "npcs": [],
+        "loot": [
+          {
+            "id": "itm_seralith_testament",
+            "name": "Seralith's Testament",
+            "quantity": 1,
+            "where": "silverwood writing desk"
+          },
+          {
+            "id": "itm_greater_healing_blue_flask",
+            "name": "Blue Crystal Flask of Greater Healing",
+            "quantity": 8,
+            "where": "small blue crystal flasks"
+          },
+          {
+            "id": "itm_bag_of_holding_kings",
+            "name": "Silk Bag of Holding",
+            "quantity": 1,
+            "where": "neatly folded silk bag"
+          },
+          {
+            "id": "itm_silver_tiara_diamonds",
+            "name": "Silver Tiara with 12 Diamonds",
+            "quantity": 1,
+            "where": "entry room valuables"
+          },
+          {
+            "id": "itm_signal_horn_gold",
+            "name": "Ornate Signal Horn",
+            "quantity": 1,
+            "where": "hook in closets/smalls area"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rm_kings_balcony",
+      "number": "2",
+      "short_name": "Balcony Chamber",
+      "run_this_room": {
+        "read_aloud": "## Room 3: The Sky Courier Balcony\n\n### What the Party Sees\n\nThe door opens into a broad, high-ceilinged chamber filled with cold blue light. Across the far wall, floor-to-ceiling glass doors look out onto a narrow balcony and the clouds beyond. Hairline fractures run through several panes, each crack glowing faintly.\n\nA heavy table stands near the center of the room. Beside it, fifteen black-shafted ballista bolts rest horizontally in a wooden rack. Beyond the glass doors, a swivel-mounted ballista points toward the open sky, and an iron signal brazier stands near the balcony’s dangerously low stone railing.\n\nTwo elaborate flying saddles rest upon wooden stands near the wall. Above them hangs a vast tapestry showing armored griffon riders sweeping across a golden sky beneath the joined emblems of Seralith and Aerlan.\n\nOutside, flowering vines spill from large balcony planters and cascade over the edge, whipping violently in the mountain wind.\n\nThen a dark shape tears through the mist.\n\nA wyvern banks past the balcony, close enough that you see the strain in its wings. An orc in blackened robes is strapped into the saddle upon its back. Blue fire gathers between the rider’s hands before lancing into the barrier with a sound like a hammer striking an enormous glass bell.\n\nTwo more wyverns circle behind it.\n\nThe attack has already begun.\n\n---\n\n## Examining the Chamber\n\n### The Courier Table\n\nThe heavy table is scarred by buckles, metal tubes, wax seals, and hurriedly discarded equipment rather than by weapons.\n\nShallow grooves around its edges were designed to keep cylindrical message cases from rolling away. A few empty leather dispatch tubes remain upon it, each fitted with a waterproof brass cap.\n\nA narrow drawer contains:\n\n- Blank sheets of thin courier parchment.\n- Blue and gold sealing wax.\n- Several lengths of ribbon.\n- Spare buckles and harness clips.\n- A small knife intended for cutting seals and cord.\n\nNothing here is especially valuable, but the room’s former purpose is clear: arriving riders landed upon the balcony, dismounted, and placed their messages here for immediate examination.\n\n---\n\n### The Tapestry of the Skyguard\n\nThe enormous tapestry depicts twelve griffons flying in formation through a storm-darkened sky.\n\nTheir riders wear polished armor and long blue cloaks. Half bear Seralith’s rising-sun emblem, while the others carry Aerlan’s eight-pointed iron star. The two formations curve toward one another, creating the shape of a crown in the open sky.\n\nAt the center fly Seralith and Aerlan themselves.\n\nSeralith rides a pale-gold griffon with its wings fully spread. Aerlan rides a dark-feathered griffon carrying a broad shield beneath one foreleg. Neither ruler is positioned above the other; they fly side by side.\n\nA line embroidered along the lower edge reads:\n\n**“No road is closed to those who bear the light together.”**\n\nThe tapestry is not magical, though the wind from the balcony makes the griffons’ wings appear to move.\n\n---\n\n### The Flying Saddles\n\nTwo large saddles rest upon waist-high wooden stands.\n\nOne is made from pale leather with gold-colored fittings and a rising-sun design worked into the seat. The other is dark blue, reinforced with silver-grey metal and decorated with eight-pointed stars.\n\nBoth are built for griffons or similarly shaped flying creatures. They include:\n\n- Multiple safety straps.\n- A wide waist harness for the rider.\n- Loops for securing message cases.\n- A collapsible rain hood.\n- Quick-release buckles for emergency dismounts.\n- Smaller straps designed to secure a second passenger.\n\nThe saddles are exceptionally well made but heavy and awkward to carry. Neither is magical.\n\nA character proficient with Animal Handling or leatherworker’s tools can tell that they were designed with unusual concern for the rider’s safety. These were courier saddles, not cavalry saddles.\n\n---\n\n### The Ballista\n\nA compact ballista is mounted upon a heavy rotating base on the balcony. Its arms are made from layered dark wood banded in silver metal.\n\nThe weapon can turn almost completely around, though the glass doors prevent it from firing into the chamber unless the doors are opened or shattered.\n\n#### Ballista Attack\n\n**Ranged Weapon Attack:** +5 to hit, range 120/480 feet\n**Hit:** 11 (2d10) piercing damage\n\nThe ballista requires one action to aim and fire and one action to reload.\n\nA creature with **Strength 15 or higher** can crank and reload it alone. Otherwise, two creatures must work together, each using an action.\n\nThere are fifteen bolts in the rack inside the room.\n\n---\n\n### The Signal Brazier\n\nThe iron brazier stands upon three heavy legs near the balcony railing. A chain attached to its base allows it to be pulled farther onto the balcony or dragged back toward the glass doors.\n\nA covered brass container beneath it holds dry fuel, oil-soaked wood, and several bundles of strongly scented herbs.\n\nLighting the brazier produces a brilliant gold flame visible for miles through cloud and mist. The smoke smells sharply of cedar and juniper.\n\nThe brazier once signaled approaching royal couriers that the balcony was safe to land upon.\n\n#### Using the Brazier During Combat\n\nA character can use an action to overturn the burning brazier.\n\nCreatures in a 10-foot line must make a **DC 12 Dexterity saving throw**, taking **2d6 fire damage** on a failure or half as much on a success.\n\nThe spilled fuel continues burning for three rounds, creating difficult terrain.\n\nTwo sand buckets stand beside the brazier and can extinguish one burning 5-foot space each.\n\n---\n\n### The Glass Doors\n\nThick glass walls and doors  extend nearly from floor to ceiling separating the balcony from the room. Their silver frames remain strong, but several panes are cracked.\n\nEach glass panel has:\n\n**AC 13; 10 hit points; vulnerability to bludgeoning damage.**\n\nAn iron bar can be lowered across the doors from inside the chamber. Once barred, forcing the doors open requires a successful **DC 15 Strength (Athletics) check**.\n\nThe glass blocks creatures and ordinary projectiles but does not provide meaningful protection once shattered.\n\n---\n\n### The Balcony\n\nThe balcony is narrow and exposed. Its stone railing is barely one foot high—enough to mark the edge, but not enough to prevent a fall.\n\nWind and mist move unpredictably across it. A creature shoved toward the edge may make a **DC 12 Dexterity saving throw** to catch the railing or one of the hanging vines.\n\nOn a failure, the creature falls over the side.\n\nThe blue magical barrier lies several feet beyond the balcony. It normally prevents creatures, weapons, and spells from crossing in either direction.\n\n---\n\n### The Balcony Plants\n\nLarge stone planters stand at both ends of the balcony. Thick flowering vines pour over their edges and descend along the tower.\n\nThe vines are tough enough to support a Medium creature, although they sway violently in the wind.\n\nA creature falling from the balcony can attempt a **DC 13 Dexterity or Strength saving throw** to catch the vines before dropping beyond reach.\n\nThe vines can also be cut and used as improvised ropes, though doing so takes an action and produces approximately 20 feet of usable vine.\n\n---\n\n## The Balcony Siege\n\nThe encounter occurs in three stages:\n\n1. **The Siege-Wizards attack the barrier.**\n2. **Three orc brawlers board the balcony.**\n3. **A chained attack wyvern is released.**\n\nThe party cannot permanently save the barrier here. Their objective during the first stage is to delay the breach and weaken the forces that will attack them afterward.\n\n---\n\n## Stage One: The Barrier Assault\n\n### Opening Description\n\nThree wyverns circle outside the barrier at different heights. Each carries an orc war mage strapped into a reinforced saddle.\n\nThe riders wear black iron masks and layered robes stitched with crimson thread. \n\nAs each wyvern sweeps past the balcony, its rider hurls a twisting lance of red and violet energy into the barrier.\n\nThe first impact sends a ripple across the entire sky.\n\nThe second leaves a glowing fracture hanging in the air.\n\nThe third makes the tower tremble beneath your feet.\n\n---\n\n### The Siege Clock\n\nTrack **Breach Points**.\n\nEach war mage that spends its turn attacking the barrier adds **1 Breach Point**.\n\nAt **6 Breach Points**, a local section of the barrier outside the balcony tears open.\n\nThe breach occurs at the end of the round in which the sixth point is added.\n\nHowever, the larger orc force is attacking elsewhere around the tower. Even if the party drives off all three of these war mages, the local breach opens at the **end of Round 5**.\n\nThe players therefore cannot completely prevent the breach, but they can delay it and remove enemy spellcasters before the boarding attack.\n\n#### Likely Timing\n\n- Three active mages: breach during Round 2.\n- Two active mages: breach during Round 3.\n- One active mage: breach during Round 5.\n- No active mages: breach at the end of Round 5.\n\nA mage forced to retaliate against the party does not add a Breach Point that turn.\n\n---\n\n\n\n\n\n\n\nThe wyvern and rider are treated as one target during this stage. The party does not need to track their hit points separately.\n\n---\n\n### War-Mage Reactions\n\nA mage that loses at least one ward layer becomes aware of the party member responsible.\n\nOn its next turn, it attacks that character instead of the barrier.\n\n#### Cinder Bolt\n\n**Ranged Spell Attack:** +5 to hit, range 120 feet\n**Hit:** 7 (2d6) fire damage\n\nAfter making this attack, the mage returns to striking the barrier on subsequent turns unless attacked again.\n\nThis gives the party a way to slow the siege by drawing the war mages’ attention.\n\n---\n\n### Results of Stage One\n\nRecord how many war mages remain when the barrier opens.\n\nThose mages provide air support during Stage Two.\n\n- **Three remain:** Severe air support.\n- **Two remain:** Strong air support.\n- **One remains:** Limited air support.\n- **None remain:** No air support.\n\n---\n\n## The Breach\n\nWhen the barrier reaches 6 Breach Points—or at the end of Round 5—the local section outside the balcony fails.\n\n### Read Aloud\n\nAll three wyverns pull away at once.\n\nFor one heartbeat, the sky becomes silent.\n\nThen every glowing fracture outside the balcony races toward a single point. The blue barrier folds inward, stretching like a sheet of glass pressed by an enormous hand.\n\nWith a deafening crack, a section of the barrier tears open.\n\nThe rupture is no more than twenty feet across. Blue fire crawls around its edges, snapping and twisting as the tower’s magic tries to repair itself.\n\nA wyvern dives through.\n\nAn orc releases its harness, pushes away from the saddle, and drops toward the balcony with a greataxe raised overhead.\n\nTwo more follow behind it.\n\n---\n\n## Stage Two: The Orc Boarders\n\nThree heavily built orcs leap from passing wyverns and land upon the balcony.\n\nIf the glass doors are open, they immediately enter the chamber.\n\nIf the doors are closed, they attack the glass.\n\nIf the doors have been barred, the orcs must break through the panels or force the doors open.\n\n### Orc Sky-Brawler\n\n**Medium humanoid (orc)**\n\n**Armor Class:** 14\n**Hit Points:** 28\n**Speed:** 30 feet\n\n#### Traits\n\n**Aggressive.** As a bonus action, the brawler can move up to its speed toward an enemy it can see.\n\n**Relentless Endurance.** The first time the brawler is reduced to 0 hit points, it drops to 1 hit point instead.\n\n#### Actions\n\n**Greataxe.** Melee Weapon Attack: +5 to hit, reach 5 feet.\n**Hit:** 9 (1d12 + 3) slashing damage.\n\n**Shoulder Check.** Melee Weapon Attack: +5 to hit, reach 5 feet.\n**Hit:** 6 (1d6 + 3) bludgeoning damage, and the target must succeed on a **DC 13 Strength saving throw** or be pushed 5 feet.\n\nThe brawlers use Shoulder Check against characters standing near the balcony edge.\n\n---\n\n### War-Mage Air Support\n\nAt initiative count 20, each war mage that survived Stage One casts one spell through the breach.\n\n#### Siege Spark\n\n**Ranged Spell Attack:** +5 to hit, range 120 feet\n**Hit:** 5 (1d6 + 2) force damage\n\nThe mages prioritize characters operating the ballista, healing allies, or attacking from range.\n\nThey remain outside the barrier and can still be targeted by ranged attacks or the ballista. Their remaining ward layers and hit points carry over from Stage One.\n\nA mage reduced to 0 hit points is carried away by its wyvern.\n\n---\n\n### Using the Room During the Boarding Fight\n\nThe party can:\n\n- Bar the glass doors to delay the brawlers.\n- Shatter selected panels to create dangerous entry points.\n- Use the ballista against the war mages.\n- Overturn the signal brazier.\n- Push orcs over the balcony edge.\n- Use the table as half cover.\n- Tip the ammunition rack, creating difficult terrain from rolling ballista bolts.\n- Retreat through the interior door toward the kitchen.\n\nWhen all three brawlers are defeated, Stage Three begins.\n\n---\n\n## Stage Three: The Chained Wyvern\n\n### Read Aloud\n\nA roar rolls across the balcony—deeper and more furious than the cries of the circling mounts.\n\nAnother wyvern emerges from the cloudbank.\n\nThis one carries no rider.\n\nHeavy chains bind its jaws, neck, and wings to a crude iron frame beneath its body. Two smaller wyverns strain to tow it between them while orc handlers cling to the harness.\n\nThe creature twists violently, blood running where the chains have cut into its scales.\n\nOne of the handlers looks down at the fallen boarders.\n\nThen he raises an axe and severs the final restraint.\n\nThe chains fall away.\n\nThe wyvern opens its jaws and screams.\n\nThe towing mounts bank aside as the freed beast folds its wings and plunges directly toward the breach.\n\n---\n\n### Raging Attack Wyvern\n\n**Large dragon, unaligned**\n\n**Armor Class:** 14\n**Hit Points:** 55\n**Speed:** 20 feet, fly 60 feet\n\n#### Traits\n\n**Enraged.** The wyvern has advantage on saving throws against being frightened or charmed.\n\n**Trailing Chains.** Lengths of broken chain remain attached to the wyvern’s harness. A creature within 5 feet can use an action to attempt a **DC 14 Strength (Athletics) check** to secure one chain to the ballista base, a door frame, or another fixed object.\n\nIf two chains are successfully secured, the wyvern becomes **restrained**.\n\nOn its turn, it can use its action to attempt a **DC 15 Strength check**, breaking one secured chain on a success.\n\n**Abused Beast.** When reduced to 15 hit points or fewer, the wyvern attempts to escape through the breach unless prevented from doing so. It has no loyalty to the orcs once its handlers release it.\n\n#### Actions\n\n**Multiattack.** The wyvern makes one Bite attack and one Talon attack.\n\n**Bite.** Melee Weapon Attack: +5 to hit, reach 10 feet.\n**Hit:** 8 (1d10 + 3) piercing damage.\n\n**Talons.** Melee Weapon Attack: +5 to hit, reach 5 feet.\n**Hit:** 7 (1d8 + 3) slashing damage.\n\n**Stinger — Recharge 5–6.** Melee Weapon Attack: +5 to hit, reach 10 feet.\n**Hit:** 7 (1d8 + 3) piercing damage plus 7 (2d6) poison damage.\n\nThe target may make a **DC 13 Constitution saving throw**, taking half the poison damage on a success.\n\nThe wyvern uses its Stinger instead of Multiattack when available.\n\n---\n\n## Retreating to the Tree Sanctuary\n\nThe party is not required to kill the wyvern.\n\nThe kitchen doorway and the stairs beyond it are too narrow and sharply angled for the Large wyvern to enter. It can thrust its head through the doorway and snap at a creature immediately inside, but it cannot move farther into the kitchen.\n\nOnce the party reaches the ascending stairs, the wyvern cannot follow.\n\nThe breach in the barrier is local to the balcony. The rest of the tower remains sealed behind the blue nimbus.\n\nIf the party retreats:\n\n- The wyvern claws at the kitchen entrance but cannot pass.\n- Surviving war mages remain outside, attempting to stabilize or enlarge the balcony breach.\n- The party can continue upward to the tree sanctuary.\n- The encounter counts as survived, not lost.\n\nThe sounds of the wyvern’s rage follow them up the stairs, but fade as they enter the protected sanctuary.\n\n---\n\n## Ending the Encounter\n\nThe encounter can end in several ways.\n\n### The Party Kills or Drives Off the Wyvern\n\nThe remaining war mages retreat from the local breach. The damaged barrier begins slowly knitting itself together, though the glowing fracture remains visible.\n\nThe party can safely search the balcony and harvest the wyvern’s claws, teeth, venom, or broken harness.\n\n### The Party Restrains the Wyvern\n\nOnce restrained, the creature continues fighting until reduced to 15 hit points. It then stops attacking unless approached, panting and pulling fearfully against its chains.\n\nThe party may choose to kill it, release it through the breach, or leave it trapped.\n\n### The Party Retreats\n\nThe kitchen and stairs provide a defensible escape route. The wyvern cannot follow, and the barrier prevents enemies from entering through the tower’s other windows.\n\nThe balcony chamber is temporarily lost, but the rest of the upper spire remains protected.",
+        "what_changes_reacts": "At least 2 siege-wizards remain warded for 3 rounds: Barrier integrity drops one step.\nThe barrier loses 2 steps: A wyvern and rider can squeeze through next round.",
+        "monster_behavior_notes": "mon_kings_orc_wizard: Hover beyond the balcony under Triune Wards, battering the dome.\nmon_kings_young_wyvern: Arrives with a rider if the barrier loses 2 steps."
+      },
+      "checks_traps_loot": "",
+      "background_lore_notes": "",
+      "room_contents": {
+        "monsters": [
+          {
+            "id": "mon_kings_orc_wizard",
+            "count": 3,
+            "tactics": "Hover beyond the balcony under Triune Wards, battering the dome."
+          },
+          {
+            "id": "mon_kings_young_wyvern",
+            "count": 1,
+            "tactics": "Arrives with a rider if the barrier loses 2 steps."
+          }
+        ],
+        "npcs": [],
+        "loot": [
+          {
+            "id": "itm_thunderstone",
+            "name": "Thunderstone",
+            "quantity": 2,
+            "where": "gear chest"
+          },
+          {
+            "id": "itm_signal_flare",
+            "name": "Signal Flare",
+            "quantity": 20,
+            "where": "telescope crate"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rm_kings_bed_chamber",
+      "number": "3",
+      "short_name": "Bed Chamber",
+      "run_this_room": {
+        "read_aloud": "### Room 2: The Royal Bedchamber\n\n#### What the Party Sees\n\nThe door opens into a spacious bedchamber preserved in impossible stillness. Nothing is dusty, faded, or decayed. The air carries faint traces of lavender, cedar, and floral perfume, as though the room was tidied only yesterday.\n\n*In the center of the room is construct made of intricate wood and metal parts with a halberd strapped to its back. It's gleaming metal skin seems to be a fabric like a finely woven chain mail. Its head is completely bald, with single crystal embedded in his forehead. Varney immediately whines and paws at the construct. DC 12 to find what Varney is excited about. a small button under the left arm. around the button there's an inscription in tiny characters \"Esspray Otay Setray\". DC 13 to decipher.*\n\nA tall canopy bed occupies the inner wall, its deep-blue curtains embroidered with silver stars. On the right of the only window in the rooms hangs several elaborate gilded bird cages, all of them empty.\n\nIn front of the window stands a delicate silverwood makeup table with a cushioned chair and an oval mirror. Its polished surface is crowded with crystal bottles, porcelain jars, powders, brushes, and tiny silver tools.\n\nA broad armoire stands open nearby, revealing an extraordinary collection of gowns, coats, cloaks, doublets, and formal clothing in jewel-bright colors.\n\nTwo large portraits overlook the chamber. One depicts Queen Seralith in a pale-gold gown with a small bird perched upon her hand. The other shows King Aerlan in a dark-blue court coat, one hand resting on the head of a young black dog.\n\nEverything remains perfectly preserved, but the room feels lived in. A robe has been left draped across the back of a chair, one bed curtain is partly open, and a pair of embroidered slippers sits slightly askew beneath the makeup table.\n\n---\n\n### Examining the Room\n\n#### The Canopy Bed\n\nThe bed is broad enough for two people, built from dark polished wood carved with flowers, stars, and small climbing animals. Its canopy curtains and linens remain soft, clean, and richly colored.\n\nThe bed has been made, though imperfectly. One side of the coverlet is slightly rumpled, and two books rest beneath one of the pillows: a collection of court poetry and a dry historical account of border treaties.\n\nTouching the mattress produces an odd sensation of lingering warmth, as though someone had risen from it only moments before.\n\nThere is nothing dangerous hidden among the blankets or pillows.\n\n#### Varney’s Discovery\n\nAfter the party spends a little time in the chamber, Varney begins sniffing around the bed. He pushes his broad head beneath the frame, withdraws, and then begins scratching insistently at the floorboards.\n\nA character must crawl beneath the bed to see what has caught his attention.\n\nBuilt into the heavy wooden platform beneath the mattress is a rectangular metal door. It is almost invisible unless viewed from directly underneath. Three small keyholes are arranged across its face, each surrounded by a different engraved design:\n\n- A rising sun.\n- An eight-pointed star.\n- A flowering vine.\n\nEach lock must be opened separately with a successful **DC 18 Thieves’ Tools check**. Picking one lock does not open or weaken the others.\n\nThe compartment is actually a metal strongbox built into the wooden bedframe. The bed can be carefully dismantled or broken apart in approximately ten minutes, allowing the party to remove the entire box. Doing so does not open it; the three locks remain intact.\n\nThe removed strongbox weighs approximately 35 pounds.\n\n#### Inside the Strongbox\n\nWhen the party eventually opens all three locks, they discover a carefully wrapped portfolio of surprisingly risqué woodcut prints depicting rabbit-folk in romantic and increasingly compromising poses.\n\nThe prints are beautifully produced, signed by a celebrated but now-forgotten artist, and arranged into a numbered collection titled:\n\n**Moonlight in the Warrens: A Private Portfolio**\n\nTucked inside the cover is a short handwritten note:\n\n**“Aerlan—three locks seem excessive.”**\n\nBeneath it, in a different hand:\n\n**“And yet you found them.”**\n\nThe portfolio is embarrassing rather than sinister. It is also probably valuable to the right collector.\n\n---\n\n#### The Makeup Table\n\nThe makeup table is fashioned from pale silverwood, its legs carved into the shapes of flowering branches. An oval mirror rises from the back, surrounded by tiny golden stars.\n\nIts surface holds an extensive collection of royal cosmetics:\n\n- Porcelain jars of face powder.\n- Small pots of lip and cheek color.\n- Silver and blue eye pigments.\n- Perfumed oils.\n- Crystal bottles of skin tint.\n- Brushes made from impossibly soft white bristles.\n- Fine combs, pins, tweezers, and manicure tools.\n\nNone of it has dried out or spoiled.\n\n#### Enchanted Cosmetics\n\nWhen someone sits in the cushioned chair, the mirror gives a faint chime.\n\nThe bottles uncork themselves. Brushes rise into the air. Powder puffs, combs, and tiny silver tools begin circling the seated character as the mirror briefly displays a finished version of the ancient royal style.\n\nThe character has a moment to stand or refuse. Otherwise, the cosmetics begin applying themselves.\n\nThe process takes approximately one minute. Brushes dart gently across the face, combs arrange the hair, and tiny bottles tip themselves with remarkable precision. The enchantment adapts to any complexion, facial structure, ancestry, fur, scales, or other features.\n\nThe final effect is elaborate, flattering, and completely in keeping with court fashion from Seralith and Aerlan’s time:\n\n- Silver or gold accents around the eyes.\n- Carefully tinted lips and cheeks.\n- A tiny painted star or sunburst near one temple.\n- Perfumed and immaculately arranged hair, fur, or facial hair.\n\nThe cosmetics can be washed away normally and otherwise last for eight hours.\n\nThe jars and bottles may be taken. They remain self-applying, though the enchantment always produces this same archaic royal style.\n\n---\n\n#### The Armoire\n\nThe armoire contains an enormous collection of perfectly preserved formal clothing. The interior smells faintly of cedar, lavender, and expensive perfume.\n\nThere are no military uniforms, religious vestments, or royal tabards. These are entirely personal court clothes intended for dinners, celebrations, dances, and formal appearances.\n\nThe collection includes:\n\n- Heavily embroidered gowns in crimson, indigo, emerald, and gold.\n- Long court coats with exaggerated shoulders and bright silk linings.\n- Velvet doublets fastened with jeweled buttons.\n- Flowing cloaks edged in silver thread.\n- Brocade waistcoats.\n- Ruffled shirts and high collars.\n- Silk stockings, gloves, scarves, and shawls.\n- Decorated boots, slippers, and impractical formal shoes.\n- Elaborate hats, jeweled hairpieces, fans, and ornamental walking sticks.\n\nThere is enough variety that every member of the party can find something that fits reasonably well. Some garments subtly tighten or loosen when fastened, suggesting minor tailoring magic.\n\nThe clothes are magnificent, expensive, and several centuries out of fashion.\n\n#### Wearing the Clothes in Arentoria\n\nIn the tower, the outfits look regal and appropriate.\n\nIn modern Arentoria, they resemble elaborate historical costumes. The party will attract stares, and most citizens will assume they are performers, wealthy eccentrics, members of a pageant, or people attending an unusually committed masquerade.\n\nAnyone familiar with art or history may recognize the clothing as authentic royal-era fashion rather than modern reproductions.\n\n---\n\n#### The Bird Cages\n\nTwo ornate cages hang near the windows. Each is made from slender gilded bars, with tiny doors shaped like flowering arches.\n\nThe cages are empty, though their cups still contain perfectly preserved seed and clear water. Small brass nameplates identify their former occupants:\n\n- **Morningbell**\n- **Thistle**\n\nOpening one of the cage doors causes a brief shimmer of golden light.\n\nFor the next minute, translucent songbirds appear inside all three cages. They are not ghosts, but magical memories—bright, colorful impressions repeating familiar movements from long ago.\n\nMorningbell sings a clear, beautiful melody. Thistle hops between perches and flutters its wings. Minister stares suspiciously at whoever opened the cage.\n\nIf anyone whistles, sings, or speaks to them, Minister imitates a conversation it once overheard:\n\nIn Seralith’s voice:\n\n**“Aerlan, it has learned that expression from you.”**\n\nThen, in Aerlan’s voice:\n\n**“It most certainly has not.”**\n\nMinister pauses, fluffs its feathers, and adds in Aerlan’s voice:\n\n**“This meeting should have been a letter.”**\n\nThe three birds then dissolve into sparks of light.\n\nThe enchantment can be triggered again after one hour. The birds cannot leave their cages, be harmed, or provide information beyond their remembered songs and phrases.\n\n---\n\n#### The Portrait of Queen Seralith\n\nThe portrait shows Seralith seated beside an open window rather than standing in armor or royal regalia.\n\nShe wears a pale-gold gown with sleeves embroidered in tiny white flowers. One of the songbirds—likely Morningbell—perches upon her extended hand. Her expression is intelligent, composed, and faintly amused.\n\nA close inspection reveals a few informal details the painter chose not to hide:\n\n- One slipper is missing.\n- A book lies open and facedown beside her.\n- A faint streak of blue pigment remains near one eye, as though her makeup was unfinished.\n- Varney’s black tail is visible disappearing behind the chair.\n\nThis is clearly a private portrait rather than an official royal image.\n\n---\n\n#### The Portrait of King Aerlan\n\nAerlan is depicted without armor, wearing a dark-blue court coat embroidered with small silver constellations.\n\nHe stands beside the bed with one hand resting on the head of a young black dog. The dog is unmistakably Varney, though smaller and less heavily built.\n\nAerlan’s expression is solemn at first glance. Closer inspection reveals that the dog has one of the king’s gloves in its mouth, and Aerlan appears to be suppressing a smile.\n\nA small inscription on the frame reads:\n\n**“Steadfastness is not the same as solemnity.”**\n\nVarney recognizes the painting. He sniffs beneath it, looks up at the younger image of himself, and gives a quiet, puzzled whine.",
+        "what_changes_reacts": "After 10 minutes of exploration: Scratching begins beneath the bed; Varny exposes a loose flagstone.\nThe servant skeleton is disturbed: Its shadow rises as a Shadow (MM, CR 1/2).",
+        "monster_behavior_notes": "mon_kings_shadow: Optional; rises from the servant skeleton if disturbed."
+      },
+      "checks_traps_loot": "",
+      "background_lore_notes": "",
+      "room_contents": {
+        "monsters": [
+          {
+            "id": "mon_kings_shadow",
+            "count": 1,
+            "tactics": "Optional; rises from the servant skeleton if disturbed."
+          }
+        ],
+        "npcs": [],
+        "loot": [
+          {
+            "id": "itm_portal_glyph_key",
+            "name": "Portal Glyph-Key",
+            "quantity": 1,
+            "where": "hidden compartment beneath loose flagstone"
+          },
+          {
+            "id": "itm_vestment_or_tabard",
+            "name": "Vestment of Dawnfire / Tabard of the Iron Star",
+            "quantity": 1,
+            "where": "wardrobe of regal attire"
+          },
+          {
+            "id": "itm_noble_outfit",
+            "name": "Noble Outfit",
+            "quantity": 3,
+            "where": "wardrobe / chests"
+          },
+          {
+            "id": "itm_ornamental_dagger",
+            "name": "Ornamental Dagger with Demonic Runes",
+            "quantity": 1,
+            "where": "hidden compartment option"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rm_9kxgzyy",
+      "number": "4",
+      "short_name": "Kitchen",
+      "run_this_room": {
+        "read_aloud": "## Room 4: The Royal Kitchen\n\n## What the Party Sees\n\nThe doorway opens into a large, immaculate kitchen of pale stone, polished copper, and dark silverwood.\n\nA broad preparation table occupies the center of the room, its surface crowded with neatly arranged knives, bowls, and cutting boards. Covered dishes, fresh loaves, baskets of vegetables, and hanging bundles of herbs remain perfectly preserved, as though the cooks stepped away only moments ago.\n\nCopper pots and pans hang from a heavy rack above the table. Along one wall stand several enclosed ovens and a long cooking range. A large stockpot rests upon one of the burners, still giving off the faintest curl of steam.\n\nThree humanoid constructs stand motionless around the room.\n\nOne holds a carving knife over an unfinished roast. Another stands beside a basin with a copper pan in each hand. The third is frozen in the act of arranging pastries upon a silver tray. Their polished metal faces are simple and expressionless, and each wears a painted blue apron bearing the joined star and sun of Seralith and Aerlan.\n\nAt the far end of the kitchen, a stone staircase curves upward.\n\n---\n\n## Examining the Kitchen\n\n## The Kitchen Constructs\n\nThe three constructs are royal kitchen attendants, built to prepare meals, maintain the private chambers, and respond to emergencies.\n\nThey remain completely motionless if touched, spoken to, or moved. Each has a narrow horizontal line across its chest resembling a closed eye.\n\nEngraved beneath the line are the words:\n\n**“Awaiting the call to service.”**\n\nA tiny horn symbol appears beside the inscription.\n\n### The Emergency Horn Protocol\n\nIf the ornate royal signal horn is sounded within the kitchen or adjoining balcony chamber, all three constructs activate at once.\n\nTheir heads snap toward the balcony.\n\nThe carving construct raises its knife.\n\nThe washing construct strikes its pans together like shields.\n\nThe pastry construct quietly sets down its tray and removes two smaller kitchen knives from beneath its apron.\n\nIn perfectly synchronized voices, they announce:\n\n**“Emergency hospitality protocol initiated. Uninvited guests will be removed.”**\n\nThey immediately move toward the balcony and attack any invading orcs.\n\nThe constructs do not attack the party unless attacked first.\n\nOnce no hostile orcs remain in the balcony chamber, surviving constructs return to the kitchen and resume their interrupted tasks exactly where they left off.\n\n### Simple Kitchen Construct Statistics\n\n**Armor Class:** 15\n**Hit Points:** 18 each\n**Speed:** 30 feet\n\n**Kitchen Implement.** Melee Weapon Attack: +4 to hit, reach 5 feet.\n**Hit:** 5 (1d6 + 2) bludgeoning, piercing, or slashing damage, depending upon the implement.\n\nThe pan-wielding construct has **AC 17** while it holds both pans.\n\nThe constructs are primarily there to occupy enemies, absorb attacks, and give the party breathing room rather than win the battle by themselves.\n\n---\n\n## Geoff’s Fragmented Memory\n\nGeoff does not immediately remember the kitchen attendants or their activation command.\n\nAt the beginning of each of Geoff’s turns during the balcony battle, secretly roll a d6:\n\n- **First round:** Geoff remembers on a 6.\n- **Second round:** Geoff remembers on a 5–6.\n- **Third round:** Geoff remembers on a 4–6.\n- **Fourth round:** Geoff remembers automatically.\n\nBefore fully remembering, Geoff may offer incomplete fragments:\n\n**First failed roll:**\n“Emergency support was available in this wing. I think.”\n\n**Second failed roll:**\n“There was a sound involved. A bell? A chime? Possibly dinner.”\n\n**Third failed roll:**\n“Wait. Is there a horn around here? Did someone take a horn?”\n\nOnce he remembers, he recognizes the constructs as part of the tower’s emergency defense system.\n\n---\n\n## The Central Preparation Table\n\nThe central table is a heavy silverwood butcher’s block mounted on four small iron wheels. Normally, locking pins hold it firmly in place.\n\nA creature can use an action to release the pins.\n\nOnce released, the table can be pushed across the floor with a successful **DC 11 Strength check**.\n\n### Combat Uses\n\nThe table can be positioned across the doorway leading from the balcony chamber into the kitchen.\n\nWhen used as a barricade:\n\n- It provides **half cover** to creatures behind it.\n- A creature must succeed on a **DC 14 Strength check** to push past it.\n- The wyvern cannot move through the doorway while the table blocks it.\n\nThe table can also be shoved into a Medium creature within 10 feet.\n\nThe target must succeed on a **DC 12 Dexterity saving throw** or take **1d6 bludgeoning damage** and be pushed 5 feet.\n\n---\n\n## The Hanging Pot Rack\n\nA heavy iron rack hangs above the central table from a chain and locking hook. It holds dozens of copper pans, kettles, strainers, and cooking tools.\n\nA character who notices the release hook can use an action to pull it.\n\nThe rack crashes into a 10-foot-square area beneath it.\n\nCreatures in the area must make a **DC 13 Dexterity saving throw**.\n\nOn a failure, a creature takes **2d6 bludgeoning damage** and falls prone. On a success, it takes half damage and remains standing.\n\nAfterward, the fallen cookware turns the area into difficult terrain.\n\nThe rack can only be dropped once.\n\n---\n\n## The Ever-Hot Stockpot\n\nA large copper pot rests upon the cooking range. Beneath it, a small blue magical flame continues to burn without consuming fuel.\n\nThe pot contains a rich vegetable and herb broth that remains hot and fresh.\n\nA creature can use an action to lift or overturn the pot.\n\nCreatures in a 10-foot line must make a **DC 13 Dexterity saving throw**.\n\nOn a failure, a creature takes **2d6 fire damage**. On a success, it takes half as much.\n\nThe spilled broth makes the affected floor slippery for three rounds. A creature entering the area for the first time on a turn must succeed on a **DC 11 Dexterity saving throw** or fall prone.\n\nThe broth is otherwise safe to eat.\n\n---\n\n## The Long Roasting Hook\n\nA six-foot iron roasting hook hangs beside the ovens. It was designed for maneuvering large cuts of meat and removing heavy pans from the cooking range.\n\nIt can be wielded as an improvised polearm:\n\n**Melee Weapon Attack:** Strength modifier plus proficiency if proficient with martial weapons, reach 10 feet.\n**Hit:** 1d6 piercing damage.\n\n### Catching the Wyvern’s Chains\n\nIf the raging wyvern thrusts its head or forequarters through the kitchen doorway, a character wielding the hook has advantage on a check made to catch one of its trailing chains.\n\nThe character may use an action to make a **DC 12 Strength (Athletics) check**.\n\nOn a success, the chain can be wrapped around the preparation table, stair rail, or another fixed object. This counts as one secured chain for restraining the wyvern.\n\n---\n\n## Flour Sacks\n\nSeveral sealed sacks of flour are stacked beneath one counter.\n\nA creature can use an action to tear open and throw a sack into an adjacent 10-foot-square area.\n\nA cloud of white flour fills the space until the end of the creature’s next turn. The area is **heavily obscured**.\n\nA strong wind, such as the wind coming through the damaged balcony doors, disperses the cloud at the end of the current round.\n\nThe flour is not intended to explode.\n\n---\n\n## Pepper Crocks\n\nA shelf beside the cooking range holds large ceramic crocks of ground black pepper and stronger imported spices.\n\nA creature can use an action to throw a crock at a point within 20 feet.\n\nCreatures within 5 feet of that point must succeed on a **DC 12 Constitution saving throw** or be blinded until the end of their next turn as they cough, sneeze, and struggle to see.\n\nA creature that does not need to breathe has advantage on the saving throw.\n\n---\n\n## The Knife Rack\n\nFifteen kitchen knives and cleavers hang from a magnetic silver strip above the preparation counter.\n\nMost are ordinary but exceptionally well-made weapons.\n\nThey may be used as:\n\n- Daggers.\n- Improvised handaxes.\n- Thrown weapons with a normal range of 20 feet and a long range of 60 feet.\n\nRemoving a weapon from the rack requires no check.\n\nThe constructs choose their weapons from this rack when activated.\n\n---\n\n## Preserved Food\n\nThe kitchen’s food has remained untouched by age.\n\nThe party can find:\n\n- Fresh bread.\n- Hard and soft cheeses.\n- Preserved fruits that still taste freshly picked.\n- Roasted vegetables.\n- Covered meat dishes.\n- Small cakes decorated with blue and gold icing.\n- Bottles of wine and sparkling fruit cordial.\n- Dried travel rations packed in waxed cloth.\n\nThere is enough food here to provide approximately **twenty days of rations** for one person.\n\nA character who takes ten minutes to eat a proper meal here gains **1d4 temporary hit points**. A creature can benefit from this only once.\n\n---\n\n## The Staircase\n\nThe stone staircase rises in a tight curve toward the tree sanctuary above.\n\nIt is wide enough for humanoids but too narrow and sharply curved for the raging wyvern to climb.\n\nA heavy interior door stands at the bottom of the stairs. It can be closed and barred from the stair side.\n\nOnce barred, the door has:\n\n**AC 15; 25 hit points.**\n\nThe wyvern can claw and bite at the kitchen entrance, but it cannot reach creatures that retreat beyond the first turn of the staircase.\n\nThe blue barrier remains intact around the rest of the tower. Only the section outside the balcony has been breached.",
+        "what_changes_reacts": "",
+        "monster_behavior_notes": ""
+      },
+      "checks_traps_loot": "",
+      "background_lore_notes": "",
+      "room_contents": {
+        "monsters": [],
+        "npcs": [],
+        "loot": []
+      }
+    },
+    {
+      "id": "rm_kings_nexus",
+      "number": "5",
+      "short_name": "Nexus Chamber",
+      "run_this_room": {
+        "read_aloud": "# Nexus Chamber\n\n### Read Aloud\n\n“The air in this chamber is startlingly fresh, the light almost dazzling after the gloom of the other rooms. Tall arched windows line the outer wall, and the domed ceiling above is pierced with narrow panes of glass, sending sunbeams slanting into the room. At the very center rises a living tree, its roots breaking through the stone floor, its branches spreading up into the dome and brushing the windows with green and gold leaves. Amid the roots, half-hidden in their embrace, stands a great mirror of flawless black glass: the portal.”\n\n### Features\n\n**Windows & Dome:** The room is suffused with natural light. During day, it glows bright and warm; at night, the dome reveals the stars. The acoustics are gentle — the sound of voices seems hushed, as though the tree itself absorbs them.\n\n**The Tree:** Its trunk is broad, bark pale as bone, and its leaves shimmer faintly with gold. Roots weave across the flagstones, curling protectively around the base of the portal.\n\n**The Portal:** A circular mirror-like gateway, tall as a person, with faintly glowing glyphs around its rim. A DC 14 Arcana check reveals that the portal draws stability from the tree (life force anchoring magic).\n\n### Events / Interactions\n\n### The Tree’s Nature\n\n**Option A:** Silent Guardian (Non-sentient). The tree is purely visual, a remnant of druidic magic that grew through the stone. It symbolizes renewal, but doesn’t interact.\n\n**Option B:** Semi-Sentient. The tree reacts subtly — branches shift to let light fall on the party, leaves rustle with no breeze when danger is near. It doesn’t speak, but creatures attuned to nature or with high Wisdom may feel its “mood.”\n\n**Option C:** Awakened Guardian. The tree is fully sentient (use an Awakened Tree stat block, CR 2). It may test or question intruders before allowing them to use the portal, perhaps whispering in Old Common in a slow, leaf-rustling voice.\n\n**Portal Activation:** The portal can be opened by placing the glyph-key (possibly found in the bedchamber) into a root-formed socket at its base. If attempted without the key, the tree reacts:\n\nIf non-sentient, its roots surge defensively, grappling those who tamper.\n\nIf semi-sentient, it withdraws light, casting the chamber into gloom until the correct key is placed.\n\nIf sentient, it may question their worthiness (“Do you serve light…or flame?”).\n\n**Varny’s Role:** The dog may bark at the tree, then relax, suggesting it’s not hostile. If the players are wary, this can serve as reassurance.\n\n### Clues & Lore\n\n**Etched faintly into the bark at eye height:** “Life is the true path.”\n\nOne branch grows in the shape of an eight-pointed star (symbol of Seralith and Aerlan).\n\nDC 15 Nature check reveals the tree species doesn’t exist in this region — it’s something ancient and transplanted, perhaps from Seralith’s homeland.\n\n### Treasure\n\nA knot in the roots hides a Healing Fruit (consumed as a potion of healing).\n\n**Optional:** A Leaf of Renewal — if carried, once per long rest it allows a reroll of a failed saving throw against necrotic damage.",
+        "what_changes_reacts": "The glyph-key is placed in the root-formed socket: The portal opens.\nThe portal is tampered with without the key: The tree reacts according to the chosen option.",
+        "monster_behavior_notes": ""
+      },
+      "checks_traps_loot": "",
+      "background_lore_notes": "",
+      "room_contents": {
+        "monsters": [],
+        "npcs": [],
+        "loot": [
+          {
+            "id": "itm_healing_fruit",
+            "name": "Healing Fruit",
+            "quantity": 1,
+            "where": "knot in the roots"
+          },
+          {
+            "id": "itm_leaf_of_renewal",
+            "name": "Leaf of Renewal",
+            "quantity": 1,
+            "where": "optional treasure from the tree"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rm_kings_storage",
+      "number": "6",
+      "short_name": "Hidden Storage Room",
+      "run_this_room": {
+        "read_aloud": "# Hidden Storage Room (Council Castle)\n\n“You force your way through the suffocating pile of old carpets, hacking and tearing until a cloud of choking dust billows out around you. The portal on this side has toppled onto its back, half-buried under the weight of the fabric, and you have to climb awkwardly up and out of it, coughing as you go. The chamber you emerge into is pitch-dark, windowless, and thick with neglect. Rows of locked chests and dusty wine barrels line the walls, while a few ancient suits of armor stand sentinel in the gloom, their visors staring blindly through layers of cobweb. A single heavy door leads out. The air is so stale and thick that each breath feels like inhaling old parchment—make a DC 12 Constitution save or be seized with a racking fit of coughing.”\n\n### Atmosphere\n\nWindowless, stale air, dust choking from centuries of neglect. Thick carpets smother the toppled portal mirror, requiring effort to cut and climb through.\n\n### Events & Hazards\n\n**Dust Hazard:** When the carpets are disturbed, a choking cloud fills the chamber. Each creature must succeed on a DC 12 Constitution saving throw or spend their first round here coughing violently (disadvantage on attack rolls & ability checks until the start of their next turn).\n\n**Awkward Exit:** The portal mirror has fallen flat on its back. PCs must climb out of it (DC 10 Athletics check, advantage if assisted). Failure = they’re delayed, still struggling inside the carpet pile.\n\n### Features\n\n**Carpets:** Dozens of layered, moth-eaten rugs piled atop the mirror. Some are valuable if cleaned (25 gp each, but they weigh 30–40 lbs apiece).\n\n**Locked Chests:** 1d4+1 sturdy chests, iron-banded. Locks require DC 14 Thieves’ Tools or force to break (AC 15, 15 hp each). Contents could include mundane supplies (grain, salt, wine), or mix in 1–2 rare items (scrolls, jewelry, sealed Council records).\n\n**Wine Barrels:** Most soured, but one cask remains intact, its seal marked with Seralith’s crest. Could be worth 50 gp to a collector.\n\n**Suits of Armor:** Four full suits, standing against the wall. They are inert, but their looming presence in the dust-heavy gloom might spook cautious players.\n\n### Treasure (Optional)\n\n2–3 noble outfits in a chest (25 gp each).\n\nCouncil records signed by Seralith (worthless in coin but priceless lore).\n\n50 gp of loose coin in tarnished silver.\n\n### Complication\n\nThis is a forbidden storeroom — sealed since Seralith’s time. If the PCs leave it obviously disturbed (dust gone, carpets hacked up, chests broken), guards or officials might investigate. Explaining their sudden presence inside could be difficult, especially if they wish to keep the portal a secret.\n> Source note: decide whether to seed a dangerous hook here, such as one suit of armor becoming animated if the PCs linger, or keep the room non-combat so the tension is social once they step out.",
+        "what_changes_reacts": "The carpets are disturbed: Dust cloud triggers DC 12 Constitution saves.\nPCs leave obvious disturbance: Guards or officials may investigate the forbidden storeroom.",
+        "monster_behavior_notes": ""
+      },
+      "checks_traps_loot": "",
+      "background_lore_notes": "",
+      "room_contents": {
+        "monsters": [],
+        "npcs": [],
+        "loot": [
+          {
+            "id": "itm_noble_outfit",
+            "name": "Noble Outfit",
+            "quantity": 3,
+            "where": "chest"
+          },
+          {
+            "id": "itm_council_records",
+            "name": "Council Records Signed by Seralith",
+            "quantity": 1,
+            "where": "locked chests"
+          },
+          {
+            "id": "itm_tarnished_silver_50gp",
+            "name": "50 gp in Tarnished Silver",
+            "quantity": 1,
+            "where": "loose coin"
+          },
+          {
+            "id": "itm_seralith_wine_cask",
+            "name": "Cask Marked with Seralith's Crest",
+            "quantity": 1,
+            "where": "wine barrels"
+          }
+        ]
+      }
+    }
+  ],
+  "monsters": [
+    {
+      "id": "mon_ghoul",
+      "name": "Ghoul",
+      "source": "Homebrew (Fort Aelwind)",
+      "size": "Medium",
+      "creature_type": "humanoid",
+      "alignment": "unaligned",
+      "cr": "1/4",
+      "monster_stats": ""
+    },
+    {
+      "id": "mon_zombie",
+      "name": "Zombie",
+      "source": "Homebrew (Fort Aelwind)",
+      "size": "Medium",
+      "creature_type": "humanoid",
+      "alignment": "unaligned",
+      "cr": "1/4",
+      "monster_stats": ""
+    },
+    {
+      "id": "mon_skeleton",
+      "name": "Skeleton",
+      "source": "Homebrew (Fort Aelwind)",
+      "size": "Medium",
+      "creature_type": "humanoid",
+      "alignment": "unaligned",
+      "cr": "1/4",
+      "monster_stats": ""
+    },
+    {
+      "id": "mon_wight",
+      "name": "Wight",
+      "source": "Homebrew (Fort Aelwind)",
+      "size": "Medium",
+      "creature_type": "humanoid",
+      "alignment": "unaligned",
+      "cr": "1/4",
+      "monster_stats": ""
+    },
+    {
+      "id": "mon_kruthik",
+      "name": "Kruthik",
+      "source": "Homebrew (Fort Aelwind)",
+      "size": "Medium",
+      "creature_type": "humanoid",
+      "alignment": "unaligned",
+      "cr": "1/4",
+      "monster_stats": "Perfect. Five players vs. ten hatchlings is a *swarm pressure fight* — lots of motion, lots of flanking, lots of “oh no they’re everywhere.”\n\nWe’ll tune these so:\n\n* Individually weak\n* Dangerous in numbers\n* Fast\n* Annoying\n* But not a grind\n\nThis assumes level 3–4 party. If different, tell me.\n\n---\n\n# Kruthic Hatchling\n\n*Small monstrosity, unaligned*\n\n---\n\n**Armor Class** 15 (natural armor)\n**Hit Points** 18 (4d6 + 4)\n**Speed** 30 ft., burrow 10 ft., climb 20 ft.\n\n---\n\n**STR** 12 (+1)\n**DEX** 14 (+2)\n**CON** 12 (+1)\n**INT** 2 (–4)\n**WIS** 10 (+0)\n**CHA** 5 (–3)\n\n---\n\n**Skills** Perception +2\n**Senses** darkvision 60 ft., tremorsense 30 ft., passive Perception 12\n**Languages** —\n**Challenge** 1/2 (100 XP)\n\n---\n\n## Traits\n\n**Pack Tactics.** The hatchling has advantage on an attack roll against a creature if at least one of the hatchling’s allies is within 5 feet of the creature and the ally isn’t incapacitated.\n\n**Scuttle.** The hatchling can move through the space of any creature that is Medium or larger.\n\n**Burrowing Ambush.** If the hatchling emerges from burrow on the same turn it attacks, it has advantage on its first attack that turn.\n\n---\n\n## Actions\n\n**Bite.**\n*Melee Weapon Attack:* +4 to hit, reach 5 ft., one target.\nHit: 6 (1d8 + 2) piercing damage.\n\nIf two or more hatchlings are within 5 feet of the same target, the target must succeed on a DC 12 Strength saving throw or be knocked prone.\n\n---\n\n# Why This Works\n\nTen of these:\n\n* Total encounter XP: 1,000 base\n* With 10 monsters → x2.5 multiplier\n* Effective XP: 2,500\n\nThat’s a **hard-to-deadly encounter** for five level-3s.\nVery manageable for level-4s.\n\nThe real danger comes from:\n\n* Advantage spam (Pack Tactics)\n* Prone lockdown\n* Tremorsense (no hiding)\n* Climb + burrow = chaos\n\n---\n\nIf you want it scarier:\n\n* Give them 22 HP\n* Or add one **Kruthic Young (CR 2)** leader\n\nIf you want cinematic:\nHave 3 burst from the walls on round 1, 3 from the ceiling round 2, 4 from floor cracks round 3.\n\n\n"
+    },
+    {
+      "id": "mon_faery_mold_v2_0001",
+      "name": "Faery Mold",
+      "source": "Homebrew",
+      "size": "Large",
+      "creature_type": "Plant",
+      "alignment": "Unaligned",
+      "cr": "4",
+      "monster_stats": "**Faery Mold**\n*Large plant, unaligned*\n\n---\n\n**Armor Class** 12\n**Hit Points** 80 (10d10 + 20)\n**Speed** 5 ft.\n\n---\n\n**STR** 8 (–1)\n**DEX** 6 (–2)\n**CON** 16 (+3)\n**INT** 1 (–5)\n**WIS** 12 (+1)\n**CHA** 14 (+2)\n\n---\n\n**Damage Resistances** bludgeoning, piercing, and slashing from nonmagical attacks\n**Damage Immunities** poison\n**Damage Vulnerabilities** fire, acid\n**Condition Immunities** frightened, prone\n**Senses** blindsight 30 ft. (heat and vibration), passive Perception 11\n**Languages** —\n**Challenge** 4 (1,100 XP)\n\n---\n\n### Traits\n\n**Slow Creep.** The mold cannot Dash. Outside combat, it creeps 5 feet every 10 minutes toward the nearest source of heat or movement.\n\n**Feeding Bloom.** Whenever Faery Mold deals damage with Spore Bloom, it regains hit points equal to half the total damage dealt (rounded down).\n\n**Devotional Convergence.** If two or more creatures are Devoted at the same time, Faery Mold has advantage on its Spore Bloom recharge roll.\nIf three or more creatures are Devoted, Spore Bloom’s radius increases to 20 feet.\nIf four creatures are Devoted, the mold regains an additional 5 hit points whenever it feeds.\n\n---\n\n### Actions\n\n**Spore Bloom (Recharge 5–6).**\nThe mold releases a burst of shimmering spores in a 15-foot radius centered on itself (20 feet if three or more creatures are Devoted).\n\nCreatures in the area must make a DC 13 Constitution saving throw, taking **2d6 poison damage** on a failed save, or half as much damage on a success.\n\nA creature that fails the save is also afflicted with **Devoted (Faery Spores)**.\n\nAfter dealing damage, the mold regains hit points equal to half the total damage dealt (rounded down).\n\n---\n\n### Devoted (Faery Spores)\n\nA Devoted creature is **poisoned** and **charmed** by the mold. Its speed becomes 0 and it is **incapacitated**. On its turn, it uses its action to kneel, drop prone, or gently touch the mold, whispering about warmth, light, or beauty.\n\nAt the end of each of its turns, the creature can repeat the DC 13 Constitution saving throw, ending the effect on a success. If it fails the save by 5 or more, it cannot attempt another save on its next turn.\n\nThe effect ends early if the creature:\n\n* Receives *cure wounds*\n* Receives *lesser restoration*\n* Is affected by any poison-curing effect\n* Takes 5 or more fire damage\n\n---\n\n### Behavior\n\nThe mold is nonlethal and never pursues fleeing creatures far beyond its territory. It vents spores when targets cluster, feeds to prolong the fight, and slowly relocates outside combat to block narrow passages or doorways.\n"
+    },
+    {
+      "id": "mon_oathbound_commander_0001",
+      "name": "Oath-Bound Commander",
+      "source": "Homebrew (Fort Aelwind)",
+      "size": "Medium",
+      "creature_type": "Undead",
+      "alignment": "Lawful Neutral",
+      "cr": "3",
+      "monster_stats": "**Oath-Bound Commander**\n*Medium undead, lawful neutral*\n\n---\n\n**Armor Class** 17\n**Hit Points** 120 (10d8 + 30)\n**Speed** 30 ft.\n\n---\n\n**STR** 16 (+3)\n**DEX** 12 (+1)\n**CON** 16 (+3)\n**INT** 12 (+1)\n**WIS** 14 (+2)\n**CHA** 14 (+2)\n\n---\n\n**Senses** darkvision 60 ft., passive Perception 12\n**Languages** Common, Old Common\n**Challenge** 3 (700 XP)\n\n---\n\n## Traits\n\n**Aura of Authority.** Creatures that start their turn within 10 feet of the commander must succeed on a DC 14 Wisdom saving throw or take a −2 penalty to attack rolls until the start of their next turn.\n\n**Unyielding Posture.** The commander cannot be knocked prone.\n\n**No Quarter Given (Nonlethal Doctrine).** When the commander reduces a creature to 0 hit points, that creature becomes stable but unconscious. The commander does not kill unless the party repeatedly attempts to destroy records or breach restricted doors.\n\n---\n\n## Actions\n\n**Multiattack.** The commander makes two attacks with his longsword.\n\n**Longsword.** *Melee Weapon Attack:* +6 to hit, reach 5 ft., one target.\nHit: 8 (1d8 + 4) slashing damage.\n\n**Commanding Word (Recharge 5–6).**\nOne creature the commander can see within 30 feet must succeed on a DC 14 Wisdom saving throw or become **Restrained by Authority**.\n\nOn a successful save, the creature is unaffected.\n\n**Mass Discipline (Recharge 5–6).**\nCreatures of the commander’s choice within 20 feet must succeed on a DC 14 Wisdom saving throw or fall prone as spectral force compels them to kneel.\n\nOn a successful save, a creature keeps its footing.\n\n---\n\n## Special Condition\n\n**Restrained by Authority** *(cond_oathbound_restrained_0001)*\n\nThe target is **paralyzed** and **incapacitated**.\n\nIts muscles lock; it cannot move or speak above a whisper. On his turn, the commander may drag the restrained creature up to 10 feet without provoking opportunity attacks.\n\nThe creature may repeat the saving throw at the end of each of its turns, ending the effect on a success.\n\n---\n\n## Behavior\n\n**Intent:** Neutral\n\n**Finishing Move:** If reduced below 15 HP, the commander salutes and says,\n“Ledger… balanced.”\nHe then collapses into dust and scraps of uniform.\n\n**Priorities:**\n\n* Restrain intruders\n* Prevent access to doors and records\n* Return to his desk and resume “work” if the room falls quiet\n\n---\n\n## DM Notes\n\n**Roleplay:** Calm, clipped, bureaucratic.\nFrequently repeats:\n\n* “Disturbances will not be tolerated.”\n* “The troops must be paid.”\n* “You are out of order.”\n\n**Tactics:**\nRound 1 uses **Commanding Word** on the most aggressive PC.\nUses **longsword** to punish those who approach the desk or restricted doors.\nUses **Mass Discipline** if the party clusters or attempts to rush past.\n\nFocuses on control over damage.\n"
+    },
+    {
+      "id": "mn_oathbound_sentinel_0001",
+      "name": "Oath-Bound Sentinel",
+      "source": "[object Object]",
+      "size": "Medium",
+      "creature_type": "Construct (Automaton)",
+      "alignment": "Lawful Neutral",
+      "cr": "4",
+      "monster_stats": ""
+    },
+    {
+      "id": "mon_8mklk9g",
+      "name": "Orc Soldier: Balcony",
+      "source": "",
+      "size": "",
+      "creature_type": "",
+      "alignment": "",
+      "cr": "",
+      "monster_stats": "# Orc Soldier of the Ashen Flame\n\n*Medium humanoid (orc), chaotic evil*\n\nThese orcs are sworn servants of **Ghurzag the Flame-Touched**. Their armor is smeared with soot and marked with the symbol of a **burning eye over crossed bones**. In battle they chant fragments of the Flame-Touched war prayer, believing that death in fire will earn them a place in the demon’s reborn empire.\n\n**Armor Class** 14 (reinforced hide armor)\n**Hit Points** 45 (6d8 + 18)\n**Speed** 30 ft.\n\n**STR** 17 (+3) **DEX** 12 (+1) **CON** 16 (+3) **INT** 8 (−1) **WIS** 11 (+0) **CHA** 11 (+0)\n\n**Skills** Intimidation +2, Athletics +5\n**Senses** darkvision 60 ft., passive Perception 10\n**Languages** Common, Orc\n**Challenge** ~3\n**Proficiency Bonus** +2\n\n### Traits\n\n**Aggressive.** As a bonus action, the orc can move up to its speed toward a hostile creature it can see.\n\n**Flame-Touched Zeal.** The first time the orc is reduced below half its hit points, it gains advantage on its next attack roll and deals an extra 1d6 fire damage on that attack.\n\n### Actions\n\n**Multiattack.** The orc makes two greataxe attacks.\n\n**Greataxe.** *Melee Weapon Attack:* +5 to hit, reach 5 ft., one target.\nHit: 10 (1d12 + 4) slashing damage.\n\n**Javelin.** *Melee or Ranged Weapon Attack:* +5 to hit, reach 5 ft. or range 30/120 ft., one target.\nHit: 7 (1d6 + 4) piercing damage.\n\n"
+    },
+    {
+      "id": "mon_v2txhrn",
+      "name": "Orc Sargeant",
+      "source": "",
+      "size": "",
+      "creature_type": "",
+      "alignment": "",
+      "cr": "",
+      "monster_stats": "---\n\n# Grath Blood-Banner, Sergeant of Ghurzag\n\n*Medium humanoid (orc), chaotic evil*\n\nGrath carries a ragged banner stitched from burned cloth and bone charms. He believes Ghurzag has chosen him to witness the demon’s return and speaks constantly of “the crown of flame.” His warriors fear him almost as much as they worship him.\n\n**Armor Class** 16 (chain shirt, shield)\n**Hit Points** 68 (8d8 + 32)\n**Speed** 30 ft.\n\n**STR** 18 (+4) **DEX** 12 (+1) **CON** 18 (+4) **INT** 9 (−1) **WIS** 12 (+1) **CHA** 14 (+2)\n\n**Saving Throws** Con +7\n**Skills** Athletics +7, Intimidation +5\n**Senses** darkvision 60 ft., passive Perception 11\n**Languages** Common, Orc\n**Challenge** ~5\n**Proficiency Bonus** +3\n\n### Traits\n\n**Aggressive.** As a bonus action, Grath moves up to his speed toward a hostile creature he can see.\n\n**War Cry of the Crownless Flame (Recharge 5–6).**\nGrath bellows the chant of Ghurzag. Up to three allied orcs within 30 ft. gain advantage on their next attack roll and deal an extra **1d6 fire damage** if they hit.\n\n### Actions\n\n**Multiattack.** Grath makes two greataxe attacks.\n\n**Greataxe.** *Melee Weapon Attack:* +7 to hit, reach 5 ft., one target.\nHit: 11 (1d12 + 5) slashing damage.\n\n**Throwing Spear.** *Melee or Ranged Weapon Attack:* +7 to hit, reach 5 ft. or range 30/120 ft., one target.\nHit: 8 (1d6 + 5) piercing damage.\n\n### Bonus Actions\n\n**Command the Flame.** One allied orc within 30 ft. may move up to half its speed without provoking opportunity attacks.\n\n\n\n\n\n"
+    },
+    {
+      "id": "mon_e8iqoxy",
+      "name": "Orc War Mage: Balcony",
+      "source": "",
+      "size": "",
+      "creature_type": "",
+      "alignment": "",
+      "cr": "",
+      "monster_stats": "---\n\n# Skarza Ember-Seer, War-Mage of Ghurzag\n\n*Medium humanoid (orc), chaotic evil*\n\nSkarza is a gaunt orc mystic whose flesh bears glowing infernal sigils burned into his skin during visions from the Crimson Star. He believes the demon whispers to him directly and often pauses mid-battle to listen for its guidance.\n\n**Armor Class** 13 (hide armor)\n**Hit Points** 52 (8d8 + 16)\n**Speed** 30 ft.\n\n**STR** 10 (+0) **DEX** 13 (+1) **CON** 14 (+2) **INT** 15 (+2) **WIS** 12 (+1) **CHA** 13 (+1)\n\n**Saving Throws** Int +5\n**Skills** Arcana +5, Religion +5\n**Senses** darkvision 60 ft., passive Perception 11\n**Languages** Common, Orc, Abyssal\n**Challenge** ~5\n**Proficiency Bonus** +3\n\n### Spellcasting\n\nSkarza is a **6th-level spellcaster**. His spellcasting ability is Intelligence (spell save **DC 13**, +5 to hit with spell attacks).\n\n**Cantrips (at will):**\n*fire bolt, mage hand, minor illusion*\n\n**1st level (4 slots):**\n*magic missile, shield, burning hands*\n\n**2nd level (3 slots):**\n*knock, scorching ray, mirror image*\n\n**3rd level (3 slots):**\n*fireball, counterspell*\n\n### Traits\n\n**Voice of the Demon.** Once per turn when Skarza deals fire damage with a spell, he may deal an additional **1d6 fire damage** to one target hit by the spell.\n\n### Actions\n\n**Dagger.** *Melee or Ranged Weapon Attack:* +4 to hit, reach 5 ft. or range 20/60 ft., one target.\nHit: 4 (1d4 + 2) piercing damage.\n\n---"
+    },
+    {
+      "id": "mon_kings_guardian_dog",
+      "name": "Varny, Guardian Dog",
+      "source": "Homebrew (Kings Spire)",
+      "size": "Large",
+      "creature_type": "Beast",
+      "alignment": "Unaligned",
+      "cr": "1",
+      "monster_stats": "# Varny, Guardian Dog\n\n- What looks like a massive white dog lies on cushioned bed.\n\n**Armor Class:** 13 (hide)\n\n**Hit Points:** 34 (4d10 + 12)\n\n**Speed:** 40 ft.\n\nSTR 16 (+3) DEX 14 (+2) CON 14 (+2) INT 3 (–4) WIS 12 (+1) CHA 7 (–2)\n\n**Proficiency Bonus:** +2\n\n**Skills:** Perception +5, Survival +3\n\n**Senses:** darkvision 60 ft., passive Perception 15\n\n### Traits\n\n**Guardian’s Loyalty.** The dog bonds with one party member. While within 10 feet of that creature, they gain +1 to AC.\n\n**Keen Hearing and Smell.** The dog has advantage on Wisdom (Perception) checks that rely on hearing or smell.\n\n### Actions\n\n**Bite. Melee Weapon Attack:** +4 to hit, reach 5 ft., one target. Hit: 9 (2d6 + 3) piercing damage. Target must succeed on a DC 12 Strength save or be knocked prone."
+    },
+    {
+      "id": "mon_kings_orc",
+      "name": "Orc",
+      "source": "Homebrew (Kings Spire)",
+      "size": "Medium",
+      "creature_type": "Humanoid (Orc)",
+      "alignment": "Chaotic Evil",
+      "cr": "1/2",
+      "monster_stats": "# Orc\n\nMedium Humanoid (Orc), Chaotic Evil\n\n**AC:** 13 (hide armor)\n\n**HP:** 15 (2d8 + 6)\n\n**Speed:** 30 ft.\n\nSTR 16 (+3), DEX 12 (+1), CON 16 (+3), INT 7 (–2), WIS 11 (+0), CHA 10 (+0)\n\n**Skills:** Intimidation +2\n\n**Senses:** darkvision 60 ft., passive Perception 10\n\n**Languages:** Common, Orc\n\n**CR:** 1/2 (100 XP)\n\n### Traits\n\n**Aggressive.** As a bonus action, the orc can move up to its speed toward an enemy it can see.\n\n### Actions\n\n**Greataxe. Melee Weapon Attack:** +5 to hit, reach 5 ft., 1 target. Hit: 9 (1d12 + 3) slashing.\n\n**Javelin. Melee or Ranged Weapon Attack:** +5 to hit, reach 5 ft. or range 30/120 ft., 1 target. Hit: 6 (1d6 + 3) piercing."
+    },
+    {
+      "id": "mon_kings_orc_wizard",
+      "name": "Orc Wizard",
+      "source": "Homebrew (Kings Spire)",
+      "size": "Medium",
+      "creature_type": "Humanoid (Orc)",
+      "alignment": "Chaotic Evil",
+      "cr": "1",
+      "monster_stats": "# Orc Wizard (variant NPC)\n\nStart from the Orc above but add spellcasting (like an Apprentice Wizard).\n\n**AC:** 11 (robes)\n\n**HP:** 22 (5d8)\n\n**Speed:** 30 ft.\n\nSpellcasting (Orc Wizard). Spellcasting ability is Int (save DC 12, +4 to hit). Typical prepared spells:\n\n**Cantrips:** fire bolt, mage hand, prestidigitation\n\n**1st level (2 slots):** magic missile, shield\n\n**2nd level (1 slot):** scorching ray\n\n### Actions\n\n**Quarterstaff. Melee Weapon Attack:** +2 to hit, 1d6 bludgeoning.\n\n**Fire Bolt. Ranged Spell Attack:** +4 to hit, 1d10 fire.\n\n## Spell Reference\n\nSee lore entry **Creature and Spell Reference** for Scorching Ray, Magic Missile, and Shield."
+    },
+    {
+      "id": "mon_kings_orc_boss",
+      "name": "Orc Boss",
+      "source": "Homebrew (Kings Spire)",
+      "size": "Medium",
+      "creature_type": "Humanoid (Orc)",
+      "alignment": "Chaotic Evil",
+      "cr": "4",
+      "monster_stats": "# Orc Boss (use Orc War Chief)\n\nMedium Humanoid (Orc), Chaotic Evil\n\n**AC:** 16 (chain mail)\n\n**HP:** 93 (11d8 + 44)\n\n**Speed:** 30 ft.\n\nSTR 18 (+4), DEX 12 (+1), CON 18 (+4), INT 11 (+0), WIS 11 (+0), CHA 16 (+3)\n\n**Saving Throws:** Str +6, Con +6, Wis +2\n\n**Skills:** Intimidation +5\n\n**Senses:** darkvision 60 ft., passive Perception 10\n\n**Languages:** Common, Orc\n\n**CR:** 4 (1,100 XP)\n\n### Traits\n\n**Aggressive. Bonus action:** move up to its speed toward an enemy it can see.\n\n### Actions\n\n**Multiattack.** Makes two attacks with its greataxe.\n\n**Greataxe.** +6 to hit, 1d12 + 4 slashing.\n\nBattle Cry (1/Day). Each creature of the boss’s choice within 30 ft. that can hear it must succeed on DC 13 Wis save or be frightened until the end of the boss’s next turn. Orcs that hear the cry can make a melee attack as a reaction."
+    },
+    {
+      "id": "mon_kings_young_wyvern",
+      "name": "Young Wyvern",
+      "source": "Homebrew (Kings Spire)",
+      "size": "Large",
+      "creature_type": "Dragon",
+      "alignment": "Unaligned",
+      "cr": "5",
+      "monster_stats": "# Young Wyvern (scaled-down Wyvern)\n\nLarge Dragon, Unaligned\n\n**AC:** 13 (natural armor)\n\n**HP:** 75 (10d10 + 20)\n\n**Speed:** 20 ft., fly 60 ft.\n\nSTR 17 (+3), DEX 12 (+1), CON 15 (+2), INT 5 (–3), WIS 12 (+1), CHA 8 (–1)\n\n**Skills:** Perception +4\n\n**Senses:** darkvision 60 ft., passive Perception 14\n\n**CR:** 5 (1,800 XP)\n\n### Actions\n\n**Multiattack. The wyvern makes two attacks:** one with its bite and one with its stinger.\n\n**Bite.** +6 to hit, reach 10 ft., Hit: 11 (2d6 + 3) piercing.\n\n**Stinger.** +6 to hit, reach 10 ft., Hit: 9 (2d6 + 3) piercing + 14 (4d6) poison. Target must succeed on DC 14 Con save or take full poison damage."
+    },
+    {
+      "id": "mon_kings_shadow",
+      "name": "Shadow (Bedchamber Optional)",
+      "source": "Homebrew (Kings Spire)",
+      "size": "Medium",
+      "creature_type": "Undead",
+      "alignment": "Chaotic Evil",
+      "cr": "1/2",
+      "monster_stats": "# Shadow\n\nUse a standard Shadow (MM, CR 1/2). In Kings Spire it rises from the withered servant's skeleton if the wardrobe false back panel is disturbed."
+    },
+    {
+      "id": "mon_57178os",
+      "name": "Wyvern",
+      "source": "",
+      "size": "",
+      "creature_type": "",
+      "alignment": "",
+      "cr": "",
+      "monster_stats": "## Raging Chained Wyvern\n\n*Large dragon, unaligned*\n\n---\n\n**Armor Class:** 13 (natural armor)\n**Hit Points:** 110 (13d10 + 39)\n**Speed:** 20 ft., fly 80 ft.\n\n| STR | DEX | CON | INT | WIS | CHA |\n| ---: | ---: | ---: | ---: | ---: | ---: |\n| 19 (+4) | 10 (+0) | 16 (+3) | 5 (−3) | 12 (+1) | 6 (−2) |\n\n**Skills:** Perception +4\n**Senses:** Darkvision 60 ft., passive Perception 14\n**Languages:** —\n**Challenge:** 6 (2,300 XP)\n**Proficiency Bonus:** +3\n\n---\n\n## Description\n\nThis wyvern has been chained, beaten, and driven into a frenzy by its orc handlers. Broken lengths of chain still hang from its neck and harness.\n\nIt is not loyal to the orcs. It attacks whatever is nearest, loudest, or has most recently injured it.\n\nWhen reduced to **25 hit points or fewer**, its rage turns to fear. It attempts to flee through the breach unless restrained or prevented from escaping.\n\n---\n\n## Traits\n\n### Enraged\n\nThe wyvern has advantage on saving throws against being frightened or charmed.\n\n### Abused Beast\n\nThe wyvern does not deliberately attack unconscious creatures. It lashes out instinctively rather than fighting with intelligent tactics.\n\nIf an orc remains within reach, the wyvern may attack the orc instead of a party member.\n\n### Trailing Chains\n\nBroken chains remain attached to the wyvern’s harness.\n\nA creature within 5 feet of a chain can use an action to make a **DC 14 Strength (Athletics) check**.\n\nOn a success, the chain is secured to a fixed object such as:\n\n- The ballista base\n- The kitchen preparation table\n- A stone column\n- The stair railing\n- A reinforced door frame\n\nIf **two chains** are secured, the wyvern is **restrained**.\n\nOn its turn, the wyvern may use its action to make a **DC 15 Strength check**. On a success, it breaks one secured chain.\n\n---\n\n## Actions\n\n### Multiattack\n\nThe wyvern makes two attacks:\n\n- One with its **Bite**\n- One with its **Stinger**\n\nWhile flying, it may replace either attack with its **Claws**.\n\n### Bite\n\n*Melee Weapon Attack:* +7 to hit, reach 10 ft., one creature.\n\n**Hit:** 11 (2d6 + 4) piercing damage.\n\n### Claws\n\n*Melee Weapon Attack:* +7 to hit, reach 5 ft., one target.\n\n**Hit:** 13 (2d8 + 4) slashing damage.\n\n### Stinger\n\n*Melee Weapon Attack:* +7 to hit, reach 10 ft., one creature.\n\n**Hit:** 11 (2d6 + 4) piercing damage.\n\nThe target must make a **DC 15 Constitution saving throw**.\n\n- **Failure:** 24 (7d6) poison damage.\n- **Success:** Half as much poison damage.\n\n---\n\n## Crashing Through the Balcony\n\n## Read Aloud\n\nThe wyvern plunges through the tear in the blue barrier—but its approach is too fast and the opening too narrow.\n\nOne wing strikes the stone arch with a sickening crack. Its shoulder crashes through the glass doors, showering the room with glittering fragments. Its head and forelegs slam onto the floor while its hindquarters and one thrashing wing remain trapped outside.\n\nBroken chains whip around its body as it screams and tries to wrench itself free.\n\n---\n\n## Wedged\n\nWhen the wyvern first crashes through the balcony doors, it becomes wedged in the opening.\n\nWhile wedged:\n\n- Its speed is **0**.\n- It cannot fly.\n- It cannot use its **Claws**.\n- It cannot make opportunity attacks.\n- Attacks against it from inside the room have advantage.\n- It has advantage on checks and saving throws against being pushed or pulled.\n- Its Bite can reach creatures within 10 feet of its head.\n- Its Stinger can reach creatures within 10 feet of the broken balcony doorway.\n\nThe wyvern spends the round in which it crashes through struggling and roaring. It makes no attacks during that round.\n\n---\n\n## Breaking Free\n\nAt the end of each of its turns, the wyvern makes a **DC 15 Strength check**.\n\n### First Success\n\nThe wyvern pulls one wing free.\n\n- Attacks against it no longer have advantage.\n- It can use its Claws against creatures within 5 feet.\n- Its speed remains 0.\n\n### Second Success\n\nThe wyvern tears completely free.\n\n- Its normal speed returns.\n- It can move throughout the balcony chamber.\n- It can enter the kitchen doorway only with its head and forequarters.\n- It cannot climb the narrow, curving stairs to the tree sanctuary.\n\n---\n\n## Kitchen Interactions\n\nWhile the wyvern is wedged, the party can attempt to:\n\n- Fire the ballista at close range.\n- Secure its trailing chains.\n- Drop the hanging pot rack onto its head.\n- Roll the preparation table against its chest.\n- Throw pepper into its eyes.\n- Pour the hot stockpot across its forelegs.\n- Use the roasting hook to catch a chain.\n- Retreat into the kitchen and up the stairs.\n\nThe wyvern cannot follow the party beyond the first turn of the staircase."
+    }
+  ],
+  "npcs": [
+    {
+      "id": "npc_zitv422",
+      "name": "Varney",
+      "source": "",
+      "role": "",
+      "pronouns": "",
+      "species": {
+        "name": "Humanoid",
+        "subspecies": null,
+        "lineage": null
+      },
+      "size": "Medium",
+      "alignment": "",
+      "tags": [],
+      "statblock": {
+        "ac": 10,
+        "hp": {
+          "average": 10,
+          "formula": "2d8"
+        },
+        "speed": {},
+        "abilities": {
+          "str": 10,
+          "dex": 10,
+          "con": 10,
+          "int": 10,
+          "wis": 10,
+          "cha": 10
+        },
+        "saving_throws": [],
+        "skills": [],
+        "senses": {
+          "passive_perception": 10
+        },
+        "languages": [],
+        "proficiency_bonus": 2,
+        "initiative_bonus": 0,
+        "resistances": [],
+        "immunities": [],
+        "vulnerabilities": [],
+        "conditions_immunities": []
+      },
+      "dm_notes": ""
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "worldId": "arentor",
+  "displayName": "Arentor",
+  "canon": {
+    "master": {
+      "approved": "canon/master/arentor_master_canon.json",
+      "reviewedCandidate": "canon/master/candidates/arentor_master_canon_reviewed_2026-09-04.json",
+      "sourceDocument": "canon/master/source/ARENTOR_CANON_SOURCE_FINAL_2026-09-04-r2.docx",
+      "status": "approved"
+    },
+    "adventureReferences": [
+      {
+        "id": "kings-spire",
+        "displayName": "King's Spire",
+        "path": "canon/adventures/kings-spire/kings_spire_adventure_reference_2026-09-04.json",
+        "sourcePath": "canon/adventures/kings-spire/source/dng_kings_spire.recorder.json",
+        "authorityClass": "current_adventure",
+        "status": "current"
+      }
+    ]
+  },
+  "review": {
+    "mergeReview": "canon/review/arentor_kings_spire_merge_review_2026-09-04.md",
+    "sourceSync": "canon/review/arentor_source_sync_patch_2026-09-04.md",
+    "sourceSyncCompletion": "canon/review/arentor_source_sync_completion_2026-09-04.md"
+  }
+}

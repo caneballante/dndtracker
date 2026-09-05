@@ -161,6 +161,77 @@
     .timeline-editor {
       margin-top: 10px;
     }
+    .session-memory-card {
+      border-left-color: #5f7f6d;
+      background: linear-gradient(135deg, #f7fbf8 0%, #ffffff 48%);
+    }
+    .session-memory-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 14px;
+    }
+    .memory-column {
+      border: 1px solid #dce6df;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.86);
+      padding: 14px;
+      min-width: 0;
+    }
+    .memory-list {
+      display: grid;
+      gap: 10px;
+    }
+    .memory-item {
+      border: 1px solid #dfe8e2;
+      border-left: 4px solid #718e7c;
+      border-radius: 10px;
+      background: #fff;
+      padding: 11px 12px;
+    }
+    .memory-item-highlight {
+      border-left-color: #c6923d;
+      background: #fffdf8;
+    }
+    .memory-title {
+      font-weight: 600;
+      line-height: 1.35;
+    }
+    .memory-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 7px;
+    }
+    .memory-tag {
+      border-radius: 999px;
+      background: #edf4ef;
+      color: #465b4e;
+      padding: 2px 8px;
+      font-size: 0.72rem;
+    }
+    .memory-item-highlight .memory-tag {
+      background: #f8eedc;
+      color: #68522f;
+    }
+    .memory-facts {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      font-size: 0.84rem;
+      color: #495057;
+    }
+    .memory-empty {
+      border: 1px dashed #b8c9bd;
+      border-radius: 10px;
+      padding: 16px;
+      color: #5d6b61;
+      background: #fbfdfb;
+    }
+    .memory-operation {
+      min-height: 1.35rem;
+    }
+    @media (max-width: 991.98px) {
+      .session-memory-grid { grid-template-columns: 1fr; }
+    }
     .hidden-shell {
       display: none;
     }
@@ -445,6 +516,7 @@
                     </div>
                   </div>
                 </div>
+                <div id="recording-memory-status" class="small text-muted memory-operation mb-3" role="status" aria-live="polite"></div>
               </div>
 
               <div class="tab-pane fade" id="pane-prep" role="tabpanel">
@@ -743,18 +815,44 @@
                     <div id="sessions-party-status" class="small text-muted mt-1"></div>
                   </div>
 
+                  <div id="session-memory-section" class="section-card history-workflow session-memory-card">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                      <div>
+                        <div class="soft-label mb-1">Structured interpretation</div>
+                        <h2 class="h5 mb-1">Session Memory</h2>
+                        <div class="small text-muted">Whole-session Events and Highlights derived from the saved transcript. Audio and transcript remain the durable evidence.</div>
+                      </div>
+                      <button id="sessions-build-memory" class="btn btn-primary btn-sm">Build Session Memory</button>
+                    </div>
+                    <div id="sessions-memory-status" class="small fw-semibold memory-operation mb-1" role="status" aria-live="polite">Select a session to inspect Session Memory.</div>
+                    <div id="sessions-memory-meta" class="small text-muted mb-3"></div>
+                    <div id="sessions-memory-empty" class="memory-empty mb-3">
+                      No Session Memory has been generated for this session.
+                    </div>
+                    <div class="session-memory-grid">
+                      <section class="memory-column" aria-labelledby="sessions-memory-events-heading">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <h3 id="sessions-memory-events-heading" class="h6 mb-0">Events</h3>
+                          <span id="sessions-memory-event-count" class="badge text-bg-light">0</span>
+                        </div>
+                        <div id="sessions-memory-events" class="memory-list"></div>
+                      </section>
+                      <section class="memory-column" aria-labelledby="sessions-memory-highlights-heading">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <h3 id="sessions-memory-highlights-heading" class="h6 mb-0">Highlights</h3>
+                          <span id="sessions-memory-highlight-count" class="badge text-bg-light">0</span>
+                        </div>
+                        <div id="sessions-memory-highlights" class="memory-list"></div>
+                      </section>
+                    </div>
+                  </div>
+
                   <div class="section-card history-workflow">
                     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
                       <div>
-                        <div class="soft-label mb-1">Source material</div>
-                        <h2 class="h5 mb-1">Review and rebuild DM notes</h2>
-                        <div class="small text-muted">Edit or select timeline events before generating a summary. Rebuilding replaces the derived notes and creates a default summary from the saved transcript; use the summary row below afterward for selected events, guidance, and length.</div>
-                      </div>
-                      <div class="d-flex flex-wrap gap-2">
-                        <button id="open-sessions-timeline-editor" class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#timelineEditorModal">Open Timeline Editor</button>
-                        <button id="sessions-open-notes-lab" class="btn btn-outline-dark btn-sm">Open Notes Lab</button>
-                        <button id="sessions-reprocess" class="btn btn-outline-danger btn-sm">Rebuild DM Notes + Summary</button>
-                        <button id="sessions-stop-reprocess" class="btn btn-outline-danger btn-sm" disabled>Stop / Clear Rebuild</button>
+                        <div class="soft-label mb-1">Legacy / advanced</div>
+                        <h2 class="h5 mb-1">Legacy DM Notes</h2>
+                        <div class="small text-muted">The older per-chunk Notes timeline remains available for historical compatibility. It is separate from Session Memory.</div>
                       </div>
                     </div>
                     <div class="row g-3">
@@ -777,6 +875,16 @@
                       <div class="small text-muted">The timeline editor is where you correct attribution and mark the events that belong in the game summary.</div>
                       <button id="copy-sessions-notes" class="btn btn-outline-secondary btn-sm">Copy Timeline</button>
                     </div>
+                    <details class="mt-3">
+                      <summary class="small fw-semibold">Legacy tools</summary>
+                      <div class="small text-muted my-2">Rebuilds the older per-chunk Notes timeline. This does not rebuild Session Memory.</div>
+                      <div class="d-flex flex-wrap gap-2">
+                        <button id="open-sessions-timeline-editor" class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#timelineEditorModal">Open Timeline Editor</button>
+                        <button id="sessions-open-notes-lab" class="btn btn-outline-dark btn-sm">Open Notes Lab</button>
+                        <button id="sessions-reprocess" class="btn btn-outline-danger btn-sm">Legacy: Rebuild DM Notes</button>
+                        <button id="sessions-stop-reprocess" class="btn btn-outline-danger btn-sm" disabled>Stop / Clear Legacy Rebuild</button>
+                      </div>
+                    </details>
                   </div>
 
                   <div class="section-card history-workflow">
@@ -1076,6 +1184,10 @@
   let recorder = null;
   let sessionId = null;
   let chunkIndex = 0;
+  let highestEmittedChunkIndex = -1;
+  let pendingChunkUploads = 0;
+  let uploadDrainWaiters = [];
+  let stopFinalizationPromise = null;
 
   let nextCutAt = null;
   let countdownTimer = null;
@@ -1702,6 +1814,49 @@ async function postMetaOnce() {
     return json;
   }
 
+  function waitForPendingChunkUploads() {
+    if (pendingChunkUploads === 0) return Promise.resolve();
+    return new Promise((resolve) => uploadDrainWaiters.push(resolve));
+  }
+
+  function finishPendingChunkUpload() {
+    pendingChunkUploads = Math.max(0, pendingChunkUploads - 1);
+    if (pendingChunkUploads !== 0) return;
+    const waiters = uploadDrainWaiters;
+    uploadDrainWaiters = [];
+    waiters.forEach((resolve) => resolve());
+  }
+
+  function finalizeStoppedSession() {
+    if (stopFinalizationPromise) return stopFinalizationPromise;
+    const stoppedSessionId = sessionId;
+    const finalExpectedChunkIndex = highestEmittedChunkIndex;
+    stopFinalizationPromise = (async () => {
+      await waitForPendingChunkUploads();
+      const res = await fetch('/api/session/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: stoppedSessionId, finalExpectedChunkIndex })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error || `Session finalization failed (${res.status})`);
+      }
+      const state = json?.finalization?.state || 'recording_stopped';
+      log(`Server finalization state: ${state}.`);
+      if (typeof window.buildSessionMemoryAfterStop === 'function') {
+        await window.buildSessionMemoryAfterStop(stoppedSessionId);
+      }
+      return json;
+    })().catch((err) => {
+      log(`FINALIZATION ERROR: ${err.message}`);
+      return null;
+    }).finally(() => {
+      startBtn.disabled = false;
+    });
+    return stopFinalizationPromise;
+  }
+
   // ================================
   function stopChunkTimer() {
     if (chunkTimer) clearTimeout(chunkTimer);
@@ -1727,6 +1882,10 @@ async function postMetaOnce() {
       if (!evt.data || evt.data.size === 0) return;
 
       const index = chunkIndex;
+      chunkIndex += 1;
+      highestEmittedChunkIndex = Math.max(highestEmittedChunkIndex, index);
+      pendingChunkUploads += 1;
+      chunkCounterEl.textContent = String(chunkIndex);
       const originalBlob = evt.data;
 
       log(`Chunk ${index} ready (${Math.round(originalBlob.size/1024)} KB). Converting to WAV…`);
@@ -1770,10 +1929,10 @@ async function postMetaOnce() {
             latestChunkLinkEl.style.display = 'none';
           }
 
-        chunkIndex += 1;
-        chunkCounterEl.textContent = String(chunkIndex);
       } catch (e) {
         log(`UPLOAD ERROR on chunk ${index}: ${e.message}`);
+      } finally {
+        finishPendingChunkUpload();
       }
     };
 
@@ -1789,11 +1948,12 @@ async function postMetaOnce() {
         recorder = null;
         stopMeter();
         setStatus('stopped');
-        startBtn.disabled = false;
+        startBtn.disabled = true;
         stopBtn.disabled = true;
         pauseBtn.disabled = true;
         resumeBtn.disabled = true;
-        log('Stopped.');
+        log('Stopped locally. Finalizing after uploads drain…');
+        finalizeStoppedSession();
         return;
       }
 
@@ -1822,6 +1982,10 @@ async function postMetaOnce() {
 
       sessionId = String(Date.now());
       chunkIndex = 0;
+      highestEmittedChunkIndex = -1;
+      pendingChunkUploads = 0;
+      uploadDrainWaiters = [];
+      stopFinalizationPromise = null;
       metaPosted = false;
       stopRequested = false;
       paused = false;
@@ -1961,10 +2125,11 @@ async function postMetaOnce() {
       recorder = null;
       stopMeter();
       setStatus('stopped');
-      startBtn.disabled = false;
+      startBtn.disabled = true;
       pauseBtn.disabled = true;
       resumeBtn.disabled = true;
-      log('Stopped.');
+      log('Stopped locally. Finalizing after uploads drain…');
+      finalizeStoppedSession();
     }
   });
 
@@ -3161,6 +3326,7 @@ async function postMetaOnce() {
         const chunkFromRaw = (testChunkFromEl?.value || "").trim();
         const chunkToRaw = (testChunkToEl?.value || "").trim();
         const payload = {
+          sessionId: String(lastTestRunSessionMeta?.sessionId || testSessionSelectEl?.value || "").trim(),
           transcript: testTranscriptEl?.value || "",
           window: Number(testWindowEl?.value || 2),
           chunkFrom: chunkFromRaw === "" ? null : Number(chunkFromRaw),
@@ -3250,6 +3416,15 @@ async function postMetaOnce() {
   const sessionsRetranscribeFromEl = document.getElementById("sessions-retranscribe-from");
   const sessionsRetranscribeToEl = document.getElementById("sessions-retranscribe-to");
   const sessionsCleanTranscriptEl = document.getElementById("sessions-clean-transcript");
+  const sessionsBuildMemoryEl = document.getElementById("sessions-build-memory");
+  const sessionsMemoryStatusEl = document.getElementById("sessions-memory-status");
+  const sessionsMemoryMetaEl = document.getElementById("sessions-memory-meta");
+  const sessionsMemoryEmptyEl = document.getElementById("sessions-memory-empty");
+  const sessionsMemoryEventsEl = document.getElementById("sessions-memory-events");
+  const sessionsMemoryHighlightsEl = document.getElementById("sessions-memory-highlights");
+  const sessionsMemoryEventCountEl = document.getElementById("sessions-memory-event-count");
+  const sessionsMemoryHighlightCountEl = document.getElementById("sessions-memory-highlight-count");
+  const recordingMemoryStatusEl = document.getElementById("recording-memory-status");
   const sessionsReprocessEl = document.getElementById("sessions-reprocess");
   const sessionsStopReprocessEl = document.getElementById("sessions-stop-reprocess");
   const sessionsGenerateSummaryEl = document.getElementById("sessions-generate-summary");
@@ -3289,6 +3464,7 @@ async function postMetaOnce() {
   const copySessionsNotesSummaryEl = document.getElementById("copy-sessions-notes-summary");
   const copySessionsNotesStateEl = document.getElementById("copy-sessions-notes-state");
   let reprocessPollTimer = null;
+  let sessionMemoryPollTimer = null;
   let cleanTranscriptPollTimer = null;
   let transcriptBackfillPollTimer = null;
   let fullDiarizedPollTimer = null;
@@ -3300,6 +3476,9 @@ async function postMetaOnce() {
   let editingTimelineItemId = '';
   let timelineSavePending = false;
   let reprocessStartPending = false;
+  let sessionMemoryBuildPending = false;
+  let currentSessionMemoryStatus = {};
+  let sessionMemoryOperationSessionId = '';
   let cleanTranscriptStartPending = false;
   let transcriptBackfillStartPending = false;
   let transcriptRetranscribeStartPending = false;
@@ -3326,6 +3505,205 @@ async function postMetaOnce() {
   function currentHistorySessionId() {
     const raw = String(sessionsSelectEl?.value || '').trim();
     return /^\d{8,20}$/.test(raw) ? raw : '';
+  }
+
+  function memoryDisplayLabel(value) {
+    return String(value || '')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function memoryTextList(value, objectKeys = []) {
+    if (!Array.isArray(value)) return [];
+    return value.map((item) => {
+      if (typeof item === 'string' || typeof item === 'number') return String(item).trim();
+      if (!item || typeof item !== 'object') return '';
+      for (const key of objectKeys) {
+        const candidate = String(item[key] || '').trim();
+        if (candidate) return candidate;
+      }
+      return '';
+    }).filter(Boolean);
+  }
+
+  function memorySourceLabel(sourceChunks) {
+    const chunks = Array.isArray(sourceChunks)
+      ? sourceChunks.map(Number).filter(Number.isInteger).sort((a, b) => a - b)
+      : [];
+    if (!chunks.length) return '';
+    if (chunks.length === 1) return `Chunk ${chunks[0]}`;
+    return `Chunks ${chunks[0]}–${chunks[chunks.length - 1]}`;
+  }
+
+  function appendMemoryTag(container, text) {
+    const clean = String(text || '').trim();
+    if (!clean) return;
+    const tag = document.createElement('span');
+    tag.className = 'memory-tag';
+    tag.textContent = clean;
+    container.appendChild(tag);
+  }
+
+  function memoryStoreRecords(store, field) {
+    const records = store && typeof store === 'object' ? store[field] : null;
+    return records && typeof records === 'object' && !Array.isArray(records)
+      ? Object.values(records).filter((item) => item && typeof item === 'object')
+      : [];
+  }
+
+  function renderSessionMemoryEvents(eventStore) {
+    if (!sessionsMemoryEventsEl) return [];
+    sessionsMemoryEventsEl.replaceChildren();
+    const events = memoryStoreRecords(eventStore, 'events');
+    events.forEach((event) => {
+      const card = document.createElement('article');
+      card.className = 'memory-item';
+      const title = document.createElement('div');
+      title.className = 'memory-title';
+      title.textContent = String(event.summary || 'Untitled event');
+      card.appendChild(title);
+
+      const tags = document.createElement('div');
+      tags.className = 'memory-tags';
+      appendMemoryTag(tags, event.importance ? `${memoryDisplayLabel(event.importance)} importance` : '');
+      appendMemoryTag(tags, memoryDisplayLabel(event.type));
+      appendMemoryTag(tags, event.confidence ? `${memoryDisplayLabel(event.confidence)} confidence` : '');
+      appendMemoryTag(tags, memoryDisplayLabel(event.status));
+      appendMemoryTag(tags, memorySourceLabel(event.sourceChunks));
+      card.appendChild(tags);
+
+      const facts = memoryTextList(event.facts, ['summary', 'text', 'fact']).slice(0, 6);
+      if (facts.length) {
+        const list = document.createElement('ul');
+        list.className = 'memory-facts';
+        facts.forEach((fact) => {
+          const item = document.createElement('li');
+          item.textContent = fact;
+          list.appendChild(item);
+        });
+        card.appendChild(list);
+      }
+      const entities = memoryTextList(event.entities, ['canonicalName', 'displayName', 'name', 'label']);
+      if (entities.length) {
+        const line = document.createElement('div');
+        line.className = 'small text-muted mt-2';
+        line.textContent = `Entities: ${entities.join(', ')}`;
+        card.appendChild(line);
+      }
+      sessionsMemoryEventsEl.appendChild(card);
+    });
+    return events;
+  }
+
+  function renderSessionMemoryHighlights(highlightStore) {
+    if (!sessionsMemoryHighlightsEl) return [];
+    sessionsMemoryHighlightsEl.replaceChildren();
+    const highlights = memoryStoreRecords(highlightStore, 'highlights');
+    highlights.forEach((highlight) => {
+      const card = document.createElement('article');
+      card.className = 'memory-item memory-item-highlight';
+      const title = document.createElement('div');
+      title.className = 'memory-title';
+      title.textContent = `★ ${String(highlight.summary || 'Untitled highlight')}`;
+      card.appendChild(title);
+      const tags = document.createElement('div');
+      tags.className = 'memory-tags';
+      memoryTextList(highlight.categories).forEach((category) => appendMemoryTag(tags, memoryDisplayLabel(category)));
+      appendMemoryTag(tags, highlight.confidence ? `${memoryDisplayLabel(highlight.confidence)} confidence` : '');
+      appendMemoryTag(tags, memorySourceLabel(highlight.sourceChunks));
+      card.appendChild(tags);
+      const participants = memoryTextList(highlight.participants, ['displayName', 'name', 'label']);
+      if (participants.length) {
+        const line = document.createElement('div');
+        line.className = 'small text-muted mt-2';
+        line.textContent = `Participants: ${participants.join(', ')}`;
+        card.appendChild(line);
+      }
+      sessionsMemoryHighlightsEl.appendChild(card);
+    });
+    return highlights;
+  }
+
+  function reconciliationCost(usage) {
+    const cost = Number(usage?.estimatedCost ?? usage?.knownEstimatedCost);
+    return Number.isFinite(cost) && cost > 0 ? `$${cost.toFixed(cost < 0.01 ? 4 : 2)}` : '';
+  }
+
+  function renderSessionMemory(status, eventStore, highlightStore, options = {}) {
+    currentSessionMemoryStatus = status && typeof status === 'object' ? status : {};
+    const events = renderSessionMemoryEvents(eventStore);
+    const highlights = renderSessionMemoryHighlights(highlightStore);
+    const operation = currentSessionMemoryStatus.operation || {};
+    const memory = currentSessionMemoryStatus.memory || {};
+    const built = Boolean(memory.built || events.length || highlights.length);
+    const running = Boolean(operation.running || operation.state === 'reconciliation_in_progress');
+    const error = String(operation.error || '').trim();
+    const enabled = currentSessionMemoryStatus.enabled !== false;
+    const chunkCount = Number(currentSessionMemoryStatus?.evidence?.availableChunkCount || 0);
+    const cost = reconciliationCost(options.runUsage || currentSessionMemoryStatus.usage);
+
+    if (sessionsMemoryEventCountEl) sessionsMemoryEventCountEl.textContent = String(events.length);
+    if (sessionsMemoryHighlightCountEl) sessionsMemoryHighlightCountEl.textContent = String(highlights.length);
+    if (sessionsMemoryEmptyEl) {
+      sessionsMemoryEmptyEl.hidden = built;
+      sessionsMemoryEmptyEl.textContent = built
+        ? ''
+        : 'No Session Memory has been generated for this session.';
+    }
+    if (sessionsMemoryStatusEl) {
+      if (!enabled) sessionsMemoryStatusEl.textContent = 'Session Memory is disabled in server configuration.';
+      else if (options.completed) sessionsMemoryStatusEl.textContent = 'SESSION MEMORY BUILT';
+      else if (running || sessionMemoryBuildPending) sessionsMemoryStatusEl.textContent = `BUILDING SESSION MEMORY… Session ${sessionMemoryOperationSessionId || currentHistorySessionId()}`;
+      else if (error) sessionsMemoryStatusEl.textContent = `SESSION MEMORY NEEDS ATTENTION — Session ${currentHistorySessionId()}: ${error}`;
+      else if (built) sessionsMemoryStatusEl.textContent = 'Session Memory ready';
+      else sessionsMemoryStatusEl.textContent = 'Session Memory not built';
+    }
+    if (sessionsMemoryMetaEl) {
+      const parts = [`Transcript: ${chunkCount} chunk${chunkCount === 1 ? '' : 's'} available`];
+      if (built) parts.push(`${events.length} Event${events.length === 1 ? '' : 's'}`);
+      if (built) parts.push(`${highlights.length} Highlight${highlights.length === 1 ? '' : 's'}`);
+      if (cost) parts.push(`${cost} AI cost`);
+      sessionsMemoryMetaEl.textContent = parts.join(' · ');
+    }
+    if (sessionsBuildMemoryEl) {
+      sessionsBuildMemoryEl.textContent = built ? 'Rebuild Session Memory' : 'Build Session Memory';
+      sessionsBuildMemoryEl.disabled = Boolean(!enabled || running || sessionMemoryBuildPending || currentReprocessStatus?.running);
+    }
+    if (sessionsSelectEl) sessionsSelectEl.disabled = Boolean(running || sessionMemoryBuildPending);
+    updateReprocessControls(currentReprocessStatus || {});
+  }
+
+  async function fetchSessionMemoryJson(url, fallback) {
+    const response = await fetch(url);
+    const json = await response.json().catch(() => ({}));
+    if (response.status === 404) return fallback;
+    if (!response.ok || !json.ok) throw new Error(json?.error || `HTTP ${response.status}`);
+    return json;
+  }
+
+  async function loadSessionMemory(sessionId, options = {}) {
+    if (!sessionId) return;
+    const encoded = encodeURIComponent(sessionId);
+    try {
+      const [eventsJson, highlightsJson, statusJson] = await Promise.all([
+        fetchSessionMemoryJson(`/api/session/events?sessionId=${encoded}`, { eventStore: { events: {} } }),
+        fetchSessionMemoryJson(`/api/session/highlights?sessionId=${encoded}`, { highlightStore: { highlights: {} } }),
+        fetchSessionMemoryJson(`/api/session/reconciliation/status?sessionId=${encoded}&_t=${Date.now()}`, {})
+      ]);
+      renderSessionMemory(
+        statusJson,
+        eventsJson.eventStore || { events: {} },
+        highlightsJson.highlightStore || { highlights: {} },
+        options
+      );
+      return { status: statusJson, eventStore: eventsJson.eventStore, highlightStore: highlightsJson.highlightStore };
+    } catch (error) {
+      if (sessionsMemoryStatusEl) {
+        sessionsMemoryStatusEl.textContent = `SESSION MEMORY NEEDS ATTENTION — Session ${sessionId}: ${error.message}`;
+      }
+      if (sessionsBuildMemoryEl) sessionsBuildMemoryEl.disabled = sessionMemoryBuildPending;
+      return null;
+    }
   }
 
   function syncSessionsPartyMeta(markDirty = false) {
@@ -3614,7 +3992,20 @@ async function postMetaOnce() {
   function updateReprocessControls(rep) {
     currentReprocessStatus = rep && typeof rep === 'object' ? rep : {};
     const backfillRunning = Boolean(currentTranscriptBackfillStatus?.running);
-    if (sessionsReprocessEl) sessionsReprocessEl.disabled = Boolean(reprocessStartPending || currentReprocessStatus.running || backfillRunning);
+    const memoryRunning = Boolean(
+      sessionMemoryBuildPending || currentSessionMemoryStatus?.operation?.running
+    );
+    if (sessionsReprocessEl) sessionsReprocessEl.disabled = Boolean(reprocessStartPending || currentReprocessStatus.running || backfillRunning || memoryRunning);
+    if (sessionsBuildMemoryEl) {
+      sessionsBuildMemoryEl.disabled = Boolean(
+        currentSessionMemoryStatus?.enabled === false ||
+        memoryRunning ||
+        currentReprocessStatus.running ||
+        backfillRunning ||
+        window.__currentCleanTranscriptStatus?.running ||
+        window.__currentFullDiarizedStatus?.running
+      );
+    }
     if (sessionsCleanTranscriptEl) {
       const cleanStatus = window.__currentCleanTranscriptStatus || {};
       sessionsCleanTranscriptEl.disabled = Boolean(cleanTranscriptStartPending || cleanStatus.running || currentReprocessStatus.running || backfillRunning);
@@ -3725,14 +4116,14 @@ async function postMetaOnce() {
     const heartbeatAge = Number(rep?.stallSeconds || rep?.heartbeatAgeSec || 0);
     const w = window > 0 ? `, window=${window}` : '';
     if (rep?.running) {
-      if (phase === 'stop_requested') return `Session ${sessionId} (rebuild stop requested, waiting for current step to finish${w})`;
-      if (rep?.stalled) return `Session ${sessionId} (rebuild appears stalled: ${phase} ${processed}/${total || '?'}${w}, no heartbeat for ${heartbeatAge}s)`;
-      return `Session ${sessionId} (rebuild running: ${phase} ${processed}/${total || '?'}${w})`;
+      if (phase === 'stop_requested') return `Session ${sessionId} (legacy Notes rebuild stop requested, waiting for current step to finish${w})`;
+      if (rep?.stalled) return `Session ${sessionId} (legacy Notes rebuild appears stalled: ${phase} ${processed}/${total || '?'}${w}, no heartbeat for ${heartbeatAge}s)`;
+      return `Session ${sessionId} (legacy Notes rebuild running: ${phase} ${processed}/${total || '?'}${w})`;
     }
-    if (phase === 'stale') return `Session ${sessionId} (stale rebuild detected: ${rep?.error || 'worker is no longer active'})`;
-    if (phase === 'error') return `Session ${sessionId} (rebuild error: ${rep?.error || 'unknown error'})`;
-    if (phase === 'stopped') return `Session ${sessionId} (rebuild stopped)`;
-    if (phase === 'done') return `Session ${sessionId} (rebuild complete: ${processed}/${total || processed})`;
+    if (phase === 'stale') return `Session ${sessionId} (stale legacy Notes rebuild detected: ${rep?.error || 'worker is no longer active'})`;
+    if (phase === 'error') return `Session ${sessionId} (legacy Notes rebuild error: ${rep?.error || 'unknown error'})`;
+    if (phase === 'stopped') return `Session ${sessionId} (legacy Notes rebuild stopped)`;
+    if (phase === 'done') return `Session ${sessionId} (legacy Notes rebuild complete: ${processed}/${total || processed})`;
     return fallback || `Session ${sessionId}`;
   }
 
@@ -4124,6 +4515,11 @@ async function postMetaOnce() {
       updateCleanTranscriptControls(cleanStatus);
       updateFullDiarizedControls(fullDiarizedStatus);
       updateReprocessControls(rep);
+      const memoryResult = await loadSessionMemory(sessionId);
+      if (memoryResult?.status?.operation?.running) {
+        sessionMemoryOperationSessionId = sessionId;
+        startSessionMemoryPolling(sessionId, 'history');
+      }
       const fallbackText = 'Session ' + sessionId + (json.campaignName ? ` | Campaign: ${json.campaignName}` : '');
       if (backfillStatus.running) {
         stopReprocessPolling();
@@ -4291,6 +4687,190 @@ async function postMetaOnce() {
     if (fullDiarizedPollTimer) clearInterval(fullDiarizedPollTimer);
     fullDiarizedPollTimer = null;
   }
+
+  function stopSessionMemoryPolling() {
+    if (sessionMemoryPollTimer) clearInterval(sessionMemoryPollTimer);
+    sessionMemoryPollTimer = null;
+  }
+
+  async function fetchSessionMemoryStatus(sessionId) {
+    const response = await fetch(
+      `/api/session/reconciliation/status?sessionId=${encodeURIComponent(sessionId)}&_t=${Date.now()}`
+    );
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || !json.ok) throw new Error(json?.error || `HTTP ${response.status}`);
+    return json;
+  }
+
+  function setSessionMemoryOperationMessage(sessionId, message, source = 'history') {
+    if (source === 'recording' && recordingMemoryStatusEl) {
+      recordingMemoryStatusEl.textContent = `${message} Session ${sessionId}`;
+    }
+    if (currentHistorySessionId() === sessionId && sessionsMemoryStatusEl) {
+      sessionsMemoryStatusEl.textContent = `${message} Session ${sessionId}`;
+    }
+  }
+
+  async function waitForSessionFinalization(sessionId, source = 'history') {
+    while (true) {
+      const status = await fetchSessionMemoryStatus(sessionId);
+      currentSessionMemoryStatus = status;
+      const state = String(status?.finalization?.state || 'not_finalized');
+      if (['ready_for_reconciliation', 'reconciliation_error', 'finalized'].includes(state)) {
+        return status;
+      }
+      if (state === 'waiting_for_uploads') {
+        setSessionMemoryOperationMessage(sessionId, 'FINALIZING CAPTURE — waiting for uploads.', source);
+      } else if (state === 'waiting_for_transcription' || state === 'recording_stopped') {
+        setSessionMemoryOperationMessage(sessionId, 'FINALIZING CAPTURE — waiting for transcription.', source);
+      } else if (state === 'reconciliation_in_progress') {
+        return status;
+      } else {
+        throw new Error(`Session finalization cannot continue from ${memoryDisplayLabel(state) || 'the current state'}.`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+  }
+
+  async function ensureSessionReadyForMemory(sessionId, source = 'history') {
+    let status = await fetchSessionMemoryStatus(sessionId);
+    const state = String(status?.finalization?.state || 'not_finalized');
+    if (['ready_for_reconciliation', 'reconciliation_error', 'finalized', 'reconciliation_in_progress'].includes(state)) {
+      if (state !== 'reconciliation_in_progress' && Number(status?.evidence?.availableChunkCount || 0) < 1) {
+        throw new Error('No saved transcript chunks are available for Session Memory.');
+      }
+      return status;
+    }
+    if (state === 'not_finalized') {
+      const boundary = Number(status?.evidence?.lastChunkIndex);
+      if (!Number.isInteger(boundary) || Number(status?.evidence?.availableChunkCount || 0) < 1) {
+        throw new Error('No saved transcript chunks are available for Session Memory.');
+      }
+      setSessionMemoryOperationMessage(sessionId, 'FINALIZING SAVED CAPTURE…', source);
+      const response = await fetch('/api/session/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, finalExpectedChunkIndex: boundary })
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || !json.ok) throw new Error(json?.error || `HTTP ${response.status}`);
+      status = await fetchSessionMemoryStatus(sessionId);
+    }
+    return waitForSessionFinalization(sessionId, source);
+  }
+
+  function reconciliationPreviewCost(preview) {
+    const safety = preview?.diagnostics?.costSafety || {};
+    const maximum = Number(safety.estimatedMaximumToolLoopCostAtCaps);
+    if (Number.isFinite(maximum) && maximum > 0) {
+      return `Estimated maximum at the configured model/search caps: $${maximum.toFixed(2)}.`;
+    }
+    const oneRequest = Number(safety.estimatedCostAtOutputCap);
+    if (Number.isFinite(oneRequest) && oneRequest > 0) {
+      return `Estimated one-request cost at the configured output cap: $${oneRequest.toFixed(2)}.`;
+    }
+    return 'Recent full-session runs have cost well under $1.';
+  }
+
+  function startSessionMemoryPolling(sessionId, source = 'history') {
+    stopSessionMemoryPolling();
+    sessionMemoryPollTimer = setInterval(async () => {
+      try {
+        const status = await fetchSessionMemoryStatus(sessionId);
+        currentSessionMemoryStatus = status;
+        const running = Boolean(status?.operation?.running);
+        const error = String(status?.operation?.error || '').trim();
+        if (source === 'recording' && recordingMemoryStatusEl) {
+          recordingMemoryStatusEl.textContent = error
+            ? `SESSION MEMORY NEEDS ATTENTION — Session ${sessionId}: ${error}`
+            : (running ? `BUILDING SESSION MEMORY… Session ${sessionId}` : recordingMemoryStatusEl.textContent);
+        }
+        if (currentHistorySessionId() === sessionId) await loadSessionMemory(sessionId);
+        if (!running && (error || status?.finalization?.state === 'finalized')) {
+          stopSessionMemoryPolling();
+          if (!sessionMemoryBuildPending) sessionMemoryOperationSessionId = '';
+        }
+      } catch (_) {}
+    }, 1500);
+  }
+
+  async function buildSessionMemoryForSession(sessionId, options = {}) {
+    const source = options.source === 'recording' ? 'recording' : 'history';
+    if (!sessionId || sessionMemoryBuildPending) return null;
+    sessionMemoryOperationSessionId = sessionId;
+    sessionMemoryBuildPending = true;
+    if (sessionsSelectEl && currentHistorySessionId() === sessionId) sessionsSelectEl.disabled = true;
+    setSessionMemoryOperationMessage(sessionId, 'PREPARING SESSION MEMORY…', source);
+    updateReprocessControls(currentReprocessStatus || {});
+    try {
+      let status = await ensureSessionReadyForMemory(sessionId, source);
+      if (status?.operation?.running) {
+        startSessionMemoryPolling(sessionId, source);
+        setSessionMemoryOperationMessage(sessionId, 'BUILDING SESSION MEMORY…', source);
+        return null;
+      }
+      if (status.enabled === false) throw new Error('Session Memory is disabled in server configuration.');
+      const rebuild = Boolean(status?.memory?.built || status?.finalization?.state === 'finalized');
+      const previewResponse = await fetch('/api/session/reconcile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, dryRun: true, rebuild })
+      });
+      const preview = await previewResponse.json().catch(() => ({}));
+      if (!previewResponse.ok || !preview.ok) throw new Error(preview?.error || `HTTP ${previewResponse.status}`);
+      if (!preview.wouldRun) throw new Error('The server cost/input safety check refused this Session Memory build.');
+
+      const verb = rebuild ? 'REBUILD' : 'BUILD';
+      const confirmed = window.confirm(
+        `${verb} SESSION MEMORY?\n\n` +
+        'This makes a billable model call to analyze the full saved transcript using the current Session Memory system.\n\n' +
+        'Audio, transcript, legacy Notes, published recap, and campaign handoff will not be changed. ' +
+        (rebuild ? 'Existing generated Events and Highlights may be revised or replaced.\n\n' : '\n\n') +
+        reconciliationPreviewCost(preview)
+      );
+      if (!confirmed) {
+        setSessionMemoryOperationMessage(sessionId, 'SESSION MEMORY BUILD CANCELED.', source);
+        return null;
+      }
+
+      setSessionMemoryOperationMessage(sessionId, 'BUILDING SESSION MEMORY…', source);
+      updateReprocessControls(currentReprocessStatus || {});
+      startSessionMemoryPolling(sessionId, source);
+      const response = await fetch('/api/session/reconcile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, confirm: true, rebuild })
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || !json.ok) throw new Error(json?.error || `HTTP ${response.status}`);
+      stopSessionMemoryPolling();
+      if (currentHistorySessionId() === sessionId) {
+        await loadSessionMemory(sessionId, { completed: true, runUsage: json.usage });
+      }
+      const events = memoryStoreRecords(json.eventStore, 'events');
+      const highlights = memoryStoreRecords(json.highlightStore, 'highlights');
+      const cost = reconciliationCost(json.usage);
+      if (source === 'recording' && recordingMemoryStatusEl) {
+        recordingMemoryStatusEl.textContent = `SESSION MEMORY BUILT — Session ${sessionId} · ${events.length} Events · ${highlights.length} Highlights${cost ? ` · ${cost} AI cost` : ''}`;
+      }
+      return json;
+    } catch (error) {
+      stopSessionMemoryPolling();
+      if (currentHistorySessionId() === sessionId) await loadSessionMemory(sessionId);
+      const message = `SESSION MEMORY NEEDS ATTENTION — Session ${sessionId}: ${error.message}`;
+      if (currentHistorySessionId() === sessionId && sessionsMemoryStatusEl) sessionsMemoryStatusEl.textContent = message;
+      if (source === 'recording' && recordingMemoryStatusEl) recordingMemoryStatusEl.textContent = message;
+      return null;
+    } finally {
+      sessionMemoryBuildPending = false;
+      sessionMemoryOperationSessionId = '';
+      if (sessionsSelectEl) sessionsSelectEl.disabled = false;
+      updateReprocessControls(currentReprocessStatus || {});
+    }
+  }
+
+  window.buildSessionMemoryAfterStop = (sessionId) =>
+    buildSessionMemoryForSession(sessionId, { source: 'recording' });
 
   function startTranscriptBackfillPolling(sessionId) {
     stopReprocessPolling();
@@ -4764,6 +5344,16 @@ async function postMetaOnce() {
       }
     });
   }
+  if (sessionsBuildMemoryEl) {
+    sessionsBuildMemoryEl.addEventListener('click', async () => {
+      const sessionId = currentHistorySessionId();
+      if (!sessionId) {
+        if (sessionsMemoryStatusEl) sessionsMemoryStatusEl.textContent = 'Select a session first.';
+        return;
+      }
+      await buildSessionMemoryForSession(sessionId, { source: 'history' });
+    });
+  }
   if (sessionsReprocessEl) {
     sessionsReprocessEl.addEventListener('click', async () => {
       const sessionId = sessionsSelectEl?.value || '';
@@ -4773,16 +5363,16 @@ async function postMetaOnce() {
       }
       if (reprocessStartPending) return;
       const confirmed = window.confirm(
-        `Rebuild all derived DM notes and the game summary for ${sessionId}? ` +
-        'This replaces the current generated notes and summary from the saved transcript.'
+        `LEGACY: Rebuild the older per-chunk DM Notes and game summary for ${sessionId}? ` +
+        'This does not build Session Memory. It replaces the current legacy generated notes and summary from the saved transcript.'
       );
       if (!confirmed) return;
       try {
         reprocessStartPending = true;
         updateReprocessControls(currentReprocessStatus || {});
-        if (sessionsInfoEl) sessionsInfoEl.textContent = `Starting rebuild for ${sessionId}...`;
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Starting legacy Notes rebuild for ${sessionId}...`;
         if (sessionsGameSummaryEl) sessionsGameSummaryEl.disabled = true;
-        updateGameSummaryEditState('Rebuilding DM notes and the game summary…');
+        updateGameSummaryEditState('Rebuilding legacy DM Notes and the game summary…');
         const partyOverride = sessionsPartyMetaEl?.value || '';
         const res = await fetch('/api/session/reprocess/start', {
           method: 'POST',
@@ -4795,7 +5385,7 @@ async function postMetaOnce() {
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
-        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (rebuild started)`;
+        if (sessionsInfoEl) sessionsInfoEl.textContent = `Session ${sessionId} (legacy Notes rebuild started)`;
         startReprocessPolling(sessionId);
       } catch (e) {
         if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;

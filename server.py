@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
+import copy
 import json
 import os
 import re
+import sys
 import time
 import threading
 import uuid
@@ -14,12 +16,59 @@ from urllib.parse import urlparse, parse_qs, urlencode
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
+# The bundled Windows Python uses a ._pth file that omits the script directory.
+# Restore normal script execution semantics so repository-local modules import.
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+if APP_DIR not in sys.path:
+    sys.path.insert(0, APP_DIR)
+
+from ai_usage import estimate_cost, load_pricing_config, record_response_usage, summarize_usage
+from session_events import (
+    apply_event_operation,
+    apply_event_operations_batch,
+    find_reconciliation_batch,
+    read_event_operations,
+    read_event_store,
+)
+from session_highlights import (
+    apply_highlight_operation,
+    apply_highlight_operations_batch,
+    find_reconciliation_highlight_batch,
+    read_highlight_operations,
+    read_highlight_store,
+)
+from session_evidence import (
+    build_ordered_evidence,
+    claim_reconciliation,
+    fail_reconciliation,
+    mark_finalized,
+    refresh_finalization,
+    request_finalization,
+)
+from session_reconciliation import (
+    build_reconciliation_request,
+    extract_structured_output,
+    validate_reconciliation_result,
+)
+from reconciliation_context import (
+    ArentoriaSqliteReferenceProvider,
+    build_orientation_context,
+    build_reference_canon_packet,
+    build_session_evidence_packet,
+    load_world_reference_providers,
+    local_campaign_reference_providers,
+    reference_source_catalog,
+    search_campaign_reference,
+)
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 CAMPAIGNS_DIR = os.path.join(BASE_DIR, "campaigns")
+WORLDS_DIR = os.path.join(BASE_DIR, "worlds")
 NOTES_LAB_RUNS_DIR = os.path.join(BASE_DIR, "notes-lab-runs")
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 DUNGEONSHARE_ENV_PATH = os.path.join(BASE_DIR, ".dungeonshare.env")
+AI_PRICING_PATH = os.path.join(BASE_DIR, "ai_pricing.json")
 OPENAI_API_KEY = None
 DEEPGRAM_API_KEY = None
 NOTES_LOCK = threading.Lock()
@@ -46,6 +95,17 @@ REPROCESS_STALL_SECONDS_DEFAULT = 600
 SUMMARY_MODEL_DEFAULT = "gpt-4o-mini"
 CLEAN_TRANSCRIPT_MODEL_DEFAULT = "gpt-4o-mini"
 NARRATIVE_MODEL_DEFAULT = "gpt-4o-mini"
+STRUCTURED_RECONCILIATION_MODEL_DEFAULT = "gpt-5.6-sol"
+STRUCTURED_RECONCILIATION_REASONING_DEFAULT = "high"
+STRUCTURED_RECONCILIATION_MAX_INPUT_TOKENS_DEFAULT = 250_000
+STRUCTURED_RECONCILIATION_MAX_OUTPUT_TOKENS_DEFAULT = 32_000
+RECONCILIATION_BENCHMARK_FILENAME = "reconciliation_benchmark.json"
+RECONCILIATION_REFERENCE_AUDIT_FILENAME = "reconciliation_reference_searches.jsonl"
+RECONCILIATION_MODEL_RESPONSE_AUDIT_FILENAME = "reconciliation_model_responses.jsonl"
+RECONCILIATION_REFERENCE_MAX_SEARCHES_DEFAULT = 5
+RECONCILIATION_REFERENCE_RESULTS_DEFAULT = 5
+RECONCILIATION_REFERENCE_AUDIT_LOCK = threading.Lock()
+RECONCILIATION_MODEL_RESPONSE_AUDIT_LOCK = threading.Lock()
 TRANSCRIPTION_MODEL_DEFAULT = "gpt-4o-transcribe-diarize"
 DEEPGRAM_MODEL_DEFAULT = "nova-3"
 SERVER_STARTED_AT = int(time.time())
@@ -406,6 +466,9 @@ def _campaign_dir(campaign_id: str) -> str:
 def _campaign_path(campaign_id: str) -> str:
     return os.path.join(_campaign_dir(campaign_id), "campaign.json")
 
+def _world_manifest_path(world_id: str) -> str:
+    return os.path.join(WORLDS_DIR, world_id, "world.manifest.json")
+
 def _safe_campaign_id(raw: str) -> str:
     s = re.sub(r"[^a-z0-9_-]+", "-", str(raw or "").strip().lower())
     s = re.sub(r"-+", "-", s).strip("-")
@@ -413,10 +476,33 @@ def _safe_campaign_id(raw: str) -> str:
         raise ValueError("campaignId is required.")
     return s[:64]
 
+def _safe_world_id(raw: str) -> str:
+    s = re.sub(r"[^a-z0-9_-]+", "-", str(raw or "").strip().lower())
+    s = re.sub(r"-+", "-", s).strip("-")
+    if not s:
+        raise ValueError("worldId is required when a campaign has a World.")
+    return s[:64]
+
+def _validate_world_id(world_id):
+    if world_id is None or not str(world_id).strip():
+        return None
+    world_id = _safe_world_id(world_id)
+    manifest_path = _world_manifest_path(world_id)
+    manifest = read_json(manifest_path, default=None)
+    if not isinstance(manifest, dict):
+        raise ValueError(f"worldId {world_id} does not resolve to a world manifest.")
+    declared_id = _safe_world_id(manifest.get("worldId"))
+    if declared_id != world_id:
+        raise ValueError(
+            f"World manifest ID {declared_id} does not match campaign worldId {world_id}."
+        )
+    return world_id
+
 def _default_campaign(campaign_id: str, name: str = ""):
     now = int(time.time())
     return {
         "campaignId": campaign_id,
+        "worldId": None,
         "name": str(name or campaign_id),
         "party": "",
         "canonNames": [],
@@ -445,6 +531,9 @@ def _normalize_canon_names(items):
             "aliases": aliases,
             "type": entry_type,
             "descriptor": descriptor,
+            "visibility": str(item.get("visibility") or "unknown").strip().lower()
+            if str(item.get("visibility") or "unknown").strip().lower() in {"dm_only", "player_known", "unknown"}
+            else "unknown",
         })
     return out
 
@@ -472,6 +561,8 @@ def _normalize_campaign_payload(campaign_id: str, payload):
     base = _default_campaign(campaign_id, (payload or {}).get("name") if isinstance(payload, dict) else "")
     if not isinstance(payload, dict):
         return base
+    raw_world_id = payload.get("worldId")
+    base["worldId"] = _safe_world_id(raw_world_id) if str(raw_world_id or "").strip() else None
     base["name"] = str(payload.get("name") or base["name"]).strip() or campaign_id
     base["party"] = str(payload.get("party") or "")
     base["canonNames"] = _normalize_canon_names(payload.get("canonNames") or [])
@@ -496,6 +587,7 @@ def list_campaigns(limit: int = 100):
         payload = _normalize_campaign_payload(_safe_campaign_id(payload.get("campaignId") or name), payload)
         campaigns.append({
             "campaignId": payload["campaignId"],
+            "worldId": payload.get("worldId"),
             "name": payload["name"],
             "updatedAt": payload["updatedAt"],
             "sessionSummaryCount": len(payload.get("sessionSummaries") or []),
@@ -510,14 +602,53 @@ def read_campaign(campaign_id: str):
     if payload is None:
         payload = _default_campaign(cid)
         write_json_atomic(_campaign_path(cid), payload)
-    return _normalize_campaign_payload(cid, payload)
+    normalized = _normalize_campaign_payload(cid, payload)
+    _validate_world_id(normalized.get("worldId"))
+    return normalized
+
+def resolve_campaign_world(campaign_id: str):
+    """Resolve a campaign's manifest-declared runtime World reference providers."""
+    cid = _safe_campaign_id(campaign_id)
+    result = {
+        "campaignId": cid,
+        "campaign": None,
+        "worldId": None,
+        "manifest": None,
+        "providers": [],
+        "resolvedSources": [],
+        "errors": [],
+    }
+    try:
+        campaign = read_campaign(cid)
+    except (OSError, ValueError) as exc:
+        result["errors"].append({
+            "code": "campaign_world_resolution_failed",
+            "source": "world",
+            "message": str(exc)[:240],
+        })
+        return result
+    result["campaign"] = campaign
+    world_id = campaign.get("worldId")
+    if not world_id:
+        return result
+    world_resolution = load_world_reference_providers(world_id, WORLDS_DIR)
+    result.update(world_resolution)
+    result["campaignId"] = cid
+    result["campaign"] = campaign
+    return result
 
 def write_campaign(campaign_id: str, payload):
     cid = _safe_campaign_id(campaign_id)
-    ensure_dir(_campaign_dir(cid))
     normalized = _normalize_campaign_payload(cid, payload)
+    _validate_world_id(normalized.get("worldId"))
+    ensure_dir(_campaign_dir(cid))
     write_json_atomic(_campaign_path(cid), normalized)
     return normalized
+
+def _campaign_world_id_for_save(campaign_id: str, payload):
+    if isinstance(payload, dict) and "worldId" in payload:
+        return payload.get("worldId")
+    return read_campaign(campaign_id).get("worldId")
 
 def _campaign_recent_session_summaries_text(campaign: dict, limit: int = 3) -> str:
     entries = campaign.get("sessionSummaries") or []
@@ -582,6 +713,7 @@ def _build_context_snapshot(campaign: dict):
         sections.append("Relevant world prep:\n" + prep_text)
     return {
         "campaignId": campaign.get("campaignId") or "",
+        "worldId": campaign.get("worldId"),
         "campaignName": campaign.get("name") or "",
         "partyText": str(campaign.get("party") or "").strip(),
         "canonNames": _normalize_canon_names(campaign.get("canonNames") or []),
@@ -1005,7 +1137,7 @@ def read_session_text(session_id: str):
     game_summary_path = os.path.join(session_dir, "game_summary.txt")
     game_narrative_path = os.path.join(session_dir, "game_narrative.txt")
     structured = _latest_notes_structured(session_id)
-    status = read_json(os.path.join(session_dir, "status.json"), default={})
+    status = _session_status_response(session_id)
     game_summary = read_text(game_summary_path, "")
     game_summary_hash = hashlib.sha256(game_summary.strip().encode("utf-8")).hexdigest() if game_summary.strip() else ""
     handoff_hash = str(status.get("gameSummaryHandoffHash") or "").strip()
@@ -1063,6 +1195,7 @@ def read_session_text(session_id: str):
         "cleanTranscriptStatus": status.get("cleanTranscriptStatus") or {},
         "transcriptBackfillStatus": status.get("transcriptBackfillStatus") or {},
         "fullDiarizedStatus": status.get("fullDiarizedStatus") or {},
+        "finalization": status.get("finalization") or {},
         "missingTranscriptChunks": [int(item.get("chunkIndex") or -1) for item in missing_chunks if int(item.get("chunkIndex") or -1) >= 0],
         "notesState": structured.get("state") or {},
         "notesTimeline": structured.get("timelineItems") or [],
@@ -1073,16 +1206,18 @@ def read_session_text(session_id: str):
         "trackingState": tracking_state,
         "prepContext": prep_context,
         "prepContextText": _prep_context_text(prep_context),
+        "aiUsage": _session_ai_usage(session_id),
     }
 
 def update_status_for_chunk(session_id: str, chunk_index: int, filename: str, nbytes: int):
     def mutate(status):
+        now = int(time.time())
         if not status:
             status.update({
                 "sessionId": session_id,
                 "sessionName": "",
-                "createdAt": int(time.time()),
-                "updatedAt": int(time.time()),
+                "createdAt": now,
+                "updatedAt": now,
                 "chunks": [],
                 "latestChunkIndex": -1,
                 "notes": "",
@@ -1092,11 +1227,17 @@ def update_status_for_chunk(session_id: str, chunk_index: int, filename: str, nb
             "chunkIndex": chunk_index,
             "filename": filename,
             "bytes": nbytes,
-            "uploadedAt": int(time.time()),
+            "uploadedAt": now,
+            "transcriptionStatus": "pending",
         })
+        failures = status.get("transcriptionFailures") or {}
+        if isinstance(failures, dict):
+            failures.pop(str(chunk_index), None)
+            status["transcriptionFailures"] = failures
         status["chunks"].sort(key=lambda c: c.get("chunkIndex", -1))
         status["latestChunkIndex"] = max(status.get("latestChunkIndex", -1), chunk_index)
-        status["updatedAt"] = int(time.time())
+        status["updatedAt"] = now
+        _advance_finalization_in_status(session_id, status, now=now)
     _update_session_status(session_id, mutate, default={})
 
 def _mime_for_filename(filename: str) -> str:
@@ -1125,10 +1266,97 @@ def _audio_chunk_response_path(session_id: str, filename: str) -> str:
     return path
 
 def _session_status_response(session_id: str) -> dict:
+    current = _read_session_status(session_id)
+    if isinstance(current.get("finalization"), dict) and current["finalization"].get("finalExpectedChunkIndex") is not None:
+        return _refresh_session_finalization(session_id)
     status = read_json(_session_status_path(session_id), default={})
     if not isinstance(status, dict):
         status = {}
     return status
+
+def _advance_finalization_in_status(session_id: str, status: dict, now=None):
+    current = status.get("finalization")
+    if not isinstance(current, dict) or current.get("finalExpectedChunkIndex") is None:
+        return None
+    boundary = int(current["finalExpectedChunkIndex"])
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    evidence = build_ordered_evidence(session_dir, status=status, final_expected_chunk_index=boundary)
+    updated = refresh_finalization(current, evidence, now=now)
+    if updated != current:
+        status["finalization"] = updated
+        status["updatedAt"] = int(time.time()) if now is None else int(now)
+    return updated
+
+def _refresh_session_finalization(session_id: str):
+    status = _read_session_status(session_id)
+    current = copy.deepcopy(status.get("finalization"))
+    _advance_finalization_in_status(session_id, status)
+    if status.get("finalization") == current:
+        return status
+
+    def mutate(status):
+        _advance_finalization_in_status(session_id, status)
+        return dict(status)
+    return _update_session_status(session_id, mutate, default={})
+
+def _request_session_finalization(session_id: str, final_expected_chunk_index):
+    def mutate(status):
+        current = status.get("finalization") if isinstance(status.get("finalization"), dict) else {}
+        session_dir = os.path.join(UPLOADS_DIR, session_id)
+        requested_evidence = build_ordered_evidence(
+            session_dir,
+            status=status,
+            final_expected_chunk_index=final_expected_chunk_index,
+        )
+        requested_boundary = requested_evidence["finalExpectedChunkIndex"]
+        existing_boundary = current.get("finalExpectedChunkIndex")
+        if existing_boundary is not None:
+            requested_boundary = max(int(existing_boundary), requested_boundary)
+        evidence = requested_evidence if requested_boundary == requested_evidence["finalExpectedChunkIndex"] else build_ordered_evidence(
+            session_dir, status=status, final_expected_chunk_index=requested_boundary
+        )
+        finalization = request_finalization(
+            current,
+            evidence,
+            final_expected_chunk_index,
+        )
+        if finalization != current:
+            status["finalization"] = finalization
+            status["updatedAt"] = int(time.time())
+        return {"finalization": copy.deepcopy(finalization), "evidence": evidence}
+    return _update_session_status(session_id, mutate, default={})
+
+def _claim_session_reconciliation(session_id: str, reconciliation_id: str, diagnostics=None, allow_retry=False):
+    def mutate(status):
+        finalization = claim_reconciliation(
+            status.get("finalization"), reconciliation_id, allow_retry=allow_retry
+        )
+        finalization["reconciliationOwnerStartedAt"] = SERVER_STARTED_AT
+        if isinstance(diagnostics, dict):
+            finalization["reconciliationInputDiagnostics"] = copy.deepcopy(diagnostics)
+        status["finalization"] = finalization
+        status["updatedAt"] = int(time.time())
+        return copy.deepcopy(status["finalization"])
+    return _update_session_status(session_id, mutate, default={})
+
+def _fail_session_reconciliation(session_id: str, reconciliation_id: str, error):
+    def mutate(status):
+        status["finalization"] = fail_reconciliation(
+            status.get("finalization"), reconciliation_id, error
+        )
+        status["updatedAt"] = int(time.time())
+        return copy.deepcopy(status["finalization"])
+    return _update_session_status(session_id, mutate, default={})
+
+def _mark_session_finalized(session_id: str, reconciliation_id: str, result_metadata=None):
+    def mutate(status):
+        finalization = mark_finalized(status.get("finalization"), reconciliation_id)
+        if isinstance(result_metadata, dict):
+            finalization["reconciliationResult"] = copy.deepcopy(result_metadata)
+        status["finalization"] = finalization
+        status["updatedAt"] = int(time.time())
+        return copy.deepcopy(status["finalization"])
+    return _update_session_status(session_id, mutate, default={})
 
 def _session_status_url(session_id: str) -> str:
     return f"/api/session/status?{urlencode({'sessionId': session_id})}"
@@ -1195,6 +1423,146 @@ def _narrative_model() -> str:
     load_env_file(ENV_PATH)
     return (os.environ.get("NARRATIVE_MODEL") or NARRATIVE_MODEL_DEFAULT).strip()
 
+def _structured_reconciliation_enabled() -> bool:
+    load_env_file(ENV_PATH)
+    return str(os.environ.get("ENABLE_STRUCTURED_RECONCILIATION") or "").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+
+def _structured_reconciliation_model() -> str:
+    load_env_file(ENV_PATH)
+    return (
+        os.environ.get("STRUCTURED_RECONCILIATION_MODEL")
+        or STRUCTURED_RECONCILIATION_MODEL_DEFAULT
+    ).strip()
+
+def _structured_reconciliation_reasoning_effort() -> str:
+    load_env_file(ENV_PATH)
+    value = str(
+        os.environ.get("STRUCTURED_RECONCILIATION_REASONING_EFFORT")
+        or STRUCTURED_RECONCILIATION_REASONING_DEFAULT
+    ).strip().lower()
+    return value if value in {"none", "low", "medium", "high", "xhigh"} else STRUCTURED_RECONCILIATION_REASONING_DEFAULT
+
+def _structured_reconciliation_token_limit(name: str, default: int, minimum: int, maximum: int) -> int:
+    load_env_file(ENV_PATH)
+    try:
+        value = int(str(os.environ.get(name) or default).strip())
+    except (TypeError, ValueError):
+        value = default
+    return max(minimum, min(maximum, value))
+
+def _structured_reconciliation_max_input_tokens() -> int:
+    return _structured_reconciliation_token_limit(
+        "STRUCTURED_RECONCILIATION_MAX_INPUT_TOKENS",
+        STRUCTURED_RECONCILIATION_MAX_INPUT_TOKENS_DEFAULT,
+        10_000,
+        250_000,
+    )
+
+def _structured_reconciliation_max_output_tokens() -> int:
+    return _structured_reconciliation_token_limit(
+        "STRUCTURED_RECONCILIATION_MAX_OUTPUT_TOKENS",
+        STRUCTURED_RECONCILIATION_MAX_OUTPUT_TOKENS_DEFAULT,
+        1_000,
+        64_000,
+    )
+
+
+def _reconciliation_reference_retrieval_enabled() -> bool:
+    load_env_file(ENV_PATH)
+    return str(os.environ.get("ENABLE_RECONCILIATION_REFERENCE_RETRIEVAL") or "").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
+
+
+def _reconciliation_reference_max_searches() -> int:
+    return _structured_reconciliation_token_limit(
+        "RECONCILIATION_REFERENCE_MAX_SEARCHES",
+        RECONCILIATION_REFERENCE_MAX_SEARCHES_DEFAULT,
+        1,
+        5,
+    )
+
+
+def _reconciliation_reference_results_per_search() -> int:
+    return _structured_reconciliation_token_limit(
+        "RECONCILIATION_REFERENCE_RESULTS_PER_SEARCH",
+        RECONCILIATION_REFERENCE_RESULTS_DEFAULT,
+        1,
+        5,
+    )
+
+
+def _arentoria_database_path():
+    load_env_file(ENV_PATH)
+    configured = str(os.environ.get("ARENTORIA_DB_PATH") or "").strip()
+    candidate = configured or os.path.abspath(
+        os.path.join(BASE_DIR, os.pardir, "arentoria", "data", "arentoria.sqlite")
+    )
+    return os.path.abspath(candidate) if os.path.isfile(candidate) else ""
+
+
+def _reference_context_for_snapshot(
+    snapshot, arentoria_path="", snapshot_provenance="locked_session_snapshot"
+):
+    snapshot = snapshot if isinstance(snapshot, dict) else {}
+    campaign_id = str(snapshot.get("campaignId") or "").strip()
+    if campaign_id:
+        world_resolution = resolve_campaign_world(campaign_id)
+    elif snapshot.get("worldId"):
+        world_resolution = load_world_reference_providers(
+            snapshot.get("worldId"), WORLDS_DIR
+        )
+        world_resolution["campaignId"] = ""
+    else:
+        world_resolution = {
+            "campaignId": campaign_id,
+            "worldId": None,
+            "manifest": None,
+            "providers": [],
+            "resolvedSources": [],
+            "errors": [],
+        }
+
+    world_providers = list(world_resolution.get("providers") or [])
+    providers = [
+        provider for provider in world_providers
+        if getattr(provider, "authority_class", "") == "world_canon"
+    ]
+    if arentoria_path:
+        try:
+            providers.append(ArentoriaSqliteReferenceProvider(arentoria_path))
+        except (OSError, ValueError) as exc:
+            world_resolution.setdefault("errors", []).append({
+                "code": "structured_city_unavailable",
+                "source": "arentoria",
+                "message": str(exc)[:240],
+            })
+    providers.extend(
+        provider for provider in world_providers
+        if getattr(provider, "authority_class", "") == "current_adventure"
+    )
+    providers.extend(local_campaign_reference_providers(snapshot))
+    catalog = reference_source_catalog(
+        snapshot,
+        snapshot_provenance,
+        arentoria_available=bool(arentoria_path),
+        world_resolution=world_resolution,
+    )
+    available_sources = {
+        item.get("source") for item in catalog
+        if isinstance(item, dict) and item.get("available")
+    }
+    providers = [provider for provider in providers if provider.source in available_sources]
+    return {
+        "campaignId": campaign_id,
+        "worldId": world_resolution.get("worldId"),
+        "worldResolution": world_resolution,
+        "providers": providers,
+        "sourceCatalog": catalog,
+    }
+
 def _notes_window() -> int:
     load_env_file(ENV_PATH)
     raw = (os.environ.get("NOTES_WINDOW_CHUNKS") or "").strip()
@@ -1203,6 +1571,1308 @@ def _notes_window() -> int:
         return max(1, min(20, v))
     except Exception:
         return NOTES_WINDOW_DEFAULT
+
+
+def _record_ai_response_usage(session_id: str, stage: str, model: str, provider: str, response_payload: dict, metadata=None):
+    sid = str(session_id or "").strip()
+    if not sid or not stage:
+        return None
+    try:
+        sid = safe_session_id(sid)
+        session_dir = os.path.join(UPLOADS_DIR, sid)
+        return record_response_usage(
+            session_dir=session_dir,
+            stage=stage,
+            model=model,
+            provider=provider,
+            response_payload=response_payload,
+            pricing_path=AI_PRICING_PATH,
+            metadata=metadata,
+        )
+    except Exception as e:
+        try:
+            _set_session_status_fields(sid, {
+                "aiUsageError": {
+                    "message": str(e),
+                    "updatedAt": int(time.time()),
+                }
+            })
+        except Exception:
+            pass
+        return None
+
+
+def _session_ai_usage(session_id: str):
+    try:
+        return summarize_usage(
+            session_dir=os.path.join(UPLOADS_DIR, safe_session_id(session_id)),
+            pricing_path=AI_PRICING_PATH,
+        )
+    except Exception as e:
+        return {
+            "schemaVersion": 1,
+            "currency": "USD",
+            "error": str(e),
+            "total": {
+                "requests": 0,
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "estimatedCost": None,
+            },
+            "stages": [],
+        }
+
+def _reconciliation_cost_diagnostics(
+    model: str,
+    input_tokens: int,
+    max_output_tokens: int,
+    maximum_model_requests: int = 1,
+):
+    config = load_pricing_config(AI_PRICING_PATH)
+    base = {"tokenUsageAvailable": True, "cachedInputTokens": 0, "audioSeconds": 0}
+    input_cost = estimate_cost(config, "openai", model, {
+        **base, "inputTokens": int(input_tokens), "outputTokens": 0,
+    })
+    output_cost = estimate_cost(config, "openai", model, {
+        **base, "inputTokens": 0, "outputTokens": int(max_output_tokens),
+    })
+    one_request_cap = (
+        round(input_cost + output_cost, 8)
+        if input_cost is not None and output_cost is not None else None
+    )
+    maximum_model_requests = max(1, int(maximum_model_requests or 1))
+    modeled_input_tokens = (
+        maximum_model_requests * int(input_tokens)
+        + int(max_output_tokens) * maximum_model_requests * (maximum_model_requests - 1) // 2
+    )
+    modeled_output_tokens = maximum_model_requests * int(max_output_tokens)
+    tool_loop_input_cost = estimate_cost(config, "openai", model, {
+        **base, "inputTokens": modeled_input_tokens, "outputTokens": 0,
+    })
+    tool_loop_output_cost = estimate_cost(config, "openai", model, {
+        **base, "inputTokens": 0, "outputTokens": modeled_output_tokens,
+    })
+    return {
+        "currency": str(config.get("currency") or "USD"),
+        "pricingVersion": str(config.get("version") or ""),
+        "approximateInputCost": input_cost,
+        "maximumOutputCost": output_cost,
+        "estimatedCostAtOutputCap": one_request_cap,
+        "maximumModelRequests": maximum_model_requests,
+        "maximumModeledInputTokensAcrossRequests": modeled_input_tokens,
+        "maximumModeledOutputTokensAcrossRequests": modeled_output_tokens,
+        "estimatedMaximumToolLoopCostAtCaps": (
+            round(tool_loop_input_cost + tool_loop_output_cost, 8)
+            if tool_loop_input_cost is not None and tool_loop_output_cost is not None else None
+        ),
+        "toolLoopEstimateMethod": (
+            "all requests and prior outputs at configured caps; bounded reference-result bytes excluded"
+        ),
+        "inputEstimateIsExact": False,
+    }
+
+def _structured_reconciliation_benchmark_policy(session_id: str, requested_mode=""):
+    session_id = safe_session_id(session_id)
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    stored = read_json(os.path.join(session_dir, RECONCILIATION_BENCHMARK_FILENAME), {})
+    stored = stored if isinstance(stored, dict) else {}
+    stored_mode = str(stored.get("mode") or "").strip().lower()
+    requested_mode = str(requested_mode or "").strip().lower()
+    supported = {"", "normal", "clean"}
+    if stored_mode not in supported:
+        raise ValueError(f"Unsupported stored reconciliation benchmark mode: {stored_mode}.")
+    if requested_mode not in supported:
+        raise ValueError(f"Unsupported reconciliation benchmark mode: {requested_mode}.")
+    if stored_mode and requested_mode and stored_mode != requested_mode:
+        raise ValueError(
+            f"Requested benchmark mode {requested_mode} conflicts with stored mode {stored_mode}."
+        )
+    mode = stored_mode or requested_mode or "normal"
+    reference_retrieval_requested = bool(stored.get("enableReferenceRetrieval"))
+    reference_canon_excluded = bool(stored.get("excludeReferenceCanon"))
+    if mode == "clean" and reference_retrieval_requested and reference_canon_excluded:
+        raise ValueError(
+            "Clean benchmark policy cannot both enable reference retrieval and exclude reference canon."
+        )
+    return {
+        "mode": mode,
+        "source": "session_policy" if stored_mode else ("request" if requested_mode else "default"),
+        "cleanInputRequired": mode == "clean",
+        "referenceRetrievalRequested": reference_retrieval_requested,
+        "referenceCanonExcluded": reference_canon_excluded,
+    }
+
+def _prepare_structured_reconciliation(
+    session_id: str, benchmark_mode="", allow_finalized_preview=False
+):
+    session_id = safe_session_id(session_id)
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    benchmark = _structured_reconciliation_benchmark_policy(session_id, benchmark_mode)
+    clean_benchmark = benchmark["cleanInputRequired"]
+    status = _session_status_response(session_id)
+    finalization = status.get("finalization") if isinstance(status.get("finalization"), dict) else {}
+    allowed_states = {"ready_for_reconciliation", "reconciliation_error"}
+    if allow_finalized_preview:
+        allowed_states.add("finalized")
+    if finalization.get("state") not in allowed_states:
+        raise ValueError("Session must be ready_for_reconciliation before reconciliation can run.")
+    boundary = finalization.get("finalExpectedChunkIndex")
+    evidence = build_ordered_evidence(
+        session_dir, status=status, final_expected_chunk_index=boundary
+    )
+    unsettled = {
+        key: evidence.get(key) or []
+        for key in ("missingChunks", "pendingChunks", "failedChunks", "unexpectedChunks")
+        if evidence.get(key)
+    }
+    if unsettled:
+        raise ValueError(f"Reconciliation evidence barrier is not settled: {unsettled}.")
+
+    event_store = read_event_store(session_dir, session_id)
+    highlight_store = read_highlight_store(session_dir, session_id)
+    if clean_benchmark and (event_store.get("events") or {}):
+        raise ValueError("Clean benchmark requires an empty structured event store.")
+    if clean_benchmark and (highlight_store.get("highlights") or {}):
+        raise ValueError("Clean benchmark requires an empty session highlight store.")
+    tracker_events = _read_tracking_events(session_id)
+    stored_snapshot = status.get("contextSnapshot")
+    has_locked_snapshot = isinstance(stored_snapshot, dict)
+    context_snapshot = stored_snapshot if has_locked_snapshot else _session_context_snapshot(session_id)
+    snapshot_provenance = "status.contextSnapshot" if has_locked_snapshot else "current_campaign_fallback"
+    session_evidence = build_session_evidence_packet(
+        ordered_entries=evidence.get("reconciliationEntries") or [],
+        tracker_state=_derive_tracking_state(session_id, events=tracker_events),
+        tracker_events=tracker_events,
+        reviewer_corrections=(
+            "" if clean_benchmark else _reviewed_timeline_context_text(session_id, limit=100)
+        ),
+        evidence_markers=[],
+        include_reviewer_evidence=not clean_benchmark,
+        prior_session_summary=str(context_snapshot.get("recentSessionSummariesText") or ""),
+        transcript_phase_override=status.get("transcriptPhaseOverride"),
+    )
+    if session_evidence.get("orderedTranscriptEvidence") and not session_evidence.get(
+        "currentSessionOccurrenceChunkIndexes"
+    ):
+        raise ValueError(
+            "Current-session play could not be identified conservatively; inspect the transcript "
+            "phase assessment or supply a transcriptPhaseOverride before reconciliation."
+        )
+    orientation_context = build_orientation_context(
+        snapshot=context_snapshot,
+        party_roster=_session_party_text(session_id),
+        snapshot_provenance=snapshot_provenance,
+    )
+    arentoria_path = _arentoria_database_path()
+    reference_context = _reference_context_for_snapshot(
+        context_snapshot,
+        arentoria_path=arentoria_path,
+        snapshot_provenance=snapshot_provenance,
+    )
+    providers = reference_context["providers"]
+    source_catalog = reference_context["sourceCatalog"]
+    feature_enabled = _reconciliation_reference_retrieval_enabled()
+    retrieval_enabled = feature_enabled and (
+        not clean_benchmark
+        or (
+            benchmark["referenceRetrievalRequested"]
+            and not benchmark["referenceCanonExcluded"]
+        )
+    )
+    retrieval_config = {
+        "enabled": bool(retrieval_enabled and providers),
+        "featureEnabled": feature_enabled,
+        "maxSearches": _reconciliation_reference_max_searches(),
+        "maxResultsPerSearch": _reconciliation_reference_results_per_search(),
+        "campaignId": reference_context.get("campaignId") or "",
+        "worldId": reference_context.get("worldId"),
+        "visibilityMode": "dm",
+        "legacyEnabled": False,
+        "providerErrors": copy.deepcopy(
+            reference_context["worldResolution"].get("errors") or []
+        ),
+    }
+    reference_canon = build_reference_canon_packet(
+        included_records=[],
+        available_sources=source_catalog,
+        retrieval_enabled=retrieval_config["enabled"],
+    )
+    model = _structured_reconciliation_model()
+    max_output_tokens = _structured_reconciliation_max_output_tokens()
+    request_payload, diagnostics, input_document = build_reconciliation_request(
+        model=model,
+        reasoning_effort=_structured_reconciliation_reasoning_effort(),
+        max_output_tokens=max_output_tokens,
+        max_input_tokens=_structured_reconciliation_max_input_tokens(),
+        session_id=session_id,
+        finalization_id=finalization.get("finalizationId"),
+        session_evidence=session_evidence,
+        orientation_context=orientation_context,
+        reference_canon=reference_canon,
+        existing_events=event_store.get("events") or {},
+        existing_highlights=highlight_store.get("highlights") or {},
+        benchmark_mode=benchmark["mode"],
+        reference_retrieval=retrieval_config,
+    )
+    diagnostics["referenceRetrieval"].update({
+        "campaignId": retrieval_config.get("campaignId"),
+        "worldId": retrieval_config.get("worldId"),
+        "visibilityMode": retrieval_config.get("visibilityMode"),
+        "legacyEnabled": bool(retrieval_config.get("legacyEnabled")),
+        "resolvedWorldSources": copy.deepcopy(
+            reference_context["worldResolution"].get("resolvedSources") or []
+        ),
+        "providerErrors": copy.deepcopy(retrieval_config.get("providerErrors") or []),
+    })
+    maximum_model_requests = diagnostics["referenceRetrieval"]["maximumModelRequests"]
+    diagnostics["costSafety"] = _reconciliation_cost_diagnostics(
+        model,
+        diagnostics["approximateInputTokens"],
+        max_output_tokens,
+        maximum_model_requests=maximum_model_requests,
+    )
+    return {
+        "sessionDir": session_dir,
+        "status": status,
+        "finalization": finalization,
+        "evidence": evidence,
+        "eventStore": event_store,
+        "highlightStore": highlight_store,
+        "benchmark": benchmark,
+        "contextPackets": {
+            "sessionEvidence": session_evidence,
+            "orientationContext": orientation_context,
+            "referenceCanon": reference_canon,
+        },
+        "request": request_payload,
+        "inputDocument": input_document,
+        "diagnostics": diagnostics,
+        "model": model,
+        "referenceProviders": providers,
+        "referenceRetrieval": retrieval_config,
+        "worldResolution": reference_context["worldResolution"],
+    }
+
+def _request_structured_reconciliation_model(request_payload: dict):
+    api_key = _openai_api_key()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not configured.")
+    req = Request(
+        "https://api.openai.com/v1/responses",
+        data=json.dumps(request_payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    # Reconciliation responses are billable and each tool-loop turn is explicitly
+    # counted. Do not hide a second request behind transport retry behavior.
+    try:
+        with urlopen(req, timeout=600) as response:
+            raw = response.read().decode("utf-8")
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(f"OpenAI reconciliation API error: HTTP {exc.code} {detail}") from None
+    except URLError as exc:
+        raise RuntimeError(f"OpenAI reconciliation API connection error: {exc}") from None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"OpenAI reconciliation API returned invalid JSON: {exc.msg}.") from None
+
+def _reconciliation_result_metadata(
+    record,
+    operation_count,
+    model,
+    response_id="",
+    recovered=False,
+    highlight_record=None,
+    highlight_operation_count=0,
+):
+    return {
+        "batchOperationId": str((record or {}).get("operationId") or ""),
+        "operationCount": int(operation_count or 0),
+        "highlightBatchOperationId": str((highlight_record or {}).get("operationId") or ""),
+        "highlightOperationCount": int(highlight_operation_count or 0),
+        "model": str(model or ""),
+        "responseId": str(response_id or ""),
+        "recoveredAfterRestart": bool(recovered),
+    }
+
+def _recover_committed_reconciliation(session_id: str, finalization: dict):
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    batch = find_reconciliation_batch(session_dir, finalization.get("finalizationId"))
+    if not batch:
+        return None
+    metadata = ((batch.get("payload") or {}).get("batchMetadata") or {})
+    reconciliation_id = str(finalization.get("reconciliationId") or metadata.get("reconciliationId") or "")
+    if not reconciliation_id:
+        raise ValueError("Committed reconciliation batch has no reconciliationId.")
+    applied = ((batch.get("payload") or {}).get("appliedOperations") or [])
+    highlight_batch = find_reconciliation_highlight_batch(
+        session_dir, finalization.get("finalizationId")
+    )
+    if not highlight_batch:
+        requested_highlights = metadata.get("highlightOperations")
+        if not isinstance(requested_highlights, list):
+            requested_highlights = []
+        highlight_result = apply_highlight_operations_batch(
+            session_dir,
+            session_id,
+            requested_highlights,
+            batch_metadata={
+                "finalizationId": finalization.get("finalizationId"),
+                "reconciliationId": reconciliation_id,
+                "model": metadata.get("model"),
+                "responseId": metadata.get("responseId"),
+                "recoveredFromEventBatch": True,
+            },
+            actor="reconciliation",
+        )
+        highlight_batch = highlight_result["operation"]
+    highlight_applied = ((highlight_batch.get("payload") or {}).get("appliedOperations") or [])
+    finalized = _mark_session_finalized(
+        session_id,
+        reconciliation_id,
+        _reconciliation_result_metadata(
+            batch,
+            len(applied),
+            metadata.get("model"),
+            metadata.get("responseId"),
+            recovered=True,
+            highlight_record=highlight_batch,
+            highlight_operation_count=len(highlight_applied),
+        ),
+    )
+    return {
+        "ok": True,
+        "sessionId": session_id,
+        "alreadyCommitted": True,
+        "modelCalled": False,
+        "finalization": finalized,
+        "eventStore": read_event_store(session_dir, session_id),
+        "highlightStore": read_highlight_store(session_dir, session_id),
+    }
+
+
+def _session_memory_evidence_summary(session_id: str, finalization=None):
+    finalization = finalization if isinstance(finalization, dict) else {}
+    boundary = finalization.get("finalExpectedChunkIndex")
+    status = _session_status_response(session_id)
+    evidence = build_ordered_evidence(
+        os.path.join(UPLOADS_DIR, session_id),
+        status=status,
+        final_expected_chunk_index=boundary,
+    )
+    entries = evidence.get("reconciliationEntries") or []
+    chunk_indexes = [int(item["chunkIndex"]) for item in entries]
+    return {
+        "availableChunkCount": len(chunk_indexes),
+        "firstChunkIndex": min(chunk_indexes) if chunk_indexes else None,
+        "lastChunkIndex": max(chunk_indexes) if chunk_indexes else None,
+        "highestUploadedChunk": evidence.get("highestUploadedChunk"),
+        "highestTranscribedChunk": evidence.get("highestTranscribedChunk"),
+        "missingChunks": list(evidence.get("missingChunks") or []),
+        "pendingChunks": list(evidence.get("pendingChunks") or []),
+        "failedChunks": list(evidence.get("failedChunks") or []),
+        "unexpectedChunks": list(evidence.get("unexpectedChunks") or []),
+    }
+
+
+def _session_memory_usage_summary(session_id: str):
+    usage = _session_ai_usage(session_id)
+    stages = usage.get("stages") if isinstance(usage, dict) else []
+    stage = next(
+        (
+            item
+            for item in (stages or [])
+            if isinstance(item, dict) and item.get("stage") == "session_reconciliation"
+        ),
+        None,
+    )
+    return copy.deepcopy(stage) if isinstance(stage, dict) else {
+        "stage": "session_reconciliation",
+        "requests": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cachedInputTokens": 0,
+        "estimatedCost": 0.0,
+        "knownEstimatedCost": 0.0,
+        "unestimatedRequests": 0,
+        "models": [],
+    }
+
+
+def _reconciliation_history_entry(finalization: dict):
+    allowed = {
+        "finalizationId",
+        "finalExpectedChunkIndex",
+        "state",
+        "requestedAt",
+        "recordingStoppedAt",
+        "readyAt",
+        "reconciliationId",
+        "reconciliationAttempt",
+        "reconciliationClaimedAt",
+        "reconciliationFailedAt",
+        "finalizedAt",
+        "updatedAt",
+        "error",
+        "reconciliationResult",
+    }
+    return {
+        key: copy.deepcopy(value)
+        for key, value in (finalization or {}).items()
+        if key in allowed
+    }
+
+
+def _reopen_finalized_session_reconciliation(session_id: str):
+    """Create a fresh barrier for an explicit rebuild while retaining prior audit metadata."""
+    session_id = safe_session_id(session_id)
+
+    def mutate(status):
+        current = status.get("finalization") if isinstance(status.get("finalization"), dict) else {}
+        state = str(current.get("state") or "")
+        if state == "reconciliation_in_progress":
+            raise ValueError("Session reconciliation is already in progress.")
+        if state != "finalized":
+            return copy.deepcopy(current)
+
+        boundary = current.get("finalExpectedChunkIndex")
+        if boundary is None:
+            raise ValueError("Finalized session has no final expected chunk.")
+        session_dir = os.path.join(UPLOADS_DIR, session_id)
+        evidence = build_ordered_evidence(
+            session_dir,
+            status=status,
+            final_expected_chunk_index=boundary,
+        )
+        timestamp = int(time.time())
+        reopened = request_finalization({}, evidence, boundary, now=timestamp)
+        reopened["recordingStoppedAt"] = int(
+            current.get("recordingStoppedAt") or status.get("createdAt") or timestamp
+        )
+        reopened["rebuildRequestedAt"] = timestamp
+        reopened["rebuildOfFinalizationId"] = str(current.get("finalizationId") or "")
+        reopened["reconciliationAttempt"] = int(current.get("reconciliationAttempt") or 0)
+
+        history = status.get("reconciliationHistory")
+        history = list(history) if isinstance(history, list) else []
+        history.append(_reconciliation_history_entry(current))
+        status["reconciliationHistory"] = history[-20:]
+        status["finalization"] = reopened
+        status["updatedAt"] = timestamp
+        return copy.deepcopy(reopened)
+
+    return _update_session_status(session_id, mutate, default={})
+
+
+def structured_reconciliation_status(session_id: str):
+    session_id = safe_session_id(session_id)
+    status = _session_status_response(session_id)
+    finalization = status.get("finalization") if isinstance(status.get("finalization"), dict) else {}
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    event_store = read_event_store(session_dir, session_id)
+    highlight_store = read_highlight_store(session_dir, session_id)
+    event_count = len(event_store.get("events") or {})
+    highlight_count = len(highlight_store.get("highlights") or {})
+    finalization_state = str(finalization.get("state") or "not_finalized")
+    return {
+        "enabled": _structured_reconciliation_enabled(),
+        "trigger": "POST /api/session/reconcile with confirm=true",
+        "model": _structured_reconciliation_model(),
+        "reasoningEffort": _structured_reconciliation_reasoning_effort(),
+        "maxInputTokens": _structured_reconciliation_max_input_tokens(),
+        "maxOutputTokens": _structured_reconciliation_max_output_tokens(),
+        "referenceRetrieval": {
+            "featureEnabled": _reconciliation_reference_retrieval_enabled(),
+            "maxSearches": _reconciliation_reference_max_searches(),
+            "maxResultsPerSearch": _reconciliation_reference_results_per_search(),
+            "arentoriaAvailable": bool(_arentoria_database_path()),
+        },
+        "benchmark": _structured_reconciliation_benchmark_policy(session_id),
+        "finalization": finalization,
+        "operation": {
+            "state": finalization_state,
+            "running": finalization_state == "reconciliation_in_progress",
+            "error": str(finalization.get("error") or ""),
+        },
+        "memory": {
+            "built": bool(finalization_state == "finalized" or event_count or highlight_count),
+            "eventCount": event_count,
+            "highlightCount": highlight_count,
+        },
+        "evidence": _session_memory_evidence_summary(session_id, finalization),
+        "usage": _session_memory_usage_summary(session_id),
+    }
+
+
+def _reference_function_calls(response_payload):
+    if not isinstance(response_payload, dict):
+        raise ValueError("Reconciliation API response must be an object.")
+    calls = []
+    for item in response_payload.get("output") or []:
+        if isinstance(item, dict) and item.get("type") == "function_call":
+            calls.append(item)
+    return calls
+
+
+def _append_reference_search_audit(session_dir, record):
+    path = os.path.join(session_dir, RECONCILIATION_REFERENCE_AUDIT_FILENAME)
+    with RECONCILIATION_REFERENCE_AUDIT_LOCK:
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+
+
+def _append_reconciliation_model_audit(session_dir, record):
+    path = os.path.join(session_dir, RECONCILIATION_MODEL_RESPONSE_AUDIT_FILENAME)
+    with RECONCILIATION_MODEL_RESPONSE_AUDIT_LOCK:
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+
+
+def _model_response_audit_record(
+    session_id, reconciliation_id, claimed, model, model_request_ordinal, response
+):
+    output = response.get("output") if isinstance(response, dict) else []
+    output = output if isinstance(output, list) else []
+    proposed_calls = []
+    for call_ordinal, item in enumerate(output, 1):
+        if not isinstance(item, dict) or item.get("type") != "function_call":
+            continue
+        raw_arguments = str(item.get("arguments") or "")
+        parsed_arguments = None
+        argument_parse_error = ""
+        try:
+            parsed_arguments = json.loads(raw_arguments)
+        except json.JSONDecodeError as exc:
+            argument_parse_error = exc.msg
+        proposed_calls.append({
+            "callOrdinal": call_ordinal,
+            "name": str(item.get("name") or ""),
+            "callId": str(item.get("call_id") or item.get("id") or ""),
+            "rawArguments": raw_arguments,
+            "parsedArguments": parsed_arguments,
+            "argumentParseError": argument_parse_error,
+        })
+    return {
+        "schemaVersion": 1,
+        "recordType": "model_response",
+        "createdAt": int(time.time()),
+        "sessionId": session_id,
+        "finalizationId": str(claimed.get("finalizationId") or ""),
+        "reconciliationId": reconciliation_id,
+        "model": str(model or ""),
+        "modelRequestOrdinal": model_request_ordinal,
+        "responseId": str(response.get("id") or "") if isinstance(response, dict) else "",
+        "responseCreatedAt": response.get("created_at") if isinstance(response, dict) else None,
+        "responseStatus": str(response.get("status") or "") if isinstance(response, dict) else "",
+        "outputItemTypes": [
+            str(item.get("type") or "") if isinstance(item, dict) else type(item).__name__
+            for item in output
+        ],
+        "proposedFunctionCallCount": len(proposed_calls),
+        "proposedFunctionCalls": proposed_calls,
+        "usage": copy.deepcopy(response.get("usage") or {}) if isinstance(response, dict) else {},
+        "rawResponse": copy.deepcopy(response),
+    }
+
+
+def _append_model_call_outcome_audit(
+    session_dir,
+    session_id,
+    reconciliation_id,
+    claimed,
+    model_request_ordinal,
+    response_id,
+    outcomes,
+    proposed_search_count,
+    executed_search_count,
+    suppressed_search_count,
+):
+    _append_reconciliation_model_audit(session_dir, {
+        "schemaVersion": 1,
+        "recordType": "tool_call_batch_outcome",
+        "createdAt": int(time.time()),
+        "sessionId": session_id,
+        "finalizationId": str(claimed.get("finalizationId") or ""),
+        "reconciliationId": reconciliation_id,
+        "modelRequestOrdinal": model_request_ordinal,
+        "responseId": str(response_id or ""),
+        "proposedSearchCount": len(outcomes),
+        "executedSearchCount": sum(1 for item in outcomes if item.get("executed")),
+        "suppressedSearchCount": sum(
+            1 for item in outcomes if item.get("callStatus") == "suppressed_budget"
+        ),
+        "cumulativeProposedSearchCount": proposed_search_count,
+        "cumulativeExecutedSearchCount": executed_search_count,
+        "cumulativeSuppressedSearchCount": suppressed_search_count,
+        "calls": copy.deepcopy(outcomes),
+    })
+
+
+def _validated_reference_search_call(call):
+    if call.get("name") != "search_campaign_reference":
+        raise ValueError(f"Unsupported reconciliation tool: {call.get('name')}.")
+    try:
+        arguments = json.loads(str(call.get("arguments") or "{}"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Reference search arguments are invalid JSON: {exc.msg}.") from None
+    if not isinstance(arguments, dict):
+        raise ValueError("Reference search arguments must be an object.")
+    sources = arguments.get("sources")
+    entity_types = arguments.get("entity_types")
+    if not isinstance(sources, list) or not isinstance(entity_types, list):
+        raise ValueError("Reference search sources and entity_types must be arrays.")
+    if len(sources) > 3 or len(entity_types) > 8:
+        raise ValueError("Reference search source or entity-type limit exceeded.")
+    if any(not isinstance(value, str) for value in sources + entity_types):
+        raise ValueError("Reference search source and entity-type values must be strings.")
+    requested_limit = arguments.get("limit")
+    try:
+        requested_limit = int(requested_limit)
+    except (TypeError, ValueError):
+        raise ValueError("Reference search limit must be an integer.") from None
+    if requested_limit < 1:
+        raise ValueError("Reference search limit must be positive.")
+    call_id = str(call.get("call_id") or call.get("id") or "").strip()
+    if not call_id:
+        raise ValueError("Reference search tool call has no call ID.")
+    return {
+        "call": call,
+        "callId": call_id,
+        "arguments": arguments,
+        "sources": sources,
+        "entityTypes": entity_types,
+        "requestedLimit": requested_limit,
+    }
+
+
+def _aggregate_reconciliation_usage(events):
+    events = [item for item in events if isinstance(item, dict)]
+    known_costs = [item.get("estimatedCost") for item in events]
+    return {
+        "stage": "session_reconciliation",
+        "requests": len(events),
+        "inputTokens": sum(int(item.get("inputTokens") or 0) for item in events),
+        "outputTokens": sum(int(item.get("outputTokens") or 0) for item in events),
+        "cachedInputTokens": sum(int(item.get("cachedInputTokens") or 0) for item in events),
+        "estimatedCost": (
+            round(sum(float(value) for value in known_costs), 8)
+            if events and all(value is not None for value in known_costs) else None
+        ),
+        "events": events,
+    }
+
+
+def _request_approximate_input_tokens(request_payload):
+    counted = {
+        key: request_payload.get(key)
+        for key in ("instructions", "input", "tools", "text")
+        if key in request_payload
+    }
+    byte_count = len(json.dumps(counted, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+    return (byte_count + 2) // 3
+
+
+def _run_reconciliation_model_loop(
+    session_id,
+    reconciliation_id,
+    claimed,
+    prepared,
+    client,
+):
+    request_payload = copy.deepcopy(prepared["request"])
+    original_input = request_payload["input"]
+    conversation_input = [{
+        "role": "user",
+        "content": [{"type": "input_text", "text": original_input}],
+    }]
+    retrieval = prepared["referenceRetrieval"]
+    search_count = 0
+    provider_names = set()
+    result_count = 0
+    reference_tokens = 0
+    usage_events = []
+    model_request_count = 0
+    proposed_search_count = 0
+    suppressed_search_count = 0
+    max_searches = int(retrieval["maxSearches"])
+    maximum_model_requests = int(
+        prepared["diagnostics"]["referenceRetrieval"]["maximumModelRequests"]
+    )
+
+    def call_audit_base(call, call_ordinal, proposed_ordinal, arguments=None):
+        arguments = arguments if isinstance(arguments, dict) else {}
+        return {
+            "schemaVersion": 2,
+            "createdAt": int(time.time()),
+            "sessionId": session_id,
+            "finalizationId": str(claimed.get("finalizationId") or ""),
+            "reconciliationId": reconciliation_id,
+            "modelRequestOrdinal": model_request_count,
+            "callOrdinal": call_ordinal,
+            "proposedSearchOrdinal": proposed_ordinal,
+            "toolCallId": str(call.get("call_id") or call.get("id") or ""),
+            "toolName": str(call.get("name") or ""),
+            "campaignId": retrieval.get("campaignId"),
+            "worldId": retrieval.get("worldId"),
+            "visibilityMode": retrieval.get("visibilityMode") or "dm",
+            "query": arguments.get("query"),
+            "requestedSources": arguments.get("sources"),
+            "requestedEntityTypes": arguments.get("entity_types"),
+            "requestedLimit": arguments.get("limit"),
+        }
+
+    while True:
+        if model_request_count >= maximum_model_requests:
+            raise ValueError("Reconciliation model request-count limit exceeded.")
+        request_tokens = _request_approximate_input_tokens(request_payload)
+        if request_tokens > int(prepared["diagnostics"]["maxInputTokens"]):
+            raise ValueError(
+                f"Estimated reconciliation tool-loop input ({request_tokens} tokens) exceeds "
+                f"configured limit ({prepared['diagnostics']['maxInputTokens']}); no further model request was made."
+            )
+        response = client(request_payload)
+        model_request_count += 1
+        response_id = str(response.get("id") or "") if isinstance(response, dict) else ""
+        _append_reconciliation_model_audit(
+            prepared["sessionDir"],
+            _model_response_audit_record(
+                session_id,
+                reconciliation_id,
+                claimed,
+                prepared["model"],
+                model_request_count,
+                response,
+            ),
+        )
+        usage_event = _record_ai_response_usage(
+            session_id=session_id,
+            stage="session_reconciliation",
+            model=prepared["model"],
+            provider="openai",
+            response_payload=response,
+            metadata={
+                "operation": "post_session_reconciliation",
+                "finalizationId": claimed.get("finalizationId"),
+                "reconciliationId": reconciliation_id,
+                "responseId": str(response.get("id") or "") if isinstance(response, dict) else "",
+                "modelRequestOrdinal": model_request_count,
+            },
+        )
+        if usage_event is None:
+            raise RuntimeError("Reconciliation usage metadata could not be persisted.")
+        usage_events.append(usage_event)
+
+        calls = _reference_function_calls(response)
+        proposed_start = proposed_search_count
+        proposed_search_count += len(calls)
+        if not calls:
+            _append_model_call_outcome_audit(
+                prepared["sessionDir"],
+                session_id,
+                reconciliation_id,
+                claimed,
+                model_request_count,
+                response_id,
+                [],
+                proposed_search_count,
+                search_count,
+                suppressed_search_count,
+            )
+            return response, usage_events, {
+                "searchCount": search_count,
+                "proposedSearchCount": proposed_search_count,
+                "executedSearchCount": search_count,
+                "suppressedSearchCount": suppressed_search_count,
+                "providersQueried": sorted(provider_names),
+                "resultCount": result_count,
+                "approximateReferenceTokensInserted": reference_tokens,
+                "modelRequestCount": model_request_count,
+                "toolLoopTurns": max(0, model_request_count - 1),
+            }
+        if not retrieval.get("enabled"):
+            outcomes = []
+            for call_ordinal, call in enumerate(calls, 1):
+                audit = call_audit_base(
+                    call, call_ordinal, proposed_start + call_ordinal
+                )
+                audit.update({
+                    "callStatus": "rejected_tool_disabled",
+                    "executed": False,
+                    "suppressionReason": "reference_retrieval_disabled",
+                    "remainingSearches": max(0, max_searches - search_count),
+                    "error": "Model requested reference retrieval while the tool is disabled.",
+                })
+                _append_reference_search_audit(prepared["sessionDir"], audit)
+                outcomes.append({
+                    "callOrdinal": call_ordinal,
+                    "proposedSearchOrdinal": proposed_start + call_ordinal,
+                    "toolCallId": audit["toolCallId"],
+                    "callStatus": audit["callStatus"],
+                    "executed": False,
+                    "suppressionReason": audit["suppressionReason"],
+                })
+            _append_model_call_outcome_audit(
+                prepared["sessionDir"], session_id, reconciliation_id, claimed,
+                model_request_count, response_id, outcomes, proposed_search_count,
+                search_count, suppressed_search_count,
+            )
+            raise ValueError("Model requested reference retrieval while the tool is disabled.")
+
+        parsed_calls = []
+        first_validation_error = None
+        for call_ordinal, call in enumerate(calls, 1):
+            try:
+                parsed_calls.append({
+                    "callOrdinal": call_ordinal,
+                    "proposedSearchOrdinal": proposed_start + call_ordinal,
+                    "parsed": _validated_reference_search_call(call),
+                    "error": None,
+                })
+            except ValueError as exc:
+                first_validation_error = first_validation_error or exc
+                parsed_calls.append({
+                    "callOrdinal": call_ordinal,
+                    "proposedSearchOrdinal": proposed_start + call_ordinal,
+                    "parsed": {"call": call},
+                    "error": exc,
+                })
+        if first_validation_error is not None:
+            outcomes = []
+            for item in parsed_calls:
+                parsed = item["parsed"]
+                call = parsed["call"]
+                raw_arguments = str(call.get("arguments") or "{}")
+                try:
+                    arguments = json.loads(raw_arguments)
+                except json.JSONDecodeError:
+                    arguments = {}
+                audit = call_audit_base(
+                    call,
+                    item["callOrdinal"],
+                    item["proposedSearchOrdinal"],
+                    arguments,
+                )
+                invalid = item["error"] is not None
+                audit.update({
+                    "callStatus": "rejected_invalid" if invalid else "not_executed_invalid_batch",
+                    "executed": False,
+                    "suppressionReason": (
+                        "invalid_tool_call" if invalid else "invalid_tool_call_in_batch"
+                    ),
+                    "remainingSearches": max(0, max_searches - search_count),
+                    "error": str(item["error"] or first_validation_error),
+                })
+                _append_reference_search_audit(prepared["sessionDir"], audit)
+                outcomes.append({
+                    "callOrdinal": item["callOrdinal"],
+                    "proposedSearchOrdinal": item["proposedSearchOrdinal"],
+                    "toolCallId": audit["toolCallId"],
+                    "callStatus": audit["callStatus"],
+                    "executed": False,
+                    "suppressionReason": audit["suppressionReason"],
+                })
+            _append_model_call_outcome_audit(
+                prepared["sessionDir"], session_id, reconciliation_id, claimed,
+                model_request_count, response_id, outcomes, proposed_search_count,
+                search_count, suppressed_search_count,
+            )
+            raise first_validation_error
+
+        tool_outputs = []
+        outcomes = []
+        for position, item in enumerate(parsed_calls):
+            parsed = item["parsed"]
+            call = parsed["call"]
+            call_id = parsed["callId"]
+            arguments = parsed["arguments"]
+            sources = parsed["sources"]
+            entity_types = parsed["entityTypes"]
+            requested_limit = parsed["requestedLimit"]
+            audit = call_audit_base(
+                call,
+                item["callOrdinal"],
+                item["proposedSearchOrdinal"],
+                arguments,
+            )
+            if search_count >= max_searches:
+                budget_result = {
+                    "ok": False,
+                    "status": "search_budget_exhausted",
+                    "message": "Reference search budget exhausted; no search was executed.",
+                    "remainingSearches": 0,
+                }
+                encoded_result = json.dumps(
+                    budget_result, ensure_ascii=False, separators=(",", ":")
+                )
+                inserted_tokens = (len(encoded_result.encode("utf-8")) + 2) // 3
+                reference_tokens += inserted_tokens
+                suppressed_search_count += 1
+                audit.update({
+                    "callStatus": "suppressed_budget",
+                    "executed": False,
+                    "suppressionReason": "search_budget_exhausted",
+                    "remainingSearches": 0,
+                    "resolution": "not_executed_budget_exhausted",
+                    "resultCount": None,
+                    "providersQueried": [],
+                    "candidateCounts": {},
+                    "authorityClassesQueried": [],
+                    "legacyEnabled": bool(retrieval.get("legacyEnabled")),
+                    "providerErrors": [],
+                    "suppressedLowerAuthorityConflicts": [],
+                    "approximateResultTokens": inserted_tokens,
+                    "returnedReferences": [],
+                    "toolResultStatus": "search_budget_exhausted",
+                })
+                _append_reference_search_audit(prepared["sessionDir"], audit)
+                tool_outputs.append({
+                    "type": "function_call_output",
+                    "call_id": call_id,
+                    "output": encoded_result,
+                })
+                outcomes.append({
+                    "callOrdinal": item["callOrdinal"],
+                    "proposedSearchOrdinal": item["proposedSearchOrdinal"],
+                    "toolCallId": call_id,
+                    "callStatus": "suppressed_budget",
+                    "executed": False,
+                    "suppressionReason": "search_budget_exhausted",
+                })
+                continue
+
+            search_count += 1
+            try:
+                result = search_campaign_reference(
+                    arguments.get("query"),
+                    sources=sources,
+                    entity_types=entity_types,
+                    limit=min(requested_limit, int(retrieval["maxResultsPerSearch"])),
+                    providers=prepared["referenceProviders"],
+                    campaign_id=retrieval.get("campaignId"),
+                    world_id=retrieval.get("worldId"),
+                    visibility_mode=retrieval.get("visibilityMode") or "dm",
+                    include_legacy=bool(retrieval.get("legacyEnabled")),
+                    provider_errors=retrieval.get("providerErrors"),
+                )
+            except Exception as exc:
+                audit.update({
+                    "searchOrdinal": search_count,
+                    "callStatus": "failed_provider",
+                    "executed": True,
+                    "suppressionReason": None,
+                    "remainingSearches": max(0, max_searches - search_count),
+                    "error": str(exc),
+                })
+                _append_reference_search_audit(prepared["sessionDir"], audit)
+                outcomes.append({
+                    "callOrdinal": item["callOrdinal"],
+                    "proposedSearchOrdinal": item["proposedSearchOrdinal"],
+                    "toolCallId": call_id,
+                    "callStatus": "failed_provider",
+                    "executed": True,
+                    "suppressionReason": None,
+                    "error": str(exc),
+                })
+                for later in parsed_calls[position + 1:]:
+                    later_parsed = later["parsed"]
+                    later_audit = call_audit_base(
+                        later_parsed["call"],
+                        later["callOrdinal"],
+                        later["proposedSearchOrdinal"],
+                        later_parsed["arguments"],
+                    )
+                    later_audit.update({
+                        "callStatus": "not_executed_after_failure",
+                        "executed": False,
+                        "suppressionReason": "prior_tool_failure",
+                        "remainingSearches": max(0, max_searches - search_count),
+                        "error": str(exc),
+                    })
+                    _append_reference_search_audit(prepared["sessionDir"], later_audit)
+                    outcomes.append({
+                        "callOrdinal": later["callOrdinal"],
+                        "proposedSearchOrdinal": later["proposedSearchOrdinal"],
+                        "toolCallId": later_parsed["callId"],
+                        "callStatus": "not_executed_after_failure",
+                        "executed": False,
+                        "suppressionReason": "prior_tool_failure",
+                    })
+                _append_model_call_outcome_audit(
+                    prepared["sessionDir"], session_id, reconciliation_id, claimed,
+                    model_request_count, response_id, outcomes, proposed_search_count,
+                    search_count, suppressed_search_count,
+                )
+                raise
+            encoded_result = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+            inserted_tokens = (len(encoded_result.encode("utf-8")) + 2) // 3
+            reference_tokens += inserted_tokens
+            result_count += int(result.get("resultCount") or 0)
+            provider_names.update(result.get("providersQueried") or [])
+            provider_names.update(result.get("canonicalizationProvidersQueried") or [])
+            audit.update({
+                "searchOrdinal": search_count,
+                "callStatus": "executed",
+                "executed": True,
+                "suppressionReason": None,
+                "remainingSearches": max(0, max_searches - search_count),
+                "campaignId": result.get("campaignId"),
+                "worldId": result.get("worldId"),
+                "visibilityMode": result.get("visibilityMode"),
+                "query": result["query"],
+                "requestedSources": sources,
+                "requestedEntityTypes": entity_types,
+                "requestedLimit": requested_limit,
+                "effectiveLimit": min(requested_limit, int(retrieval["maxResultsPerSearch"])),
+                "providersQueried": result.get("providersQueried") or [],
+                "candidateCounts": result.get("candidateCounts") or {},
+                "authorityClassesQueried": result.get("authorityClassesQueried") or [],
+                "canonicalizationProvidersQueried": result.get(
+                    "canonicalizationProvidersQueried"
+                ) or [],
+                "upwardCanonicalizations": result.get("upwardCanonicalizations") or [],
+                "legacyEnabled": bool(result.get("legacyEnabled")),
+                "resolution": result.get("resolution"),
+                "resultCount": result.get("resultCount"),
+                "providerErrors": result.get("providerErrors") or [],
+                "suppressedLowerAuthorityConflicts": result.get(
+                    "suppressedLowerAuthorityConflicts"
+                ) or [],
+                "approximateResultTokens": inserted_tokens,
+                "returnedReferences": [{
+                    "referenceId": item.get("referenceId"),
+                    "entityId": item.get("entityId"),
+                    "canonicalName": item.get("canonicalName"),
+                    "entityType": item.get("entityType"),
+                    "provider": item.get("provider"),
+                    "authorityClass": item.get("authorityClass"),
+                    "worldId": item.get("worldId"),
+                    "adventureId": item.get("adventureId"),
+                    "visibility": item.get("visibility"),
+                    "match": item.get("match"),
+                } for item in result.get("results") or []],
+            })
+            _append_reference_search_audit(prepared["sessionDir"], audit)
+            tool_outputs.append({
+                "type": "function_call_output",
+                "call_id": call_id,
+                "output": encoded_result,
+            })
+            outcomes.append({
+                "callOrdinal": item["callOrdinal"],
+                "proposedSearchOrdinal": item["proposedSearchOrdinal"],
+                "toolCallId": call_id,
+                "callStatus": "executed",
+                "executed": True,
+                "suppressionReason": None,
+            })
+
+        _append_model_call_outcome_audit(
+            prepared["sessionDir"], session_id, reconciliation_id, claimed,
+            model_request_count, response_id, outcomes, proposed_search_count,
+            search_count, suppressed_search_count,
+        )
+        conversation_input.extend(copy.deepcopy((response or {}).get("output") or []))
+        conversation_input.extend(tool_outputs)
+        request_payload = copy.deepcopy(prepared["request"])
+        request_payload["input"] = copy.deepcopy(conversation_input)
+
+def run_structured_reconciliation(
+    session_id: str,
+    confirm=False,
+    dry_run=False,
+    model_client=None,
+    benchmark_mode="",
+    rebuild=False,
+):
+    """Run one opt-in, post-session reconciliation. Tests inject model_client."""
+    session_id = safe_session_id(session_id)
+    if not _structured_reconciliation_enabled():
+        raise ValueError("Structured reconciliation is disabled by feature flag.")
+    if not dry_run and not confirm:
+        raise ValueError("confirm=true is required to authorize the billable reconciliation request.")
+
+    status = _session_status_response(session_id)
+    legacy_reprocess = _normalize_reprocess_status(session_id, status, persist=True)
+    if legacy_reprocess.get("running"):
+        raise ValueError(
+            "Legacy DM Notes rebuild is already running for this session. "
+            "Wait for it to finish or stop it before building Session Memory."
+        )
+    finalization = status.get("finalization") if isinstance(status.get("finalization"), dict) else {}
+    state = finalization.get("state")
+    if state == "finalized" and not rebuild:
+        return {
+            "ok": True,
+            "sessionId": session_id,
+            "alreadyFinalized": True,
+            "modelCalled": False,
+            "finalization": finalization,
+            "eventStore": read_event_store(os.path.join(UPLOADS_DIR, session_id), session_id),
+            "highlightStore": read_highlight_store(
+                os.path.join(UPLOADS_DIR, session_id), session_id
+            ),
+        }
+    if state == "finalized" and dry_run and rebuild:
+        prepared = _prepare_structured_reconciliation(
+            session_id,
+            benchmark_mode=benchmark_mode,
+            allow_finalized_preview=True,
+        )
+        diagnostics = prepared["diagnostics"]
+        return {
+            "ok": True,
+            "sessionId": session_id,
+            "dryRun": True,
+            "rebuild": True,
+            "modelCalled": False,
+            "wouldRun": bool(diagnostics["fitsConfiguredLimit"]),
+            "benchmark": prepared["benchmark"],
+            "diagnostics": diagnostics,
+            "finalization": prepared["finalization"],
+        }
+    if state == "finalized" and rebuild:
+        finalization = _reopen_finalized_session_reconciliation(session_id)
+        status = _session_status_response(session_id)
+        state = finalization.get("state")
+    if state == "reconciliation_in_progress":
+        recovered = _recover_committed_reconciliation(session_id, finalization)
+        if recovered:
+            return recovered
+        if finalization.get("reconciliationOwnerStartedAt") == SERVER_STARTED_AT:
+            raise ValueError("Session reconciliation is already in progress.")
+        stale_id = str(finalization.get("reconciliationId") or "")
+        if not stale_id:
+            raise ValueError("Stale reconciliation claim has no reconciliationId.")
+        _fail_session_reconciliation(
+            session_id, stale_id, "Previous reconciliation was interrupted by a server restart."
+        )
+
+    prepared = _prepare_structured_reconciliation(session_id, benchmark_mode=benchmark_mode)
+    diagnostics = prepared["diagnostics"]
+    if dry_run:
+        return {
+            "ok": True,
+            "sessionId": session_id,
+            "dryRun": True,
+            "modelCalled": False,
+            "wouldRun": bool(diagnostics["fitsConfiguredLimit"]),
+            "benchmark": prepared["benchmark"],
+            "diagnostics": diagnostics,
+            "finalization": prepared["finalization"],
+        }
+
+    reconciliation_id = f"recon_{uuid.uuid4().hex}"
+    claimed = _claim_session_reconciliation(
+        session_id,
+        reconciliation_id,
+        diagnostics=diagnostics,
+        allow_retry=prepared["finalization"].get("state") == "reconciliation_error",
+    )
+    if not diagnostics["fitsConfiguredLimit"]:
+        error = (
+            f"Estimated reconciliation input ({diagnostics['approximateInputTokens']} tokens) "
+            f"exceeds configured limit ({diagnostics['maxInputTokens']}); no model request was made."
+        )
+        failed = _fail_session_reconciliation(session_id, reconciliation_id, error)
+        raise ValueError(failed.get("error") or error)
+
+    client = model_client or _request_structured_reconciliation_model
+    try:
+        response, usage_events, retrieval_actual = _run_reconciliation_model_loop(
+            session_id,
+            reconciliation_id,
+            claimed,
+            prepared,
+            client,
+        )
+        diagnostics["referenceRetrieval"].update(retrieval_actual)
+        usage = _aggregate_reconciliation_usage(usage_events)
+        output = extract_structured_output(response)
+        valid_chunks = [
+            int(entry["chunkIndex"])
+            for entry in prepared["evidence"].get("reconciliationEntries") or []
+        ]
+        validated = validate_reconciliation_result(
+            output,
+            existing_event_ids=(prepared["eventStore"].get("events") or {}).keys(),
+            existing_highlight_ids=(
+                prepared["highlightStore"].get("highlights") or {}
+            ).keys(),
+            valid_source_chunks=valid_chunks,
+            current_session_source_chunks=(
+                prepared["contextPackets"]["sessionEvidence"].get(
+                    "currentSessionOccurrenceChunkIndexes"
+                ) or []
+            ),
+        )
+        operations = validated["operations"]
+        highlight_operations = validated["highlightOperations"]
+        response_id = str(response.get("id") or "") if isinstance(response, dict) else ""
+        batch_metadata = {
+            "finalizationId": claimed.get("finalizationId"),
+            "reconciliationId": reconciliation_id,
+            "model": prepared["model"],
+            "responseId": response_id,
+            "inputDiagnostics": diagnostics,
+            # Retained until the sibling batch commits so restart recovery never recalls the model.
+            "highlightOperations": copy.deepcopy(highlight_operations),
+        }
+        batch_result = apply_event_operations_batch(
+            prepared["sessionDir"],
+            session_id,
+            operations,
+            batch_metadata=batch_metadata,
+            actor="reconciliation",
+        )
+        highlight_batch_result = apply_highlight_operations_batch(
+            prepared["sessionDir"],
+            session_id,
+            highlight_operations,
+            batch_metadata={
+                key: copy.deepcopy(value)
+                for key, value in batch_metadata.items()
+                if key != "highlightOperations"
+            },
+            actor="reconciliation",
+        )
+        finalized = _mark_session_finalized(
+            session_id,
+            reconciliation_id,
+            _reconciliation_result_metadata(
+                batch_result["operation"],
+                len(operations),
+                prepared["model"],
+                response_id,
+                highlight_record=highlight_batch_result["operation"],
+                highlight_operation_count=len(highlight_operations),
+            ),
+        )
+        return {
+            "ok": True,
+            "sessionId": session_id,
+            "modelCalled": True,
+            "finalization": finalized,
+            "operationCount": len(operations),
+            "highlightOperationCount": len(highlight_operations),
+            "eventStore": batch_result["eventStore"],
+            "highlightStore": highlight_batch_result["highlightStore"],
+            "usage": usage,
+            "diagnostics": diagnostics,
+        }
+    except Exception as exc:
+        recovered = _recover_committed_reconciliation(session_id, claimed)
+        if recovered:
+            return recovered
+        try:
+            _fail_session_reconciliation(session_id, reconciliation_id, str(exc))
+        except Exception:
+            pass
+        raise
 
 def _clean_transcript_text(text: str) -> str:
     s = (text or "").strip()
@@ -1506,11 +3176,27 @@ def _append_transcript(session_id: str, chunk_index: int, text: str, speaker_tex
             "createdAt": int(time.time()),
         }) + "\n")
 
-    _set_session_status_fields(session_id, {
-        "transcriptLatest": display_text,
-        "transcriptionModel": str(model or "").strip() or _transcription_model(),
-        "transcriptUpdatedAt": int(time.time()),
-    })
+    def mutate(status):
+        now = int(time.time())
+        for chunk in status.get("chunks") or []:
+            if int(chunk.get("chunkIndex", -1)) == int(chunk_index):
+                chunk["transcriptionStatus"] = "succeeded"
+                chunk["transcribedAt"] = now
+        failures = status.get("transcriptionFailures") or {}
+        if isinstance(failures, dict):
+            failures.pop(str(chunk_index), None)
+            status["transcriptionFailures"] = failures
+        legacy_error = status.get("transcriptError") or {}
+        if isinstance(legacy_error, dict) and int(legacy_error.get("chunkIndex", -1)) == int(chunk_index):
+            status.pop("transcriptError", None)
+        status.update({
+            "transcriptLatest": display_text,
+            "transcriptionModel": str(model or "").strip() or _transcription_model(),
+            "transcriptUpdatedAt": now,
+            "updatedAt": now,
+        })
+        _advance_finalization_in_status(session_id, status, now=now)
+    _update_session_status(session_id, mutate, default={})
 
 def _transcript_entry_from_result(chunk_index: int, transcript_result: dict):
     result = transcript_result if isinstance(transcript_result, dict) else {}
@@ -1590,11 +3276,23 @@ def _rewrite_transcript_artifacts(session_id: str):
 
 def _set_transcript_error(session_id: str, chunk_index: int, message: str):
     def mutate(status):
+        now = int(time.time())
         status["transcriptError"] = {
             "chunkIndex": chunk_index,
             "message": message,
-            "updatedAt": int(time.time()),
+            "updatedAt": now,
         }
+        failures = status.get("transcriptionFailures") or {}
+        if not isinstance(failures, dict):
+            failures = {}
+        failures[str(chunk_index)] = {"message": str(message or ""), "failedAt": now}
+        status["transcriptionFailures"] = failures
+        for chunk in status.get("chunks") or []:
+            if int(chunk.get("chunkIndex", -1)) == int(chunk_index):
+                chunk["transcriptionStatus"] = "failed"
+                chunk["transcriptionFailedAt"] = now
+        status["updatedAt"] = now
+        _advance_finalization_in_status(session_id, status, now=now)
     _update_session_status(session_id, mutate, default={})
 
 def _read_party_meta(session_id: str) -> str:
@@ -2427,7 +4125,14 @@ def _extract_json_object(text: str):
     except json.JSONDecodeError:
         return None
 
-def _chat_complete_text(system_prompt: str, user_prompt: str, model: str) -> str:
+def _chat_complete_text(
+    system_prompt: str,
+    user_prompt: str,
+    model: str,
+    usage_stage: str = "",
+    session_id: str = "",
+    usage_metadata=None,
+) -> str:
     api_key = _openai_api_key()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY not set. Add it to .env or your environment.")
@@ -2455,6 +4160,14 @@ def _chat_complete_text(system_prompt: str, user_prompt: str, model: str) -> str
     raw = _urlopen_with_retry(req, timeout=180)
 
     data = json.loads(raw)
+    _record_ai_response_usage(
+        session_id=session_id,
+        stage=usage_stage,
+        model=model,
+        provider="openai",
+        response_payload=data,
+        metadata=usage_metadata,
+    )
     content = (
         data.get("choices", [{}])[0]
         .get("message", {})
@@ -2465,7 +4178,7 @@ def _chat_complete_text(system_prompt: str, user_prompt: str, model: str) -> str
         raise RuntimeError("Empty chat completion response.")
     return content
 
-def transcribe_with_openai(path: str, model: str = "") -> dict:
+def transcribe_with_openai(path: str, model: str = "", session_id: str = "", usage_metadata=None) -> dict:
     api_key = _openai_api_key()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY not set. Add it to .env or your environment.")
@@ -2518,6 +4231,14 @@ def transcribe_with_openai(path: str, model: str = "") -> dict:
     payload = _urlopen_with_retry(req, timeout=120)
 
     data = json.loads(payload)
+    _record_ai_response_usage(
+        session_id=session_id,
+        stage="transcription",
+        model=model,
+        provider="openai",
+        response_payload=data,
+        metadata=usage_metadata,
+    )
     text = (data.get("text") or "").strip()
     segments = _normalize_transcription_segments(data.get("segments") or [])
     speaker_text = _speaker_text_from_segments(segments)
@@ -2656,7 +4377,7 @@ def _stream_deepgram_prerecorded(path: str, url: str, api_key: str, content_type
         raise last_err
     raise RuntimeError("Deepgram API request failed.")
 
-def transcribe_with_deepgram(path: str, model: str = "") -> dict:
+def transcribe_with_deepgram(path: str, model: str = "", session_id: str = "", usage_metadata=None) -> dict:
     api_key = _deepgram_api_key()
     if not api_key:
         raise RuntimeError("DEEPGRAM_API_KEY not set. Add it to .env or your environment.")
@@ -2677,7 +4398,17 @@ def transcribe_with_deepgram(path: str, model: str = "") -> dict:
         content_type=content_type,
         timeout=600,
     )
-    return _deepgram_transcription_from_payload(payload, model=model)
+    result = _deepgram_transcription_from_payload(payload, model=model)
+    response_data = json.loads(payload)
+    _record_ai_response_usage(
+        session_id=session_id,
+        stage="transcription",
+        model=model,
+        provider="deepgram",
+        response_payload={"metadata": response_data.get("metadata") or {}},
+        metadata=usage_metadata,
+    )
+    return result
 
 def _default_notes_system_prompt() -> str:
     return (
@@ -2798,6 +4529,7 @@ def clean_transcript_chunk_with_openai(
     chunk_index: int = -1,
     prev_chunk_text: str = "",
     next_chunk_text: str = "",
+    session_id: str = "",
 ) -> str:
     chunk_text = (chunk_text or "").strip()
     if not chunk_text:
@@ -2818,6 +4550,9 @@ def clean_transcript_chunk_with_openai(
         _default_clean_transcript_system_prompt(),
         user_prompt,
         _clean_transcript_model(),
+        usage_stage="clean_transcript",
+        session_id=session_id,
+        usage_metadata={"chunkIndex": int(chunk_index)},
     )
     return out.strip()
 
@@ -2834,6 +4569,7 @@ def generate_game_summary_from_text(
     selected_notes_only: bool = False,
     summary_guidance: str = "",
     recap_word_count: int = 350,
+    session_id: str = "",
 ) -> str:
     transcript_text = (transcript_text or "").strip()
     if not transcript_text:
@@ -2874,7 +4610,17 @@ def generate_game_summary_from_text(
         "Transcript for the full game session:\n"
         f"{transcript_text}\n"
     )
-    return _chat_complete_text(system_prompt, user_prompt, _summary_model())
+    return _chat_complete_text(
+        system_prompt,
+        user_prompt,
+        _summary_model(),
+        usage_stage="final_recap",
+        session_id=session_id,
+        usage_metadata={
+            "selectedNotesOnly": bool(selected_notes_only),
+            "targetWords": recap_word_count,
+        },
+    )
 
 def generate_game_narrative_from_text(
     transcript_text: str,
@@ -2886,6 +4632,7 @@ def generate_game_narrative_from_text(
     prep_context_text: str = "",
     narrative_guidance: str = "",
     target_word_count: int = 600,
+    session_id: str = "",
 ) -> str:
     transcript_text = (transcript_text or "").strip()
     if not transcript_text:
@@ -2913,7 +4660,14 @@ def generate_game_narrative_from_text(
         "Transcript for the full game session:\n"
         f"{transcript_text}\n"
     )
-    return _chat_complete_text(system_prompt, user_prompt, _narrative_model())
+    return _chat_complete_text(
+        system_prompt,
+        user_prompt,
+        _narrative_model(),
+        usage_stage="narrative",
+        session_id=session_id,
+        usage_metadata={"targetWords": target_word_count},
+    )
 
 def generate_game_summary_for_session(
     session_id: str,
@@ -2954,6 +4708,7 @@ def generate_game_summary_for_session(
         selected_notes_only=promoted_only,
         summary_guidance=summary_guidance,
         recap_word_count=recap_word_count,
+        session_id=session_id,
     )
 
     return save_game_summary_for_session(session_id, summary)
@@ -3055,6 +4810,7 @@ def generate_game_narrative_for_session(session_id: str, narrative_guidance: str
         prep_context_text=prep_context_text,
         narrative_guidance=narrative_guidance,
         target_word_count=target_word_count,
+        session_id=session_id,
     )
 
     out_path = os.path.join(session_dir, "game_narrative.txt")
@@ -3066,7 +4822,14 @@ def generate_game_narrative_for_session(session_id: str, narrative_guidance: str
     })
     return narrative
 
-def _generate_notes_with_context(session_id: str, chunk_index: int, recent: list, summary_override: str = "", window_override: int = None):
+def _generate_notes_with_context(
+    session_id: str,
+    chunk_index: int,
+    recent: list,
+    summary_override: str = "",
+    window_override: int = None,
+    usage_stage: str = "live_notes",
+):
     api_key = _openai_api_key()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY not set. Add it to .env or your environment.")
@@ -3108,7 +4871,14 @@ def _generate_notes_with_context(session_id: str, chunk_index: int, recent: list
         f"{transcript_block if transcript_block else '(none)'}\n"
     )
 
-    raw = _chat_complete_text(system_prompt, user_prompt, _notes_model())
+    raw = _chat_complete_text(
+        system_prompt,
+        user_prompt,
+        _notes_model(),
+        usage_stage=usage_stage,
+        session_id=session_id,
+        usage_metadata={"chunkIndex": int(chunk_index), "windowChunks": int(window)},
+    )
     obj = _extract_json_object(raw)
     if not obj:
         raise RuntimeError("Notes response was not valid JSON.")
@@ -3117,7 +4887,13 @@ def _generate_notes_with_context(session_id: str, chunk_index: int, recent: list
 def generate_notes_with_openai(session_id: str, chunk_index: int):
     window = _notes_window()
     recent = _load_recent_transcripts(session_id, window)
-    return _generate_notes_with_context(session_id, chunk_index, recent, window_override=window)
+    return _generate_notes_with_context(
+        session_id,
+        chunk_index,
+        recent,
+        window_override=window,
+        usage_stage="live_notes",
+    )
 
 def _parse_chunked_transcript(transcript_text: str):
     chunks = []
@@ -3152,6 +4928,8 @@ def generate_notes_from_text(
     system_prompt: str = "",
     window: int = 2,
     prep_context_text: str = "",
+    session_id: str = "",
+    usage_stage: str = "notes_lab",
 ):
     api_key = _openai_api_key()
     if not api_key:
@@ -3205,6 +4983,14 @@ def generate_notes_from_text(
     raw = _urlopen_with_retry(req, timeout=120)
 
     data = json.loads(raw)
+    _record_ai_response_usage(
+        session_id=session_id,
+        stage=usage_stage,
+        model=_notes_model(),
+        provider="openai",
+        response_payload=data,
+        metadata={"windowChunks": int(window)},
+    )
     content = (
         data.get("choices", [{}])[0]
         .get("message", {})
@@ -3237,6 +5023,7 @@ def _notes_test_payload(
     chunk_to=None,
     use_context: bool = True,
     prep_context_text: str = "",
+    session_id: str = "",
 ):
     transcript_text = (transcript_text or "").strip()
     if not transcript_text:
@@ -3255,6 +5042,8 @@ def _notes_test_payload(
             system_prompt=prompt_used,
             window=window,
             prep_context_text=prep_context_text,
+            session_id=session_id,
+            usage_stage="notes_lab",
         )
         timeline = notes_obj.get("timeline") or []
         if isinstance(timeline, str):
@@ -3296,6 +5085,8 @@ def _notes_test_payload(
             system_prompt=prompt_used,
             window=window,
             prep_context_text=prep_context_text,
+            session_id=session_id,
+            usage_stage="notes_lab",
         )
         timeline = notes_obj.get("timeline") or []
         if isinstance(timeline, str):
@@ -3541,6 +5332,7 @@ def rebuild_notes_for_session(session_id: str, party_override: str = "", regener
                 recent=recent,
                 summary_override=rolling_summary,
                 window_override=window,
+                usage_stage="notes_rebuild",
             )
             _append_notes(session_id, chunk_index, notes_obj)
         rolling_summary = str(notes_obj.get("summary") or "").strip() or rolling_summary
@@ -3755,6 +5547,7 @@ def rebuild_clean_transcript_for_session(session_id: str, party_override: str = 
                 chunk_index=chunk_index,
                 prev_chunk_text=prev_chunk_text,
                 next_chunk_text=next_chunk_text,
+                session_id=session_id,
             )
             lines_out.append(f"[{chunk_index:04d}] {cleaned}".rstrip())
             cleaned_count += 1
@@ -3836,7 +5629,11 @@ def backfill_missing_transcripts_for_session(session_id: str):
             path = str(item.get("path") or "")
             if chunk_index < 0 or not path:
                 continue
-            transcript_result = transcribe_with_openai(path)
+            transcript_result = transcribe_with_openai(
+                path,
+                session_id=session_id,
+                usage_metadata={"operation": "backfill", "chunkIndex": chunk_index},
+            )
             _append_transcript(
                 session_id,
                 chunk_index,
@@ -3938,7 +5735,11 @@ def retranscribe_transcript_range_for_session(session_id: str, chunk_from, chunk
             path = str(item.get("path") or "")
             if chunk_index < 0 or not path:
                 continue
-            transcript_result = transcribe_with_openai(path)
+            transcript_result = transcribe_with_openai(
+                path,
+                session_id=session_id,
+                usage_metadata={"operation": "retranscribe_range", "chunkIndex": chunk_index},
+            )
             by_index[chunk_index] = _transcript_entry_from_result(chunk_index, transcript_result)
             _write_all_transcripts(session_id, [by_index[idx] for idx in sorted(by_index.keys())])
             _rewrite_transcript_artifacts(session_id)
@@ -4021,7 +5822,12 @@ def generate_full_diarized_transcript_for_session(session_id: str):
     fallback_reason = ""
     if provider == "deepgram":
         model_name = _deepgram_model()
-        transcribe_batch = lambda path: transcribe_with_deepgram(path, model=model_name)
+        transcribe_batch = lambda path: transcribe_with_deepgram(
+            path,
+            model=model_name,
+            session_id=session_id,
+            usage_metadata={"operation": "full_session_diarization"},
+        )
         provider_label = "deepgram"
         full_session_merged_path = _prepare_full_session_merged_wav(session_id, wav_chunks)
         merged_bytes = os.path.getsize(full_session_merged_path)
@@ -4038,7 +5844,12 @@ def generate_full_diarized_transcript_for_session(session_id: str):
     else:
         batches = _batch_audio_chunks_for_full_diarization(wav_chunks)
         model_name = "gpt-4o-transcribe-diarize"
-        transcribe_batch = lambda path: transcribe_with_openai(path, model=model_name)
+        transcribe_batch = lambda path: transcribe_with_openai(
+            path,
+            model=model_name,
+            session_id=session_id,
+            usage_metadata={"operation": "full_session_diarization"},
+        )
         provider_label = "openai"
     batch_count = len(batches)
     processed = 0
@@ -4413,7 +6224,11 @@ def _run_clean_transcript_job(session_id: str, party_override: str, job_id: str 
 
 def transcribe_async(session_id: str, chunk_index: int, path: str):
     try:
-        transcript_result = transcribe_with_openai(path)
+        transcript_result = transcribe_with_openai(
+            path,
+            session_id=session_id,
+            usage_metadata={"operation": "live", "chunkIndex": int(chunk_index)},
+        )
         _append_transcript(
             session_id,
             chunk_index,
@@ -4531,6 +6346,77 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
 
+        if parsed.path == "/api/session/evidence":
+            try:
+                qs = parse_qs(parsed.query)
+                session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                status = _session_status_response(session_id)
+                finalization = status.get("finalization") if isinstance(status.get("finalization"), dict) else {}
+                boundary = finalization.get("finalExpectedChunkIndex")
+                evidence = build_ordered_evidence(
+                    os.path.join(UPLOADS_DIR, session_id),
+                    status=status,
+                    final_expected_chunk_index=boundary,
+                )
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "finalization": finalization,
+                    "evidence": evidence,
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/reconciliation/status":
+            try:
+                qs = parse_qs(parsed.query)
+                session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    **structured_reconciliation_status(session_id),
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/events":
+            try:
+                qs = parse_qs(parsed.query)
+                session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                session_dir = os.path.join(UPLOADS_DIR, session_id)
+                payload = {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "eventStore": read_event_store(session_dir, session_id),
+                }
+                include_history = str((qs.get("includeHistory") or [""])[0]).strip().lower()
+                if include_history in {"1", "true", "yes"}:
+                    payload["operations"] = read_event_operations(session_dir)
+                self._send_json(200, payload)
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/highlights":
+            try:
+                qs = parse_qs(parsed.query)
+                session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                session_dir = os.path.join(UPLOADS_DIR, session_id)
+                payload = {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "highlightStore": read_highlight_store(session_dir, session_id),
+                }
+                include_history = str((qs.get("includeHistory") or [""])[0]).strip().lower()
+                if include_history in {"1", "true", "yes"}:
+                    payload["operations"] = read_highlight_operations(session_dir)
+                self._send_json(200, payload)
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
         if parsed.path == "/api/session/audio":
             try:
                 qs = parse_qs(parsed.query)
@@ -4603,6 +6489,80 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
 
+        if parsed.path == "/api/session/finalize":
+            try:
+                body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                if "finalExpectedChunkIndex" not in data:
+                    raise ValueError("finalExpectedChunkIndex is required.")
+                result = _request_session_finalization(session_id, data.get("finalExpectedChunkIndex"))
+                self._send_json(200, {"ok": True, "sessionId": session_id, **result})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/reconcile":
+            try:
+                body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                result = run_structured_reconciliation(
+                    session_id,
+                    confirm=data.get("confirm") is True,
+                    dry_run=data.get("dryRun") is True,
+                    benchmark_mode=data.get("benchmarkMode") or "",
+                    rebuild=data.get("rebuild") is True,
+                )
+                self._send_json(200, result)
+            except ValueError as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            except Exception as e:
+                self._send_json(502, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/events":
+            try:
+                body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                session_dir = os.path.join(UPLOADS_DIR, session_id)
+                result = apply_event_operation(session_dir, session_id, data)
+                self._send_json(200, {"ok": True, "sessionId": session_id, **result})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/highlights":
+            try:
+                body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
+                data = json.loads(body) if body else {}
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                session_dir = os.path.join(UPLOADS_DIR, session_id)
+                highlight_payload = (
+                    data.get("highlight")
+                    if str(data.get("operation") or "").strip().upper() == "CREATE_HIGHLIGHT"
+                    else data.get("changes")
+                )
+                if isinstance(highlight_payload, dict) and "relatedEventIds" in highlight_payload:
+                    existing_event_ids = set(
+                        (read_event_store(session_dir, session_id).get("events") or {}).keys()
+                    )
+                    requested_event_ids = {
+                        str(event_id or "").strip()
+                        for event_id in highlight_payload.get("relatedEventIds") or []
+                    }
+                    unknown_event_ids = sorted(requested_event_ids - existing_event_ids)
+                    if unknown_event_ids:
+                        raise ValueError(
+                            f"Highlight references unknown related event IDs: {unknown_event_ids}."
+                        )
+                result = apply_highlight_operation(session_dir, session_id, data)
+                self._send_json(200, {"ok": True, "sessionId": session_id, **result})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
         if parsed.path == "/api/campaign/save":
             try:
                 body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
@@ -4610,6 +6570,7 @@ class Handler(SimpleHTTPRequestHandler):
                 campaign_id = _safe_campaign_id(str(data.get("campaignId") or data.get("name") or "default"))
                 campaign = write_campaign(campaign_id, {
                     "campaignId": campaign_id,
+                    "worldId": _campaign_world_id_for_save(campaign_id, data),
                     "name": str(data.get("name") or campaign_id),
                     "party": str(data.get("party") or ""),
                     "canonNames": data.get("canonNames") or [],
@@ -5134,6 +7095,9 @@ class Handler(SimpleHTTPRequestHandler):
                 chunk_from = data.get("chunkFrom")
                 chunk_to = data.get("chunkTo")
                 use_context = bool(data.get("useContext", True))
+                session_id = str(data.get("sessionId") or "").strip()
+                if session_id:
+                    session_id = safe_session_id(session_id)
 
                 payload = _notes_test_payload(
                     transcript_text=transcript_text,
@@ -5145,6 +7109,7 @@ class Handler(SimpleHTTPRequestHandler):
                     chunk_to=chunk_to,
                     use_context=use_context,
                     prep_context_text=prep_context_text,
+                    session_id=session_id,
                 )
 
                 self._send_json(200, {
@@ -5226,6 +7191,18 @@ class Handler(SimpleHTTPRequestHandler):
                 session_id = safe_session_id(str(data.get("sessionId", "")))
                 party_override = str(data.get("party") or "")
                 regenerate_summary = bool(data.get("regenerateSummary", True))
+                status = _session_status_response(session_id)
+                finalization = (
+                    status.get("finalization")
+                    if isinstance(status.get("finalization"), dict)
+                    else {}
+                )
+                if finalization.get("state") == "reconciliation_in_progress":
+                    self._send_json(409, {
+                        "ok": False,
+                        "error": "Session Memory build is already running for this session.",
+                    })
+                    return
                 result = rebuild_notes_for_session(
                     session_id=session_id,
                     party_override=party_override,
@@ -5303,6 +7280,17 @@ class Handler(SimpleHTTPRequestHandler):
                 rep = _normalize_reprocess_status(session_id, status, persist=True)
                 if rep.get("running"):
                     self._send_json(409, {"ok": False, "error": "Reprocess already running for this session."})
+                    return
+                finalization = (
+                    status.get("finalization")
+                    if isinstance(status.get("finalization"), dict)
+                    else {}
+                )
+                if finalization.get("state") == "reconciliation_in_progress":
+                    self._send_json(409, {
+                        "ok": False,
+                        "error": "Session Memory build is already running for this session.",
+                    })
                     return
                 clean_status = _normalize_clean_transcript_status(session_id, status, persist=True)
                 if clean_status.get("running"):

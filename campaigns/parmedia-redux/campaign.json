@@ -1,5 +1,6 @@
 {
   "campaignId": "parmedia-redux",
+  "worldId": "arentor",
   "name": "Parmedia redux",
   "party": "role=DM | player=Jon | character=DM | aliases=DM, GM, Dungeon Master\nrole=Player | player=Robert | character=Trell | class=Wizard | race=High Elf\nrole=Player | player=Geir | character=Goibert | class=Sourcer | race=Rabbit-folk\nrole=Player | player=Dan | character=Malygris | class=Fighter | race=Human\nrole=Player | player=Geoff | character=Visit | class=Cleric | race=Human | aliases=Dongstrider\nrole=Player | player=Rubin | character=Ghedorim | class=Monk | race=Dragonborn\nrole=Player | player=Justin | character=Gale | class=Wizard | race=Elf",
   "canonNames": [

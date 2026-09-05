@@ -1,0 +1,439 @@
+{
+  "schemaVersion": 1,
+  "authorityClass": "current_adventure",
+  "status": "reviewed_local_reference",
+  "adventure": {
+    "id": "dng_kings_spire",
+    "canonicalName": "King's Spire",
+    "subtitle": "Sealed royal spire and Royal Path nexus",
+    "recommendedLevels": {
+      "min": 3,
+      "max": 5
+    }
+  },
+  "source": {
+    "document": "dng_kings_spire.recorder.json",
+    "exportType": "dm_recorder_context",
+    "exportedAt": "2026-09-04T20:00:47.372Z",
+    "sourceSchemaVersion": "2.0",
+    "sha256": "0720b3ade13edd04fa5d59a32754c408bd0684d7fda9d6182aba96999a6934a5"
+  },
+  "authorityRules": {
+    "worldPrecedence": "Arentor Master Canon > current structured Arentoria data > this current-adventure reference > legacy material.",
+    "withinThisExport": [
+      "Finalized room prose / run_this_room.read_aloud",
+      "Room reactions and behavior notes",
+      "Structured room_contents",
+      "General monster/NPC libraries"
+    ],
+    "sessionRule": "This file describes prepared/local truth. It does not prove that the party discovered, took, killed, activated or learned anything; current-session transcript/evidence must prove table events.",
+    "optionalRule": "Explicit options, optional treasure, suggested complications and unresolved alternatives are not canon until selected or established."
+  },
+  "masterPromotions": [
+    {
+      "entity": "King's Spire",
+      "action": "enriched"
+    },
+    {
+      "entity": "Royal Paths",
+      "action": "enriched"
+    },
+    {
+      "entity": "Royal Ward Network",
+      "action": "enriched"
+    },
+    {
+      "entity": "Varney",
+      "action": "added"
+    },
+    {
+      "entity": "Seralith’s Testament",
+      "action": "added"
+    },
+    {
+      "entity": "King's Spire Nexus Chamber",
+      "action": "added"
+    },
+    {
+      "entity": "King's Spire Royal Kitchen Attendants",
+      "action": "added"
+    }
+  ],
+  "localEntities": [
+    {
+      "id": "9e7940b8-c522-5709-94a3-64d36cf4a1f8",
+      "canonicalName": "Royal Dining Room and Study",
+      "type": "place",
+      "aliases": [
+        "Entry Room and Study"
+      ],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Private royal retreat with a laid dining table, silverwood writing desk, personal shrine, spyglass, signal horn and a black-mirror Royal Path portal.",
+      "sourceSection": "Entry Room and Study",
+      "tags": []
+    },
+    {
+      "id": "534fa155-ec42-5fe4-9f8b-5b01e03de303",
+      "canonicalName": "Star-Loom Carpet",
+      "type": "item",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Deep-blue carpet woven with an eight-pointed silver star; an oath-marked character stepping onto it causes blue light to race through the spire and visibly strengthens the surrounding nimbus.",
+      "sourceSection": "Entry Room and Study — Star-Loom Carpet",
+      "tags": [
+        "oath-linked",
+        "ward interaction"
+      ]
+    },
+    {
+      "id": "b6499c71-b046-52de-9143-5e4673463301",
+      "canonicalName": "Silverwood Writing Desk",
+      "type": "item",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Pale metallic silverwood desk whose sunburst-marked drawer opens for someone sworn to Seralith or Aerlan, or can be picked.",
+      "sourceSection": "Entry Room and Study — Silverwood Writing Desk",
+      "tags": [
+        "royal furnishing"
+      ]
+    },
+    {
+      "id": "797e68e8-78d5-5ab7-8596-f129425d7b8d",
+      "canonicalName": "Ornate Royal Signal Horn",
+      "type": "item",
+      "aliases": [
+        "Signal Horn"
+      ],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Dark horn banded with gold that can sound a tower-wide note and interact with ancient tower defenses.",
+      "sourceSection": "Entry Room and Study — The Signal Horn",
+      "tags": []
+    },
+    {
+      "id": "ec10e721-7d67-5396-91d6-b7083dc223f1",
+      "canonicalName": "Sky Courier Balcony",
+      "type": "place",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "High royal courier chamber and balcony equipped with a ballista, signal brazier, message gear and flying saddles; it is the prepared location of the local orc siege breach.",
+      "sourceSection": "Balcony Chamber / Sky Courier Balcony",
+      "tags": []
+    },
+    {
+      "id": "981e1a3c-bbb6-5e4b-be83-8641cf0afa41",
+      "canonicalName": "Tapestry of the Skyguard",
+      "type": "item",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Large tapestry depicting Seralith and Aerlan flying side by side on griffons with royal courier formations.",
+      "sourceSection": "Sky Courier Balcony — Tapestry of the Skyguard",
+      "tags": [
+        "artwork",
+        "royal-era"
+      ]
+    },
+    {
+      "id": "bc801fb6-0bbe-5380-905c-104abc057f15",
+      "canonicalName": "Royal Courier Saddles",
+      "type": "item",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Two exceptionally well-made nonmagical flying saddles designed for griffons or similar mounts, emphasizing rider safety and message transport.",
+      "sourceSection": "Sky Courier Balcony — The Flying Saddles",
+      "tags": []
+    },
+    {
+      "id": "93c7720d-ca3a-507b-9cb4-5814e112a3d3",
+      "canonicalName": "Sky Courier Ballista",
+      "type": "item",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Compact swivel-mounted ballista on the balcony with a rack of bolts inside the chamber.",
+      "sourceSection": "Sky Courier Balcony — The Ballista",
+      "tags": []
+    },
+    {
+      "id": "81715eb9-2b7b-5eda-8736-9c2facd1165f",
+      "canonicalName": "Royal Bedchamber",
+      "type": "place",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Preserved private bedchamber shared by Seralith and Aerlan, containing personal clothing, portraits, cosmetics and a concealed strongbox.",
+      "sourceSection": "Bed Chamber / Royal Bedchamber",
+      "tags": []
+    },
+    {
+      "id": "a2e7ae12-9360-5599-9e56-a241669e6617",
+      "canonicalName": "Moonlight in the Warrens: A Private Portfolio",
+      "type": "item",
+      "aliases": [
+        "Moonlight in the Warrens"
+      ],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Numbered collection of risqué rabbit-folk woodcut prints hidden in a three-lock strongbox beneath the royal bed.",
+      "sourceSection": "Royal Bedchamber — Inside the Strongbox",
+      "tags": [
+        "private",
+        "artwork"
+      ]
+    },
+    {
+      "id": "fc9dde0a-8885-574f-9080-a5ec0ef512b3",
+      "canonicalName": "Enchanted Royal Cosmetics",
+      "type": "item",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Preserved cosmetics and tools that automatically apply an archaic Seralith/Aerlan-era court style when someone sits at the makeup table.",
+      "sourceSection": "Royal Bedchamber — Enchanted Cosmetics",
+      "tags": []
+    },
+    {
+      "id": "1ae45407-b6fd-52aa-b13b-41e5328a8532",
+      "canonicalName": "Portrait of Queen Seralith",
+      "type": "item",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Private portrait showing Seralith informally beside a window with a songbird and traces of ordinary domestic life.",
+      "sourceSection": "Royal Bedchamber — Portrait of Queen Seralith",
+      "tags": [
+        "artwork"
+      ]
+    },
+    {
+      "id": "9e820a45-02d5-5fe8-8f4d-a64fa93f5b29",
+      "canonicalName": "Portrait of King Aerlan",
+      "type": "item",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Private portrait showing Aerlan in court dress with a younger Varney holding one of the king’s gloves.",
+      "sourceSection": "Royal Bedchamber — Portrait of King Aerlan",
+      "tags": [
+        "artwork"
+      ],
+      "masterCanonLink": "Varney"
+    },
+    {
+      "id": "c4cc6559-c651-55b1-8347-596f1c6b8cf9",
+      "canonicalName": "Royal Kitchen",
+      "type": "place",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Immaculate preserved royal kitchen with three kitchen attendants, silverwood work surfaces, emergency-use equipment and stairs leading upward.",
+      "sourceSection": "Royal Kitchen",
+      "tags": []
+    },
+    {
+      "id": "bccd490a-163b-5bac-8b89-861f397804e9",
+      "canonicalName": "Royal Kitchen Attendants",
+      "type": "creature",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Three non-sentient constructs built for cooking, private-chamber maintenance and emergency response; they activate under the kitchen emergency protocol.",
+      "sourceSection": "Royal Kitchen — The Kitchen Constructs",
+      "tags": [
+        "construct",
+        "group-of-three"
+      ],
+      "masterCanonLink": "King's Spire Royal Kitchen Attendants"
+    },
+    {
+      "id": "c94321b8-953b-5130-8324-af03e821d4bb",
+      "canonicalName": "King's Spire Nexus Chamber",
+      "type": "place",
+      "aliases": [
+        "Nexus Chamber",
+        "Tree Sanctuary"
+      ],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Sunlit upper sanctuary centered on a living tree whose roots embrace a black-mirror Royal Path portal.",
+      "sourceSection": "Nexus Chamber",
+      "tags": [],
+      "masterCanonLink": "King's Spire Nexus Chamber"
+    },
+    {
+      "id": "22ebb2d5-9784-5921-8033-8ff71345df4e",
+      "canonicalName": "King’s Spire Nexus Tree",
+      "type": "natural_feature",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Ancient transplanted living tree that anchors the Nexus portal and bears royal-symbol imagery; its exact degree of sentience is unresolved.",
+      "sourceSection": "Nexus Chamber — The Tree / Tree’s Nature",
+      "tags": [
+        "living tree",
+        "magical anchor"
+      ],
+      "notes": "Do not choose among Silent Guardian / Semi-Sentient / Awakened Guardian options unless later canon or session evidence resolves it."
+    },
+    {
+      "id": "7bb88c57-6e18-5ff1-9d95-8b30e859c55d",
+      "canonicalName": "Healing Fruit",
+      "type": "item",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Healing fruit hidden in a knot among the Nexus roots.",
+      "sourceSection": "Nexus Chamber — Treasure",
+      "tags": [
+        "healing"
+      ],
+      "notes": "Likely related to the Master Canon Silverwood fruit, but this local source does not itself use the name Silverwood; do not silently merge based on this file alone."
+    },
+    {
+      "id": "3599dd2e-5c7f-5247-84b8-41b9cae8a66f",
+      "canonicalName": "Forgotten Royal Storeroom",
+      "type": "place",
+      "aliases": [],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Dusty forbidden storeroom reached from the King’s Spire portal beneath the modern House of Crowns; old carpets cover the toppled receiving portal and chests, wine barrels and suits of armor line the room.",
+      "sourceSection": "Hidden Storage Room",
+      "tags": [],
+      "masterCanonLink": "Forgotten Royal Storeroom"
+    },
+    {
+      "id": "ef368e7a-2547-50e7-bdd0-b1b5fb189e24",
+      "canonicalName": "Varney",
+      "type": "creature",
+      "aliases": [
+        "Varny"
+      ],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Large black guardian dog at King’s Spire who bonds readily with a friendly character and appears in an old private portrait with Aerlan.",
+      "sourceSection": "Entry Room and Study / Royal Bedchamber",
+      "tags": [],
+      "masterCanonLink": "Varney"
+    },
+    {
+      "id": "e98a92c9-a404-546d-9fc8-e62e55ed85ec",
+      "canonicalName": "Seralith’s Testament",
+      "type": "item",
+      "aliases": [
+        "Seralith's Testament"
+      ],
+      "status": "prepared",
+      "location": "King's Spire",
+      "shortDescription": "Named final testament of Queen Seralith preserved on the silverwood writing desk.",
+      "sourceSection": "Entry Room and Study — Seralith’s Testament",
+      "tags": [],
+      "masterCanonLink": "Seralith’s Testament"
+    }
+  ],
+  "rooms": [
+    {
+      "roomId": "rm_kings_entry_study",
+      "canonicalName": "Royal Dining Room and Study",
+      "durableLocalFacts": [
+        "A private meal for two is preserved in place, with evidence that both diners had begun eating.",
+        "The room contains a personal shrine to Seralith, a spyglass aimed toward the approaches below, and a black-mirror Royal Path endpoint.",
+        "The surrounding blue ward/nimbus is visible from the room and can react to oath-linked magic.",
+        "Varney is present as a large black guardian dog in the finalized room prose."
+      ],
+      "preparedInteractions": [
+        "Oath-marked contact with the Star-Loom Carpet causes a visible ward reaction and starts the prepared countdown.",
+        "The signal horn can sound a tower-wide note and trigger ancient defensive behavior.",
+        "The black mirror is locally one-way until another linked portal or keystone is activated."
+      ]
+    },
+    {
+      "roomId": "rm_kings_balcony",
+      "canonicalName": "Sky Courier Balcony",
+      "durableLocalFacts": [
+        "The chamber served royal aerial couriers rather than ordinary military cavalry.",
+        "It preserves courier equipment, two griffon-scale flying saddles, a balcony ballista and a signal brazier.",
+        "A tapestry depicts Seralith and Aerlan side by side in the royal aerial tradition."
+      ],
+      "preparedInteractions": [
+        "The prepared encounter is a staged orc/wyvern assault intended to create a localized breach in the blue barrier.",
+        "The room and adjoining kitchen contain multiple environmental tools for resisting the assault."
+      ]
+    },
+    {
+      "roomId": "rm_kings_bed_chamber",
+      "canonicalName": "Royal Bedchamber",
+      "durableLocalFacts": [
+        "The chamber is preserved as a lived-in private room shared by Seralith and Aerlan rather than a ceremonial royal suite.",
+        "Private portraits show Seralith informally with a bird and Aerlan with a younger Varney.",
+        "A concealed strongbox contains Moonlight in the Warrens: A Private Portfolio.",
+        "The makeup table contains functional self-applying enchanted cosmetics and the armoire contains preserved royal-era formal clothing."
+      ],
+      "preparedInteractions": [],
+      "explicitlyUnresolved": [
+        "Some structured loot fields disagree with the finalized bedchamber prose; finalized room prose controls.",
+        "Bird-cage text is internally inconsistent about the number of remembered birds; do not normalize their identities until later evidence resolves it."
+      ]
+    },
+    {
+      "roomId": "rm_9kxgzyy",
+      "canonicalName": "Royal Kitchen",
+      "durableLocalFacts": [
+        "Three non-sentient royal kitchen attendants are preserved at their work stations.",
+        "The constructs are intended for cooking, private-chamber maintenance and emergency response.",
+        "The kitchen contains an ever-hot stockpot and preserved food as part of the same long-running preservation magic."
+      ],
+      "preparedInteractions": [
+        "The emergency horn protocol activates the kitchen attendants against invading orcs.",
+        "Kitchen furnishings are intentionally usable as environmental defenses during the balcony fight."
+      ],
+      "excludedMetagame": [
+        "Geoff’s Fragmented Memory is a player/DM running aid, not in-world canon."
+      ]
+    },
+    {
+      "roomId": "rm_kings_nexus",
+      "canonicalName": "King's Spire Nexus Chamber",
+      "durableLocalFacts": [
+        "A living tree grows through the chamber and physically embraces a black-mirror Royal Path portal.",
+        "The portal draws stability from the tree’s life force.",
+        "The tree bears old royal symbolism, including an eight-pointed-star form."
+      ],
+      "preparedInteractions": [
+        "A glyph-key is presented as one possible activation method in the adventure."
+      ],
+      "explicitlyUnresolved": [
+        "The tree’s degree of sentience is not established; do not choose among the adventure’s alternative options.",
+        "The exact key/activation implementation is not consistently established in this export.",
+        "Optional treasure is not canon until selected or encountered."
+      ]
+    },
+    {
+      "roomId": "rm_kings_storage",
+      "canonicalName": "Forgotten Royal Storeroom",
+      "durableLocalFacts": [
+        "The receiving portal is toppled and buried beneath old carpets in a dusty, forbidden storeroom.",
+        "The room contains old chests, wine barrels and inert suits of armor and opens toward the modern administrative complex above."
+      ],
+      "preparedInteractions": [
+        "Disturbing the carpets creates a dust hazard.",
+        "Leaving obvious disturbance can trigger social/administrative consequences."
+      ],
+      "explicitlyUnresolved": [
+        "Optional treasure and optional combat hooks are not canon until selected or encountered."
+      ]
+    }
+  ],
+  "preparedEncounterFrames": [
+    {
+      "name": "Balcony Siege",
+      "status": "prepared_not_session_proof",
+      "summary": "Orc war mages on wyverns batter the local ward, followed by boarding orcs and a chained abused wyvern; the encounter is designed around delaying a localized breach and using the balcony/kitchen environment."
+    }
+  ]
+}

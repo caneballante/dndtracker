@@ -1,0 +1,2913 @@
+{
+  "schemaVersion": 2,
+  "world": "Arentor",
+  "status": "approved",
+  "sourceAuthority": {
+    "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04-r2.docx",
+    "sha256": "f2a8a5f6e7f65ba433c4241c3060d115179a4b59893144ef08c850fbd750d422"
+  },
+  "promotion": {
+    "approvedAt": "2026-09-04",
+    "reviewedCandidate": "arentor_master_canon_reviewed_2026-09-04.json",
+    "reviewedCandidateSha256": "5c8d21370392a8c67a6d33d6f991a03065aabe66fd76ddd36718b5b901fe287a",
+    "entityContentPreserved": true,
+    "reExtractionPerformed": false
+  },
+  "entities": [
+    {
+      "id": "347d276c-a9b7-58c8-86e0-5b8408536f19",
+      "canonicalName": "Meredyn Calvane",
+      "type": "person",
+      "aliases": [
+        "High Councilor Meredyn Calvane",
+        "Calvane"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "High Councilor and Council chair, an elder scholar and institutionalist who values continuity and legitimate process.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "2. Modern Government"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "66b88001-741b-5473-addf-eaa81e2e565a",
+      "canonicalName": "Algren Vayne",
+      "type": "person",
+      "aliases": [
+        "Vayne",
+        "Councilor Vayne",
+        "Councillor Vayne"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Arentoria councilor whose portfolio includes commerce, adventuring regulation and forfeiture interests; father of Vexatious.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "2. Modern Government / 5. Main Encounter One — F. Vayne"
+        }
+      ],
+      "reviewNotes": "DM review confirms Councilor as his valid office/title styling; obsolete alternate styling was removed."
+    },
+    {
+      "id": "ec7e44eb-7ff0-5d74-9ecc-1de853e46933",
+      "canonicalName": "Eldric Thornwall",
+      "type": "person",
+      "aliases": [
+        "Sir Eldric Thornwall",
+        "Thornwall",
+        "Eldric Thornwall"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Veteran Arentoria councilor responsible for armies and defense; pragmatic, suspicious of political games and attentive to credible military threats.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "2. Modern Government / 13A. Compact Stat Blocks — Current-Session NPCs"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "ad268106-feb2-5953-bffe-9f1c28be9af2",
+      "canonicalName": "Seraphine Dyral",
+      "type": "person",
+      "aliases": [
+        "Dyral"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Arentoria councilor responsible for arcane affairs, especially interested in the Royal Paths, blue wards and other old magical infrastructure.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "2. Modern Government"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "b9591825-89f7-57d7-ba94-a0124122218d",
+      "canonicalName": "Roderic Marnwell",
+      "type": "person",
+      "aliases": [
+        "Marnwell"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Arentoria councilor responsible for treasury and merchant interests; jovial, shrewd and willing to shift alliances as interests change.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "2. Modern Government"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "e085d523-308e-5f45-9a3d-e7c404ac569b",
+      "canonicalName": "Brunna Blanders",
+      "type": "person",
+      "aliases": [
+        "Provost Brunna Blanders",
+        "Provost Blanders"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Dwarven institutional head of Blanders in Arentoria; genial, exacting and committed to treating adventuring as a profession.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Blanders School of Adventuring"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "3e685822-fb94-5f0b-b4a8-183e4d10f6ce",
+      "canonicalName": "Ysra Holt",
+      "type": "person",
+      "aliases": [
+        "Commander Ysra Holt"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Guildstrand, Arentoria",
+      "shortDescription": "Human veteran who leads the Mercenaries’ Hall of the Brazen Banner and fiercely protects its professional reputation.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "fe6abf7a-e220-5e85-97df-8b2c52dd85ff",
+      "canonicalName": "Pella Flint",
+      "type": "person",
+      "aliases": [
+        "Master Delver Pella Flint"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Dwarven rescue specialist and leader of the Lantern & Rope Society, known for cheerful but intense safety-mindedness.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "4ccd8495-220e-5cb4-94b4-68b89ee1c9c9",
+      "canonicalName": "Lysa Quen",
+      "type": "person",
+      "aliases": [
+        "Magister Lysa Quen"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Scholarium, Arentoria",
+      "shortDescription": "Half-elf arcanist who leads the Argent Compass Fellowship and is strongly drawn to unknown relics and magical sites.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "8be39e35-50af-51c4-aff0-35ed462d3746",
+      "canonicalName": "Halden Pike",
+      "type": "person",
+      "aliases": [
+        "Roadmaster Halden Pike"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "South Gate, Arentoria",
+      "shortDescription": "Human caravan master who leads the Crownroad Company and is trusted for practical, specific, insured work.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "b822aaf7-a776-54c3-a1f7-246df2179d7f",
+      "canonicalName": "Jori Tumble",
+      "type": "person",
+      "aliases": [
+        "Current Chair Jori Tumble"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "The Shades / lower Commons, Arentoria",
+      "shortDescription": "Halfling delver serving a six-month term as chair of the Free Delvers’ Cooperative, a title with deliberately limited authority.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "86f6ce48-76be-5214-b677-4cedb9ade89f",
+      "canonicalName": "Mara Vell",
+      "type": "person",
+      "aliases": [
+        "Chief Assessor Mara Vell"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Human official who runs the day-to-day work of the Office of Expeditionary Licenses & Forfeitures with dry, meticulous procedural discipline.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Office of Expeditionary Licenses & Forfeitures"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "b435f082-d013-513b-9e82-b8d9775271c0",
+      "canonicalName": "Ilyra Pell",
+      "type": "person",
+      "aliases": [
+        "Guildmaster Ilyra Pell"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Human leader of the Merchants’ Guild who presents Guild demands as matters of civic stability.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Merchants' Guild and Guild Wardens"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "ab52df70-04c6-59cc-a4c2-2ec5d071c34b",
+      "canonicalName": "Garrick Sorn",
+      "type": "person",
+      "aliases": [
+        "Warden-Marshal Garrick Sorn"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Human commander of the Guild Wardens, the Merchants’ Guild’s inspector/private-police arm.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Merchants' Guild and Guild Wardens"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "5af6baff-d9ce-5ccd-bb15-fdecd972a9cc",
+      "canonicalName": "Tansy Cloverpot",
+      "type": "person",
+      "aliases": [
+        "“Aunt” Tansy Cloverpot",
+        "Aunt Tansy Cloverpot"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Halfling matriarch who leads the Cloverpot Compact; impeccably dressed, hospitable and frighteningly courteous.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Cloverpot Compact"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "d6838ccf-a750-5c80-be27-6a51e7655963",
+      "canonicalName": "Branna Coalvein",
+      "type": "person",
+      "aliases": [
+        "Curator Branna Coalvein"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Dwarven Curator and public director of Stonehome Heritage House.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Stonehome Heritage House / Deep Ledger"
+        }
+      ],
+      "reviewNotes": "Fact-level visibility applied: her Stonehome identity is public-facing; her Deep Ledger leadership is DM-only.",
+      "dmOnlyNotes": [
+        "Branna Coalvein secretly serves as First Auditor of the Deep Ledger."
+      ]
+    },
+    {
+      "id": "0dd68456-3b3e-54ee-a757-803945f0a374",
+      "canonicalName": "Toma Bramble",
+      "type": "person",
+      "aliases": [
+        "Elder Toma Bramble"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "outside and around Arentoria",
+      "shortDescription": "Rabbit-folk seasonal speaker of Open Furrow, practical and focused on seed, rain and neighbors rather than status.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Open Furrow"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "09fec28e-2b39-5c21-a949-bdf24e9f475a",
+      "canonicalName": "Ilyse Candlewick",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Elderly human laundress and keeper of old songs who functions as the informal center of the Hidden Dawnfire Devotees.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Hidden Dawnfire Devotees"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "f84b2fb7-5020-59c9-bdf6-f29150c8afad",
+      "canonicalName": "Malrec",
+      "type": "person",
+      "aliases": [
+        "High Brother Malrec"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Charismatic local leader of a Red Flame cell, serving primarily as a controller rather than a front-line bruiser.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Cult of the Red Flame / The Cleansed"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "0c07666b-f2c8-58a5-97d8-0d4c7b07b5c4",
+      "canonicalName": "Virel",
+      "type": "person",
+      "aliases": [
+        "Sister Virel"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Red Flame hunter, thief and enforcer serving alongside High Brother Malrec.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Cult of the Red Flame / The Cleansed"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "a5178956-98fc-5efd-835d-a029bfec7105",
+      "canonicalName": "Ghurzag",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": null,
+      "shortDescription": "Distant prophetic war figure whom the most committed Red Flame cells seek to aid.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Cult of the Red Flame / The Cleansed"
+        }
+      ],
+      "reviewNotes": "DM review confirms that only the distant prophetic-war-figure identity is canon here. Do not import ancestry, title, location, demon status, or legacy backstory."
+    },
+    {
+      "id": "3502ecb5-6cae-5ca7-8b70-6eccaab43730",
+      "canonicalName": "Korr Veshen",
+      "type": "person",
+      "aliases": [
+        "Blade-Priest Korr Veshen"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Reptile-touched veteran and weapons instructor who leads the Garagos Circle and treats Garagos as a god of ordeal and battle.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Garagos Circle"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "0d8cef6e-0a14-594d-8270-a3748ec2922d",
+      "canonicalName": "Corren Hale",
+      "type": "person",
+      "aliases": [
+        "Master Antiquarian Corren Hale"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Human historian, appraiser and provenance-hunter who leads the Royal Antiquarians.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Royal Antiquarians"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "0060dc5c-2b0c-5fbc-a749-6ce79f2f9f1c",
+      "canonicalName": "Vexatious Vayne",
+      "type": "person",
+      "aliases": [
+        "Vexatious"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Son of Algren Vayne who returned to Arentoria with the party after traveling with them.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "5. Main Encounter One — E. The Clerk’s Hall and Offices / F. Vayne"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "d2c5d641-13ee-5f12-b6b4-750559849ebc",
+      "canonicalName": "Gerth the Watch",
+      "type": "person",
+      "aliases": [
+        "Gerth"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "House of Crowns, Arentoria",
+      "shortDescription": "Arentorian city guard found severely intoxicated and asleep in the lower Guard Hall beneath the House of Crowns.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "5. Main Encounter One — C. The Guard Hall"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "d2c6bb2f-fb46-50f0-9b00-799d460daea8",
+      "canonicalName": "Marcel Dennet",
+      "type": "person",
+      "aliases": [
+        "Marcel"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "House of Crowns, Arentoria",
+      "shortDescription": "Senior record-keeper in the House of Crowns administrative offices, suspicious and calculating, who handles the party’s restricted-access statement.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "5. Main Encounter One — E. The Clerk’s Hall and Offices"
+        }
+      ],
+      "reviewNotes": "DM review removes obsolete office terminology; no replacement office name is invented."
+    },
+    {
+      "id": "88049031-e442-5764-948e-d895d203f8e0",
+      "canonicalName": "Perren Plume",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "House of Crowns steps, Arentoria",
+      "shortDescription": "Cheerful human map seller outside the House of Crowns, identifiable by an oversized floppy hat and absurd feather.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "6. Leaving the House of Crowns — Street Vendors on the House of Crowns Steps"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "86acd340-6c84-5185-8f60-dc6fb791579c",
+      "canonicalName": "Tilla Bramble",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "House of Crowns steps, Arentoria",
+      "shortDescription": "Rabbit-folk civic-minded vendor who sells portrait cards explaining the five Councilors and their offices.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "6. Leaving the House of Crowns — Street Vendors on the House of Crowns Steps"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "e8676515-7bad-5a53-af21-5f6fd7f17ba9",
+      "canonicalName": "Old Nemm",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "House of Crowns steps, Arentoria",
+      "shortDescription": "Older street vendor who sells exaggerated clay souvenir replicas of Moon Castle.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "6. Leaving the House of Crowns — Street Vendors on the House of Crowns Steps"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "b94a5f3e-1358-5a5e-863d-3387add1eaba",
+      "canonicalName": "Dorsa Flint",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "House of Crowns steps, Arentoria",
+      "shortDescription": "Broad dwarven street vendor who sells blue-and-gold Arentoria pennants bearing the modern city seal.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "6. Leaving the House of Crowns — Street Vendors on the House of Crowns Steps"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "efdd160f-9168-5dde-9ce1-56c019fca6b2",
+      "canonicalName": "Helga Copperwhistle",
+      "type": "person",
+      "aliases": [
+        "Helga"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Blanders Licensing Office, Arentoria",
+      "shortDescription": "Middle-aged dwarven Blanders licensing clerk with a sharp tongue who handles credentials, expedition reports and assessments.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "8. Main Encounter Two — Blanders — Helga Copperwhistle"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "86305e1b-3b10-51e2-af3a-235d18fe8219",
+      "canonicalName": "Julian Dan Brockpuddle",
+      "type": "person",
+      "aliases": [
+        "Julian"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Half-elf Blanders gold-pin adventurer and contract broker who has deliberately made Arentoria his home after leaving Faerûn.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "8A. Julian Dan Brockpuddle — Blanders Gold-Pin Contact"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "9dfea937-bd1d-51c6-b525-67a0b940b16c",
+      "canonicalName": "Heral",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Faerûn",
+      "shortDescription": "Julian Brockpuddle’s cousin in Faerûn, remembered in the source for similarly flamboyant taste in hats.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "8A. Julian Dan Brockpuddle — Why He Left Faerûn / First Impression"
+        }
+      ],
+      "reviewNotes": "Heral is a real named relative but is outside Arentor and appears only through Julian’s family background; retain only if cross-setting family continuity belongs in Master Canon. DM review confirms retention because this has a durable, explicit campaign connection; do not expand into general Forgotten Realms lore."
+    },
+    {
+      "id": "0479bfc8-be34-53d7-b042-c96aceb8f4ee",
+      "canonicalName": "Archibald “Archie” Brindlewink",
+      "type": "person",
+      "aliases": [
+        "Archibald Brindlewink",
+        "Archie",
+        "Archie Brindlewink"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "30 Astronomer’s Close, Commons, Arentoria",
+      "shortDescription": "Cheerful, talkative lodging agent who runs Brindlewink — Lodgings, Lettings & Leasehold Advisory and helps adventurers find housing.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — Brindlewink — Lodgings, Lettings & Leasehold Advisory"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "231c73a0-5e23-5499-8af9-5201dfc8e4fd",
+      "canonicalName": "Emric Kerrin",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "The Ministry Row House, Arentoria",
+      "shortDescription": "Current resident of the Ministry Row House and central named member of the Kerrin household.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0108 — The Ministry Row House"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "924d8c4c-4d34-5136-949c-83f62ff72c75",
+      "canonicalName": "Wren",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "The Ministry Row House, Arentoria",
+      "shortDescription": "Adult child of Emric Kerrin and member of the Kerrin household occupying the Ministry Row House.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0108 — The Ministry Row House"
+        }
+      ],
+      "reviewNotes": "The source gives only the single name Wren; no surname should be inferred. DM review confirms the single name only; do not infer a surname."
+    },
+    {
+      "id": "fb587130-c61a-5882-b549-bda860ad77d2",
+      "canonicalName": "Roder",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "The Ministry Row House, Arentoria",
+      "shortDescription": "Father of Emric Kerrin and member of the Kerrin household occupying the Ministry Row House.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0108 — The Ministry Row House"
+        }
+      ],
+      "reviewNotes": "The source gives only the single name Roder; no surname should be inferred. DM review confirms the single name only; do not infer a surname."
+    },
+    {
+      "id": "6768c017-6c33-5d27-9b34-58d30c9acbee",
+      "canonicalName": "Mira",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "The Ministry Row House, Arentoria",
+      "shortDescription": "Cousin of Emric Kerrin and member of the Kerrin household occupying the Ministry Row House.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0108 — The Ministry Row House"
+        }
+      ],
+      "reviewNotes": "The source gives only the single name Mira; no surname should be inferred. DM review confirms the single name only; do not infer a surname."
+    },
+    {
+      "id": "429a5897-101b-5db1-8d88-be5338edc13c",
+      "canonicalName": "Beren",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "The Ministry Row House, Arentoria",
+      "shortDescription": "Child of Emric Kerrin and member of the Kerrin household occupying the Ministry Row House.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0108 — The Ministry Row House"
+        }
+      ],
+      "reviewNotes": "The source gives only the single name Beren; no surname should be inferred. DM review confirms the single name only; do not infer a surname."
+    },
+    {
+      "id": "70a687a2-a3c8-5300-b372-02ff6737335d",
+      "canonicalName": "Alden",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "The Ministry Row House, Arentoria",
+      "shortDescription": "Sibling of Emric Kerrin and member of the Kerrin household occupying the Ministry Row House.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0108 — The Ministry Row House"
+        }
+      ],
+      "reviewNotes": "The source gives only the single name Alden; no surname should be inferred. DM review confirms the single name only; do not infer a surname."
+    },
+    {
+      "id": "9187d1f1-06ec-5f85-ae9a-32e72b19dec4",
+      "canonicalName": "Derrin Torr",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "17 Dawnfire Promenade, Guildstrand, Arentoria",
+      "shortDescription": "Guildmaster of the Carters and Drovers and a working tenant recorded at the Dawnfire Row House.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0603 — The Dawnfire Row House"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "c3946432-afa6-558d-8921-23a693d69cf7",
+      "canonicalName": "Ansel Rath",
+      "type": "person",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "17 Dawnfire Promenade, Guildstrand, Arentoria",
+      "shortDescription": "Carpenter and working tenant recorded at the Dawnfire Row House.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0603 — The Dawnfire Row House"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "6e1a5b09-eb94-5e0c-b075-afb10cd544aa",
+      "canonicalName": "Seralith",
+      "type": "historical_character",
+      "aliases": [
+        "Queen Seralith"
+      ],
+      "status": "disappeared",
+      "era": "Restoration era",
+      "location": "Arentor",
+      "shortDescription": "Ancient queen of Arentor who ruled with Aerlan after the kingdom was restored; modern Dawnfire religion remembers the pair as sacred rulers.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — The Historical Truth / The Myth"
+        }
+      ],
+      "reviewNotes": "The source says Seralith disappeared from ordinary mortal history; it intentionally leaves the exact mechanics of her later ascension unresolved. DM review confirms this uncertainty is intentional and must not be auto-filled."
+    },
+    {
+      "id": "7b4f9fa7-3a52-5e4a-b46b-b963df0e5a9b",
+      "canonicalName": "Aerlan",
+      "type": "historical_character",
+      "aliases": [
+        "King Aerlan"
+      ],
+      "status": "disappeared",
+      "era": "Restoration era",
+      "location": "Arentor",
+      "shortDescription": "Ancient king of Arentor who ruled with Seralith after the kingdom was restored; modern Dawnfire religion remembers the pair as sacred rulers.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — The Historical Truth / The Myth"
+        }
+      ],
+      "reviewNotes": "The source says Aerlan disappeared from ordinary mortal history; it intentionally leaves the exact mechanics of his later ascension unresolved. DM review confirms this uncertainty is intentional and must not be auto-filled."
+    },
+    {
+      "id": "adc0d43f-a98f-50fe-8eb8-238f87e69910",
+      "canonicalName": "Rostan Varnholde",
+      "type": "historical_character",
+      "aliases": [
+        "Duke Rostan Varnholde",
+        "Duke Varnholde",
+        "Varnholde"
+      ],
+      "status": null,
+      "era": "Restoration era",
+      "location": "Fort Aelwind",
+      "shortDescription": "Duke whose betrayal at Fort Aelwind became one of the great catastrophes of the struggle against Azhurath during Seralith and Aerlan's reign.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — The Historical Truth"
+        }
+      ],
+      "reviewNotes": "The source establishes his historical betrayal but does not state his final fate. DM review confirms this uncertainty is intentional and must not be auto-filled."
+    },
+    {
+      "id": "90a466bf-2d5d-5905-9721-c112e0456f93",
+      "canonicalName": "Arentor",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Valentia",
+      "shortDescription": "Kingdom on the small continent of Valentia; Arentoria is its ancient capital.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — The Historical Truth / Where Arentor Is"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "2af61075-d5e4-5ce8-b5ea-0cb9b389ab3c",
+      "canonicalName": "Valentia",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": null,
+      "shortDescription": "Small continent containing Arentor, far across the Trackless Sea from Faerûn's Sword Coast.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — Where Arentor Is"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "e4c9df30-3d03-5028-bad1-bfb8d4657579",
+      "canonicalName": "Arentoria",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentor",
+      "shortDescription": "Ancient capital of Arentor and the campaign’s primary city base; a functioning bureaucratic capital built over layers of partly forgotten history.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "Purpose / 1. Arentoria in One Page — The Historical Truth"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "585b0f7a-c4a1-55c2-8003-0e8d765a6dfd",
+      "canonicalName": "Trackless Sea",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": null,
+      "shortDescription": "Sea separating Valentia from Faerûn’s Sword Coast; a normal commercial voyage from Waterdeep to Valentia takes roughly three months in favorable seasons.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — Where Arentor Is"
+        }
+      ],
+      "reviewNotes": "External geography is included because the source uses the sea to define Arentor’s durable geographic relationship to Faerûn. DM review confirms retention because this has a durable, explicit campaign connection; do not expand into general Forgotten Realms lore."
+    },
+    {
+      "id": "5128547f-a8ea-5133-83f3-31aac0596f49",
+      "canonicalName": "Faerûn",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": null,
+      "shortDescription": "Distant land known to Arentorian merchants, scholars and experienced adventurers but culturally remote from Valentia.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — Where Arentor Is"
+        }
+      ],
+      "reviewNotes": "External setting geography; included because the source makes Arentor’s distance from Faerûn a persistent world-building fact. DM review confirms retention because this has a durable, explicit campaign connection; do not expand into general Forgotten Realms lore."
+    },
+    {
+      "id": "38919b5f-5b8f-51ef-96bc-b6615910e3e7",
+      "canonicalName": "Sword Coast",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Faerûn",
+      "shortDescription": "Faerûnian coast across the Trackless Sea from Valentia and Arentor.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — Where Arentor Is"
+        }
+      ],
+      "reviewNotes": "External setting geography; included only because the source explicitly anchors Arentor against it. DM review confirms retention because this has a durable, explicit campaign connection; do not expand into general Forgotten Realms lore."
+    },
+    {
+      "id": "af73ae50-1c3f-5e57-abb2-03cd07d218d5",
+      "canonicalName": "Waterdeep",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Faerûn",
+      "shortDescription": "Faerûnian port used in the source as the departure point for a roughly three-month commercial voyage to Valentia; Julian Brockpuddle left from its harbor.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — Where Arentor Is / 8A. Julian Dan Brockpuddle — Why He Left Faerûn"
+        }
+      ],
+      "reviewNotes": "External setting city; included because it has a concrete continuing connection to travel between Faerûn and Valentia. DM review confirms retention because this has a durable, explicit campaign connection; do not expand into general Forgotten Realms lore."
+    },
+    {
+      "id": "1cf6bb88-78f8-5fa1-9444-7ce34c079d90",
+      "canonicalName": "Fort Aelwind",
+      "type": "place",
+      "aliases": [],
+      "status": "historical",
+      "era": null,
+      "location": "Arentor",
+      "shortDescription": "Fort where Duke Rostan Varnholde's betrayal became a major catastrophe during the long struggle against Azhurath.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — The Historical Truth"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "78464710-5bbe-5c69-a8e3-7276bd0e8261",
+      "canonicalName": "King's Spire",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentor",
+      "shortDescription": "Ancient sealed royal spire and Royal Path nexus in Arentor; its surviving blue-nimbus wards are part of the Royal Ward Network and recently came under orc assault.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "4. Wednesday: Starting State / 13. Emergency Combat — The Red Flame / 16. Things to Add to the App — Lore"
+        },
+        {
+          "document": "dng_kings_spire.recorder.json",
+          "section": "dungeon metadata / Entry Room and Study / Nexus Chamber",
+          "authorityClass": "current_adventure"
+        }
+      ],
+      "reviewNotes": "DM-approved non-conflicting King’s Spire adventure facts promoted into world canon; source synchronization into the authoritative Arentor DOCX is still pending."
+    },
+    {
+      "id": "7554aeb2-caf4-5bcf-8cc9-7391928d2110",
+      "canonicalName": "House of Crowns",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Modern administrative building in Arentoria containing Council offices, restricted lower levels and a forgotten royal layer beneath it.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "5. Main Encounter One — Arrival Beneath the House of Crowns"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "bf950757-544d-58f8-9f7d-7d435e090b97",
+      "canonicalName": "Moon Castle",
+      "type": "place",
+      "aliases": [
+        "Royal Castle",
+        "the royal castle",
+        "the castle",
+        "sealed castle"
+      ],
+      "status": "sealed",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Proper name of the long-sealed royal castle overlooking Arentoria; its ancient wards have recently shown blue activity linked to the surviving royal defensive network.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "6. Leaving the House of Crowns — Reveal Arentoria / 7. If They Go Straight to the Castle"
+        }
+      ],
+      "reviewNotes": "DM review establishes Moon Castle as the proper name; “Royal Castle” is retained as a descriptive alias."
+    },
+    {
+      "id": "d0148a91-6404-5fb0-9c1e-48bda65bba77",
+      "canonicalName": "Crown Ward",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Administrative district of pale government buildings, clerks, petitioners, couriers and guards, with old royal symbols embedded throughout.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "12. Neighborhood Descriptions — Crown Ward"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "8b0f9a10-d551-5859-a848-85a2fd93d900",
+      "canonicalName": "High March",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Affluent Arentoria district of large houses, private guards and selective high-end businesses where old and new money compete.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "12. Neighborhood Descriptions — High March"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "4c02a0f2-cd4a-573e-88f2-911359830e4a",
+      "canonicalName": "Guildstrand",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Workshop-heavy Arentoria district where guild symbols and Guild Wardens make commercial authority highly visible.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "12. Neighborhood Descriptions — Guildstrand"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "a9e1b5d3-4f09-5597-ae3d-29c8956c404f",
+      "canonicalName": "Grand Market",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Crowded Arentoria market district of caravan merchants, established shops, street performers and closely watched trade in unusual goods.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "12. Neighborhood Descriptions — Grand Market"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "70b0bf40-d2dc-5d59-a9e3-351c02831b9c",
+      "canonicalName": "Scholarium",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Arentoria district of lecture halls, libraries, shrines and magical study where scholars attempt to understand the city’s forgotten past.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "12. Neighborhood Descriptions — Scholarium"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "54158235-d830-57e4-ab5d-c9b60cfecb07",
+      "canonicalName": "Stoneback",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Steep old district beneath the castle where ancient masonry and forgotten fortifications have been absorbed into later buildings.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "12. Neighborhood Descriptions — Stoneback"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "4eb951fb-8181-5f8a-a5c2-38b674968aa9",
+      "canonicalName": "The Commons",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Dense working neighborhood of homes, shops, bakeries, laundries, taverns and workshops where ordinary Arentorian life is most visible.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "12. Neighborhood Descriptions — The Commons"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "369c22a7-1d79-55a3-94ca-736f82189a8e",
+      "canonicalName": "The Shades",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Dense lower-cost district built over older foundations, cellars, drains and forgotten passages; ordinary residents live alongside smugglers and criminals.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "12. Neighborhood Descriptions — The Shades"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "efcdd119-c3cf-5c8f-ace9-4f62943f32ed",
+      "canonicalName": "Outer Ward",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Rougher district near Arentoria’s walls, filled with stables, cheap housing, warehouses, repair yards and businesses serving travelers.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "12. Neighborhood Descriptions — Outer Ward"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "6a04dcf9-4375-5438-95e2-b3ec30a48c86",
+      "canonicalName": "Blanders Licensing Office",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "The Commons, Arentoria",
+      "shortDescription": "Two-story brick licensing office at the south end of the Commons where Helga Copperwhistle handles Blanders credentials, reports and assessments.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "8. Main Encounter Two — Blanders — The Blanders Licensing Office"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "45c44da9-296a-5e6d-a9e7-616127c178ff",
+      "canonicalName": "Eightfold Garden",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "High March, Arentoria",
+      "shortDescription": "Large public civic garden with eight radiating fountain channels whose geometry preserves forgotten royal symbolism.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "16. Things to Add to the App — Map / places outside the census"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "8d62923f-51a6-5e0a-9a3c-33d8b9f28af9",
+      "canonicalName": "Ministry Row",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "High March, Arentoria",
+      "shortDescription": "Named High March street containing the Ministry Row House at 12 Ministry Row.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — Immediate Rental Shortlist"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "0109cc19-20f1-5d99-a06d-50c15bd0c6ca",
+      "canonicalName": "Dawnfire Promenade",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Guildstrand, Arentoria",
+      "shortDescription": "Named Guildstrand street containing the Dawnfire Row House at 17 Dawnfire Promenade.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — Immediate Rental Shortlist"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "0ba25854-e1ce-51e2-9918-44ccd1414fb4",
+      "canonicalName": "Eight-Star Stair",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Stoneback, Arentoria",
+      "shortDescription": "Named Stoneback street containing the Eight-Star Workshop at 7 Eight-Star Stair.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — Immediate Rental Shortlist"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "af2a07d8-658c-5bb4-ab11-2ab3c896da0d",
+      "canonicalName": "Low Arch Way",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "The Shades, Arentoria",
+      "shortDescription": "Named Shades street containing Low Arch House at 24 Low Arch Way.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — Immediate Rental Shortlist"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "617613f2-a16d-551b-8843-0ce3f50ddd05",
+      "canonicalName": "Eastgate Road",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Outer Ward, Arentoria",
+      "shortDescription": "Named Outer Ward road containing the Eastgate Narrow House at 13 Eastgate Road.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — Immediate Rental Shortlist"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "530ef469-1e5f-5675-9f20-2874bbe648b4",
+      "canonicalName": "Astronomer’s Close",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "The Commons, Arentoria",
+      "shortDescription": "Named Commons street where Brindlewink’s lodging business operates at 30 Astronomer’s Close.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — Brindlewink — Lodgings, Lettings & Leasehold Advisory"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "93696326-abb0-5fde-9e63-0f53dfb81342",
+      "canonicalName": "The Ministry Row House",
+      "type": "place",
+      "aliases": [
+        "AR-0108"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "12 Ministry Row, High March, Arentoria",
+      "shortDescription": "Large three-floor estate house in High March, presently occupied by the Kerrin household when introduced in the rental shortlist.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0108 — The Ministry Row House"
+        }
+      ],
+      "reviewNotes": "The source says room counts and usable game layouts for rental choices become canon if the party visits or leases the property; the mapped property and current occupancy are nevertheless presented as existing records."
+    },
+    {
+      "id": "03ded627-b637-5be1-90fe-c1388faaed45",
+      "canonicalName": "The Dawnfire Row House",
+      "type": "place",
+      "aliases": [
+        "AR-0603"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "17 Dawnfire Promenade, Guildstrand, Arentoria",
+      "shortDescription": "Three-story Guildstrand row house with current records placing Derrin Torr and Ansel Rath as working tenants at the address.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0603 — The Dawnfire Row House"
+        }
+      ],
+      "reviewNotes": "Some interior-layout details are explicitly conditional on the party visiting or leasing the property."
+    },
+    {
+      "id": "70f11ce8-618e-5dab-a757-89e7c21016c6",
+      "canonicalName": "The Eight-Star Workshop",
+      "type": "place",
+      "aliases": [
+        "AR-0876"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "7 Eight-Star Stair, Stoneback, Arentoria",
+      "shortDescription": "Collapsed two-floor Stoneback workshop with only part of the building presently habitable.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0876 — The Eight-Star Workshop"
+        }
+      ],
+      "reviewNotes": "Some interior-layout details are explicitly conditional on the party visiting or leasing the property."
+    },
+    {
+      "id": "fec715e4-7220-5647-9001-048abd02d962",
+      "canonicalName": "Low Arch House",
+      "type": "place",
+      "aliases": [
+        "AR-1253"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "24 Low Arch Way, The Shades, Arentoria",
+      "shortDescription": "Cheap cramped two-story row house in the Shades offered as a rental option.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-1253 — Low Arch House"
+        }
+      ],
+      "reviewNotes": "Some interior-layout details are explicitly conditional on the party visiting or leasing the property."
+    },
+    {
+      "id": "6455a75b-7442-5d8e-81c4-f65ffc717c38",
+      "canonicalName": "The Eastgate Narrow House",
+      "type": "place",
+      "aliases": [
+        "AR-0945"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "13 Eastgate Road, Outer Ward, Arentoria",
+      "shortDescription": "Narrow three-floor Outer Ward row house offered as a rental option on Eastgate Road.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0945 — The Eastgate Narrow House"
+        }
+      ],
+      "reviewNotes": "Some interior-layout details are explicitly conditional on the party visiting or leasing the property."
+    },
+    {
+      "id": "e2c14a93-5727-5cc4-8fe6-668f9ea5ddad",
+      "canonicalName": "South Gate",
+      "type": "place",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named city gate area associated with the Crownroad Company and nearby caravan yards.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": "The source gives only a brief locational reference, so the place has little independent detail. DM review confirms this is a durable named place and should remain in Master Canon."
+    },
+    {
+      "id": "ac6a85e7-e64d-5c4f-ac99-39414c2a5a71",
+      "canonicalName": "Forgotten Royal Storeroom",
+      "type": "place",
+      "aliases": [],
+      "status": "sealed/forgotten",
+      "era": null,
+      "location": "beneath the House of Crowns, Arentoria",
+      "shortDescription": "Preserved royal storeroom in a forgotten layer beneath the House of Crowns, containing old royal symbols and intentionally listed relics.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "5. Main Encounter One — A. Forgotten Royal Storeroom"
+        }
+      ],
+      "reviewNotes": "Included despite being a room because the source explicitly makes it a forgotten royal layer with historical significance beyond a generic encounter room. DM review confirms this is a durable named place and should remain in Master Canon."
+    },
+    {
+      "id": "6b8b1192-51fb-5483-8f39-a0f6ee7296f6",
+      "canonicalName": "Council of Arentoria",
+      "type": "organization",
+      "aliases": [
+        "the Council"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Five-seat government of modern Arentoria, descended from wartime administrative offices that continued after Seralith and Aerlan disappeared.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — The Historical Truth / 2. Modern Government"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "2346d332-f444-589e-85d3-8cf4bc130083",
+      "canonicalName": "Blanders Everything Institute of Dungeoneering",
+      "type": "organization",
+      "aliases": [
+        "Blanders",
+        "Blanders School of Adventuring",
+        "BLANDERS EVERYTHING INSTITUTE OF DUNGEONEERING"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Large dwarven adventuring institution combining school, guild, bureaucracy, alumni network and contract clearinghouse; registered adventurers receive recognized credentials.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Blanders School of Adventuring / 8. Main Encounter Two — Blanders"
+        }
+      ],
+      "reviewNotes": "DM review establishes Blanders Everything Institute of Dungeoneering as the formal name; Blanders and Blanders School of Adventuring remain aliases."
+    },
+    {
+      "id": "9958669a-2679-5c18-a07e-69efd0cfbb40",
+      "canonicalName": "Mercenaries’ Hall of the Brazen Banner",
+      "type": "organization",
+      "aliases": [
+        "Brazen Banner"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Guildstrand, Arentoria",
+      "shortDescription": "Disciplined licensed mercenary company specializing in caravan defense, monster suppression, siege work and other professional armed contracts.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "d6543648-15e8-5e60-934b-fa8755d608cf",
+      "canonicalName": "Lantern & Rope Society",
+      "type": "organization",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Commons and Stoneback, Arentoria",
+      "shortDescription": "Licensed cooperative of ruin-delvers, rescuers, scouts, climbers and underground specialists known for maps, safety and recovering people alive or dead.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "62544d4d-306c-541f-926a-b73f63c93b26",
+      "canonicalName": "Argent Compass Fellowship",
+      "type": "organization",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Scholarium, Arentoria",
+      "shortDescription": "Licensed scholar-adventurer fellowship specializing in magical sites, cursed objects, ancient languages, planar phenomena and antiquities.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "6328baa8-325f-5332-a9da-a55ba0d9fba5",
+      "canonicalName": "Crownroad Company",
+      "type": "organization",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "South Gate, Arentoria",
+      "shortDescription": "Licensed company of frontier escorts, wilderness guides, bounty crews and road-clearance teams with strong knowledge of farms, villages and caravan politics.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "91ecfae3-554e-50d2-8608-f9e5e04cfe3a",
+      "canonicalName": "Free Delvers’ Cooperative",
+      "type": "organization",
+      "aliases": [
+        "the Cooperative"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "The Shades and lower Commons, Arentoria",
+      "shortDescription": "Loose licensed mutual-aid association for independent adventurers who want credentials, healers and witnesses without strong central control.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "b7551f97-9d84-5e30-9c00-8089dd3b6c3a",
+      "canonicalName": "Office of Expeditionary Licenses & Forfeitures",
+      "type": "organization",
+      "aliases": [
+        "Licenses & Forfeitures",
+        "Vayne’s office"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Government office associated with Vayne that handles unlicensed adventuring, seized magical property, fines and disputed loot.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Office of Expeditionary Licenses & Forfeitures"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "2182816f-80cc-59d4-8d28-211d2a8e7733",
+      "canonicalName": "Merchants’ Guild",
+      "type": "organization",
+      "aliases": [
+        "Merchants' Guild",
+        "the Guild"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Powerful commercial guild that protects member interests, pressures independent merchants and uses Guild Wardens to enforce monopolies and favorable arrangements.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Merchants' Guild and Guild Wardens"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "48cf2a9e-9236-531a-9b6b-95880f9120bb",
+      "canonicalName": "Guild Wardens",
+      "type": "organization",
+      "aliases": [
+        "Wardens"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Inspector and private-police arm of the Merchants’ Guild; some members are professionals while others act as sanctioned thugs.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Merchants' Guild and Guild Wardens"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "0c8bb5d2-40f5-5bb3-a5e7-1cc7ac401160",
+      "canonicalName": "Cloverpot Compact",
+      "type": "organization",
+      "aliases": [
+        "Cloverpot"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Violent halfling criminal network involved in exotic animals, extraordinarily rare plants, protection rackets, smuggling and specialized contraband.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Cloverpot Compact"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "ef5bb460-9cfa-5b44-88a0-18f05d3f155d",
+      "canonicalName": "Stonehome Heritage House",
+      "type": "organization",
+      "aliases": [
+        "Stonehome"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Public dwarven cultural and heritage institution directed by Curator Branna Coalvein.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Stonehome Heritage House / Deep Ledger"
+        }
+      ],
+      "reviewNotes": "Fact-level visibility applied so the public Stonehome description does not leak the Deep Ledger connection.",
+      "dmOnlyNotes": [
+        "The Deep Ledger operates secretly beneath/through Stonehome Heritage House, and Branna Coalvein secretly leads it as First Auditor."
+      ]
+    },
+    {
+      "id": "24012b4a-88bc-5e14-9641-f43b5ddfa384",
+      "canonicalName": "Deep Ledger",
+      "type": "organization",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Secretive dwarven criminal and economic network beneath Stonehome Heritage House, involved in underground excavation and competing with Cloverpot interests.",
+      "visibility": "dm_only",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Stonehome Heritage House / Deep Ledger"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "65dc8aa6-357f-52d4-b3e6-83f6af5df552",
+      "canonicalName": "Hidden Dawnfire Devotees",
+      "type": "organization",
+      "aliases": [
+        "Dawnfire devotees",
+        "Hidden Dawnfire devotees"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Informal community of poor and ordinary citizens who quietly preserve devotional traditions surrounding Seralith and Aerlan.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Hidden Dawnfire Devotees"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "7f8311ff-af2b-5369-918b-693a41ac6b7f",
+      "canonicalName": "Cult of the Red Flame",
+      "type": "organization",
+      "aliases": [
+        "The Cleansed",
+        "Red Flame",
+        "Red Flame / the Cleansed"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Azhurath-following cult whose street preachers speak of purification by fire and whose committed cells seek to restore Azhurath and aid Ghurzag.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Cult of the Red Flame / The Cleansed"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "a89b4562-3cbb-5e99-a398-2dc8b95a9c7b",
+      "canonicalName": "Garagos Circle",
+      "type": "organization",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Minor secretive martial cult of roughly twenty mostly reptile-touched worshippers led by Korr Veshen.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Garagos Circle"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "67d5ffd2-d00b-5ffc-83bd-99a2e3048a00",
+      "canonicalName": "Royal Antiquarians",
+      "type": "organization",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Semi-official learned society of historians, collectors, appraisers and preservationists concerned with royal, civic and pre-Forgetting material culture.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Royal Antiquarians"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "bd3c4cbe-219f-564b-ab5d-476147520fdb",
+      "canonicalName": "Arentorian City Guard",
+      "type": "organization",
+      "aliases": [
+        "City Guard",
+        "Arentorian city guard"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Municipal guard force that patrols Arentoria, contains disturbances and generally attempts disarmament and arrest before lethal force.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "5. Main Encounter One — C. The Guard Hall / 13A. Compact Stat Blocks — Arentorian Guard Response"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "726fd673-6a95-53a3-a9d9-94f1df22118f",
+      "canonicalName": "Brindlewink — Lodgings, Lettings & Leasehold Advisory",
+      "type": "business",
+      "aliases": [
+        "Brindlewink’s"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "30 Astronomer’s Close, Commons, Arentoria",
+      "shortDescription": "Housing and leasehold business run by Archibald “Archie” Brindlewink, used to locate and arrange rental properties in Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — Brindlewink — Lodgings, Lettings & Leasehold Advisory"
+        }
+      ],
+      "reviewNotes": "DM review reclassifies this as a business."
+    },
+    {
+      "id": "b1b4d63d-fdf3-5b6d-98a4-69b1dd5c54bf",
+      "canonicalName": "Carters and Drovers",
+      "type": "organization",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named trade organization for which Derrin Torr is guildmaster.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0603 — The Dawnfire Row House"
+        }
+      ],
+      "reviewNotes": "DM review confirms retention as a named organization despite limited current detail."
+    },
+    {
+      "id": "68d6ccf4-87ab-561b-92f0-4927b101f930",
+      "canonicalName": "Brockpuddle family",
+      "type": "family",
+      "aliases": [
+        "the Brockpuddles",
+        "Brockpuddles"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Faerûn",
+      "shortDescription": "Extended Faerûnian family of Julian Dan Brockpuddle, notorious in his account for an escalating inheritance dispute and a family taste for flamboyant hats.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "8A. Julian Dan Brockpuddle — Why He Left Faerûn / First Impression"
+        }
+      ],
+      "reviewNotes": "DM review reclassifies this as family; family_house is reserved for actual dynastic/noble houses."
+    },
+    {
+      "id": "fc2f584b-e078-5068-a414-c879e5cf5521",
+      "canonicalName": "Kerrin household",
+      "type": "household",
+      "aliases": [
+        "the Kerrins"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "The Ministry Row House, Arentoria",
+      "shortDescription": "Household occupying the Ministry Row House, centered on Emric Kerrin and his named relatives Wren, Roder, Mira, Beren and Alden.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "9. Housing and Lodging — AR-0108 — The Ministry Row House"
+        }
+      ],
+      "reviewNotes": "DM review reclassifies this as household; family_house is reserved for actual dynastic/noble houses."
+    },
+    {
+      "id": "a0da5ec2-af43-502a-a6b6-9baa0d852399",
+      "canonicalName": "Dawnfire",
+      "type": "religion",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentor",
+      "shortDescription": "Modern religious tradition that remembers Seralith and Aerlan as sacred paired figures and preserves a romanticized theology of their union.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — The Myth / 3. Major Factions in Play — Hidden Dawnfire Devotees"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "4c0cb4c1-7492-558c-8d5c-3bf735364bc3",
+      "canonicalName": "Open Furrow",
+      "type": "religion",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "outside and around Arentoria",
+      "shortDescription": "Peaceful agricultural faith particularly important among rabbit-folk communities outside and around Arentoria, centered on soil, seasons and communal life.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Open Furrow"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "b2b5f957-39b4-55e3-ace2-5eed828a8339",
+      "canonicalName": "Azhurath",
+      "type": "supernatural_entity",
+      "aliases": [
+        "the flame-veiled demon of conquest"
+      ],
+      "status": "bound",
+      "era": null,
+      "location": null,
+      "shortDescription": "Flame-veiled demon of conquest bound within the Dawnfire Ruby by Seralith and Aerlan and worshipped by the Cult of the Red Flame.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — The Historical Truth / 3. Major Factions in Play — Cult of the Red Flame / The Cleansed"
+        }
+      ],
+      "reviewNotes": "DM review reclassifies Azhurath as supernatural_entity rather than religion."
+    },
+    {
+      "id": "e64962f4-b0b8-5525-a2cd-f13cc5d2652c",
+      "canonicalName": "Garagos",
+      "type": "supernatural_entity",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "God of ordeal and battle worshipped by the Garagos Circle under Korr Veshen’s martial interpretation.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Garagos Circle"
+        }
+      ],
+      "reviewNotes": "DM review reclassifies Garagos as supernatural_entity rather than religion."
+    },
+    {
+      "id": "f0119475-b4ad-5428-a292-c9c12c4fd078",
+      "canonicalName": "High Councilor",
+      "type": "title_office",
+      "aliases": [
+        "High Councilor / chair"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Council of Arentoria",
+      "shortDescription": "Chairing office of the Council of Arentoria, held in the source by Meredyn Calvane.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "2. Modern Government"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "d15d7aba-00b5-5fa9-8091-df8455febb3f",
+      "canonicalName": "Councilor",
+      "type": "title_office",
+      "aliases": [
+        "Councillor"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Council of Arentoria",
+      "shortDescription": "Member office of Arentoria’s five-seat Council; individual Councilors hold distinct portfolios.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "2. Modern Government / 5. Main Encounter One — F. Vayne"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "bf922c2c-9c78-5332-bf54-cdf3d7b4e2d9",
+      "canonicalName": "Provost of Blanders",
+      "type": "title_office",
+      "aliases": [
+        "Provost"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Blanders",
+      "shortDescription": "Institutional headship of Blanders in Arentoria, held by Brunna Blanders.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Blanders School of Adventuring"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "8d01f828-bfa2-5d3d-9d4f-943b8669bbf5",
+      "canonicalName": "Commander of the Mercenaries’ Hall of the Brazen Banner",
+      "type": "title_office",
+      "aliases": [
+        "Commander"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Mercenaries’ Hall of the Brazen Banner",
+      "shortDescription": "Leadership office of the Mercenaries’ Hall of the Brazen Banner, held by Ysra Holt.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "ea6e54da-e291-548f-ba52-ac9235a0f91d",
+      "canonicalName": "Master Delver of the Lantern & Rope Society",
+      "type": "title_office",
+      "aliases": [
+        "Master Delver"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Lantern & Rope Society",
+      "shortDescription": "Leadership title of the Lantern & Rope Society, held by Pella Flint.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "3a37029f-8d54-59c3-be5e-3615650d3064",
+      "canonicalName": "Magister of the Argent Compass Fellowship",
+      "type": "title_office",
+      "aliases": [
+        "Magister"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Argent Compass Fellowship",
+      "shortDescription": "Leadership title of the Argent Compass Fellowship, held by Lysa Quen.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "c7a555fb-df97-53df-bef9-180e6eb77c99",
+      "canonicalName": "Roadmaster of the Crownroad Company",
+      "type": "title_office",
+      "aliases": [
+        "Roadmaster"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Crownroad Company",
+      "shortDescription": "Leadership title of the Crownroad Company, held by Halden Pike.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "173caef4-c759-550e-8ec0-9cdb0c4cb585",
+      "canonicalName": "Chair of the Free Delvers’ Cooperative",
+      "type": "title_office",
+      "aliases": [
+        "Current Chair",
+        "Chair"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Free Delvers’ Cooperative",
+      "shortDescription": "Six-month elected chair of the Free Delvers’ Cooperative, a deliberately weak leadership role held by Jori Tumble.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Other Licensed Adventuring Guilds & Schools"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "4255a293-c54d-5fb6-9ea2-4b341a6a2f6b",
+      "canonicalName": "Chief Assessor",
+      "type": "title_office",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Office of Expeditionary Licenses & Forfeitures",
+      "shortDescription": "Day-to-day authority responsible for making the Office of Expeditionary Licenses & Forfeitures function, held by Mara Vell.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Office of Expeditionary Licenses & Forfeitures"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "dcd76c38-9079-55e7-8624-ea35721cf705",
+      "canonicalName": "Guildmaster of the Merchants’ Guild",
+      "type": "title_office",
+      "aliases": [
+        "Guildmaster"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Merchants’ Guild",
+      "shortDescription": "Leadership office of the Merchants’ Guild, held by Ilyra Pell.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Merchants' Guild and Guild Wardens"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "9f795def-1cd6-5378-9366-05943d3dab60",
+      "canonicalName": "Warden-Marshal",
+      "type": "title_office",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Guild Wardens",
+      "shortDescription": "Command title of the Guild Wardens, held by Garrick Sorn.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Merchants' Guild and Guild Wardens"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "568b9511-1986-584e-b9a8-4c3f86a6c3ed",
+      "canonicalName": "Curator of Stonehome Heritage House",
+      "type": "title_office",
+      "aliases": [
+        "Curator"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Stonehome Heritage House",
+      "shortDescription": "Public leadership office of Stonehome Heritage House, held by Branna Coalvein.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Stonehome Heritage House / Deep Ledger"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "35b35140-aa63-5b63-93e3-0c6e30534ae9",
+      "canonicalName": "First Auditor of the Deep Ledger",
+      "type": "title_office",
+      "aliases": [
+        "First Auditor"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Deep Ledger",
+      "shortDescription": "Secret leadership office of the Deep Ledger, held by Branna Coalvein.",
+      "visibility": "dm_only",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Stonehome Heritage House / Deep Ledger"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "1e90fa60-fba8-5cf8-a6d0-b84329f18cf0",
+      "canonicalName": "Seasonal Speaker of Open Furrow",
+      "type": "title_office",
+      "aliases": [
+        "Speaker"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Open Furrow",
+      "shortDescription": "Elected seasonal speaking role of Open Furrow rather than a permanent high priesthood, held by Toma Bramble.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Open Furrow"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "d1743f7e-ba44-5a6a-8965-5cd21063f690",
+      "canonicalName": "High Brother of the Red Flame",
+      "type": "title_office",
+      "aliases": [
+        "High Brother"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Cult of the Red Flame",
+      "shortDescription": "Leadership title used by Malrec within the local Red Flame cult.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Cult of the Red Flame / The Cleansed"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "c8850152-7cb8-50c8-899b-d2faa5927b46",
+      "canonicalName": "Blade-Priest of the Garagos Circle",
+      "type": "title_office",
+      "aliases": [
+        "Blade-Priest"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Garagos Circle",
+      "shortDescription": "Martial religious leadership title used by Korr Veshen in the Garagos Circle.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Garagos Circle"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "f2b66741-e1e0-548c-89b4-f5b1e0a17bf3",
+      "canonicalName": "Master Antiquarian",
+      "type": "title_office",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Royal Antiquarians",
+      "shortDescription": "Leadership title of the Royal Antiquarians, held by Corren Hale.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "3. Major Factions in Play — Royal Antiquarians"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "242a07af-91a5-569e-817f-40a76896822d",
+      "canonicalName": "Royal Paths",
+      "type": "magical_infrastructure",
+      "aliases": [],
+      "status": "partly forgotten",
+      "era": null,
+      "location": "Arentor",
+      "shortDescription": "Older magical transportation network linking important royal and military sites, rediscovered and expanded during Seralith and Aerlan’s reign; at King’s Spire, a Path endpoint appears as a black mirror and can be locally one-way until a linked portal or keystone is activated.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — The Historical Truth"
+        },
+        {
+          "document": "dng_kings_spire.recorder.json",
+          "section": "Entry Room and Study — The Black Mirror / Nexus Chamber — The Portal",
+          "authorityClass": "current_adventure"
+        }
+      ],
+      "reviewNotes": "DM review reclassifies the Royal Paths as magical_infrastructure."
+    },
+    {
+      "id": "de524e9c-87a4-5c9a-9d5b-054a8e7efe69",
+      "canonicalName": "Dawnfire Ruby",
+      "type": "artifact",
+      "aliases": [],
+      "status": "active/sealed",
+      "era": null,
+      "location": null,
+      "shortDescription": "Named ruby in which Seralith and Aerlan bound Azhurath at the end of their struggle against the demon.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — The Historical Truth"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "13296d03-8b5e-515c-8daf-7d0616714a36",
+      "canonicalName": "Eight-pointed star of the royal line",
+      "type": "symbol",
+      "aliases": [
+        "eight-pointed star",
+        "old eight-pointed star"
+      ],
+      "status": "current symbol",
+      "era": null,
+      "location": "Arentor",
+      "shortDescription": "Ancient royal symbol repeatedly embedded in Arentoria’s architecture, relics and civic remnants; much of its original meaning was lost in the Great Forgetting.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "5. Main Encounter One — A. Forgotten Royal Storeroom / 12. Neighborhood Descriptions — Crown Ward"
+        }
+      ],
+      "reviewNotes": "DM review reclassifies this durable emblem as symbol."
+    },
+    {
+      "id": "9b9b1f7b-9560-5489-bbea-af44e11c607c",
+      "canonicalName": "Banner of Arentoria",
+      "type": "symbol",
+      "aliases": [],
+      "status": "current symbol",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Blue-and-gold civic banner combining Seralith’s sunburst and Aerlan’s iron star into a single modern emblem, with the motto “In unity, the flame endures.”",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "5. Main Encounter One — C. The Guard Hall"
+        }
+      ],
+      "reviewNotes": "DM review reclassifies this durable emblem as symbol."
+    },
+    {
+      "id": "66fab980-d83c-5715-91f5-e07cd6f12222",
+      "canonicalName": "Seal of Arentoria",
+      "type": "symbol",
+      "aliases": [],
+      "status": "current symbol",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Modern blue-and-gold civic seal used on Arentorian pennants and official imagery.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "6. Leaving the House of Crowns — The Pennant Seller — Dorsa Flint"
+        }
+      ],
+      "reviewNotes": "DM review reclassifies this durable emblem as symbol."
+    },
+    {
+      "id": "b4d03019-077d-5e3a-84e2-a5b78dc8710e",
+      "canonicalName": "Oath Rings of the Crowned Flame",
+      "type": "artifact",
+      "aliases": [],
+      "status": "sealed relic",
+      "era": null,
+      "location": "Forgotten Royal Storeroom, House of Crowns",
+      "shortDescription": "Intertwined gold rings preserved as royal relics that pulse faintly when touched together.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "5. Main Encounter One — A. Forgotten Royal Storeroom — The Far Wall and Ornate Door"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "a412bce2-13aa-5506-b5c1-bad32445163f",
+      "canonicalName": "Blanders Credential Pin",
+      "type": "item",
+      "aliases": [
+        "Blanders pin",
+        "Blanders credential pin",
+        "gold Blanders pin"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Openly worn Blanders credential badge carrying an individual identification number and registration marks recognized by officials.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "8. Main Encounter Two — Blanders Credential Pin / 8A. Julian Dan Brockpuddle"
+        }
+      ],
+      "reviewNotes": "DM review reclassifies this institutional credential as item."
+    },
+    {
+      "id": "df7709f3-adec-5b7a-b31e-25a5327d1ca0",
+      "canonicalName": "The Golden Argument",
+      "type": "artifact",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "carried by Julian Dan Brockpuddle",
+      "shortDescription": "Julian Dan Brockpuddle’s prized gold-embossed +2 rapier.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "8A. Julian Dan Brockpuddle — Full Character Sheet / Equipment"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "71636175-75c6-500d-91c7-a21a982bb6f6",
+      "canonicalName": "Royal Ward Network",
+      "type": "magical_infrastructure",
+      "aliases": [
+        "blue-nimbus magic",
+        "blue ward"
+      ],
+      "status": "damaged but active",
+      "era": null,
+      "location": "King’s Spire and Moon Castle",
+      "shortDescription": "Surviving royal defensive magic linking King’s Spire and Moon Castle; at King’s Spire it manifests as a blue nimbus that can brighten in response to old oath-linked magic and suffer localized breaches while the wider ward remains active.",
+      "visibility": "player_known",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "6. Leaving the House of Crowns — Castle Knowledge — DM Truth / 16. Things to Add to the App — Lore"
+        },
+        {
+          "document": "dng_kings_spire.recorder.json",
+          "section": "Entry Room and Study — Star-Loom Carpet / Sky Courier Balcony — The Balcony Siege",
+          "authorityClass": "current_adventure"
+        }
+      ],
+      "reviewNotes": "DM review reclassifies the Royal Ward Network as magical_infrastructure."
+    },
+    {
+      "id": "b0a239c1-9cd0-5314-8527-288e0d6dbe19",
+      "canonicalName": "Silverwood fruit",
+      "type": "item",
+      "aliases": [
+        "Silverwood apple"
+      ],
+      "status": "current",
+      "era": null,
+      "location": "party possession",
+      "shortDescription": "Apple-like magical fruit from Silverwood with healing powers that can also allow passage through gates without a key.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "4. Wednesday: Starting State"
+        }
+      ],
+      "reviewNotes": "DM review confirms the fruit is real and important canon; “Silverwood apple” is a useful specific alias. The generic alias “apple” is intentionally omitted."
+    },
+    {
+      "id": "c6c94078-36d5-5d62-8cd9-cdddb7a45d8c",
+      "canonicalName": "Great Forgetting",
+      "type": "historical_event",
+      "aliases": [],
+      "status": "historical",
+      "era": null,
+      "location": "Arentor",
+      "shortDescription": "Long process after Seralith and Aerlan disappeared in which knowledge of the Royal Paths, the rulers, the war and old royal symbols faded far more completely than ordinary history should allow.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — The Historical Truth"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "b8719441-4737-570c-ba36-ddab89bec3f0",
+      "canonicalName": "Betrayal at Fort Aelwind",
+      "type": "historical_event",
+      "aliases": [
+        "Rostan Varnholde's betrayal at Fort Aelwind",
+        "Varnholde’s betrayal at Fort Aelwind"
+      ],
+      "status": "historical",
+      "era": null,
+      "location": "Fort Aelwind",
+      "shortDescription": "Major catastrophe during the final fifteen years of Seralith and Aerlan’s reign and their struggle against Azhurath.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "ARENTOR_CANON_SOURCE_FINAL_2026-09-04.docx",
+          "section": "1. Arentoria in One Page — The Historical Truth"
+        }
+      ],
+      "reviewNotes": "Database label only; DM review confirms the event is canon but does not claim “Betrayal at Fort Aelwind” is an official in-world historical title. Varnholde’s ultimate fate remains unresolved."
+    },
+    {
+      "id": "1757a15b-7ce6-50b9-9d61-6e59ff3182ec",
+      "canonicalName": "Varney",
+      "type": "creature",
+      "aliases": [
+        "Varny"
+      ],
+      "status": "current",
+      "era": "royal era to present",
+      "location": "King's Spire",
+      "shortDescription": "Large black guardian dog found alive at King’s Spire; a private royal-era portrait depicts the same dog beside Aerlan when younger, leaving Varney’s extraordinary longevity unexplained.",
+      "visibility": "unknown",
+      "tags": [
+        "guardian",
+        "dog",
+        "royal-era mystery"
+      ],
+      "sources": [
+        {
+          "document": "dng_kings_spire.recorder.json",
+          "section": "Entry Room and Study — The Black Dog / Royal Bedchamber — Portrait of King Aerlan",
+          "authorityClass": "current_adventure"
+        }
+      ],
+      "reviewNotes": "Room prose controls over lower-precedence structured records that incorrectly describe the dog as white or humanoid. Canonical spelling is Varney; Varny is retained as a source variant."
+    },
+    {
+      "id": "06a3d12f-a771-58ae-8690-fa67e658983e",
+      "canonicalName": "Seralith’s Testament",
+      "type": "item",
+      "aliases": [
+        "Seralith's Testament"
+      ],
+      "status": "historical",
+      "era": "late reign of Seralith and Aerlan",
+      "location": "King's Spire",
+      "shortDescription": "Named final testament of Queen Seralith, written shortly before King’s Spire was sealed and preserved on a silverwood writing desk.",
+      "visibility": "unknown",
+      "tags": [
+        "document",
+        "royal",
+        "historical"
+      ],
+      "sources": [
+        {
+          "document": "dng_kings_spire.recorder.json",
+          "section": "Entry Room and Study — Seralith’s Testament",
+          "authorityClass": "current_adventure"
+        }
+      ],
+      "reviewNotes": "Only the existence and compact details established by the reviewed King’s Spire export are promoted. Older, conflicting full testament text is not imported."
+    },
+    {
+      "id": "f283d0ee-fdb0-5cbc-a00f-a4c46983aaaf",
+      "canonicalName": "King's Spire Nexus Chamber",
+      "type": "place",
+      "aliases": [
+        "Nexus Chamber",
+        "Tree Sanctuary"
+      ],
+      "status": "current",
+      "era": "royal era",
+      "location": "King's Spire",
+      "shortDescription": "Upper chamber of King’s Spire built around a living tree and a black-mirror Royal Path portal whose magic is anchored by the tree.",
+      "visibility": "unknown",
+      "tags": [
+        "royal path",
+        "portal",
+        "living tree"
+      ],
+      "sources": [
+        {
+          "document": "dng_kings_spire.recorder.json",
+          "section": "Nexus Chamber",
+          "authorityClass": "current_adventure"
+        }
+      ],
+      "reviewNotes": "The chamber is durable world geography. The tree’s degree of sentience is explicitly unresolved in the adventure and is not promoted as fact."
+    },
+    {
+      "id": "d90a8c76-3efd-50d0-a22e-42b83f52297a",
+      "canonicalName": "King's Spire Royal Kitchen Attendants",
+      "type": "creature",
+      "aliases": [
+        "royal kitchen constructs",
+        "kitchen constructs",
+        "royal kitchen attendants"
+      ],
+      "status": "current",
+      "era": "royal era",
+      "location": "King's Spire",
+      "shortDescription": "Three non-sentient royal kitchen constructs built to prepare meals, maintain private royal chambers and respond to emergency protocols.",
+      "visibility": "unknown",
+      "tags": [
+        "construct",
+        "non-sentient",
+        "group-of-three"
+      ],
+      "sources": [
+        {
+          "document": "dng_kings_spire.recorder.json",
+          "section": "Royal Kitchen — The Kitchen Constructs",
+          "authorityClass": "current_adventure"
+        }
+      ],
+      "reviewNotes": "Promoted because these constructs have campaign persistence beyond a single room. Exact later location or party possession must come from session evidence, not this adventure reference."
+    }
+  ],
+  "reviewOverlay": {
+    "reviewedAt": "2026-09-04",
+    "reviewedBy": "DM",
+    "primaryAuthorityRule": "The finalized Arentor DOCX remains the primary world authority. This reviewed candidate also contains explicit DM decisions and a small set of DM-approved, non-conflicting durable facts promoted from the current King’s Spire adventure reference.",
+    "pendingSourceSync": false,
+    "sourceSynchronizedAt": "2026-09-04",
+    "supplementalSource": {
+      "document": "dng_kings_spire.recorder.json",
+      "authorityClass": "current_adventure",
+      "promotionRule": "May add durable local facts absent from Master Canon only when they do not conflict and are explicitly approved; may never override Master Canon."
+    }
+  },
+  "entityTypes": [
+    "person",
+    "historical_character",
+    "creature",
+    "place",
+    "organization",
+    "business",
+    "family",
+    "household",
+    "family_house",
+    "religion",
+    "supernatural_entity",
+    "title_office",
+    "item",
+    "artifact",
+    "symbol",
+    "magical_infrastructure",
+    "historical_event"
+  ]
+}

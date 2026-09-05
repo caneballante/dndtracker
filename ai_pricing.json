@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "version": "2026-09-03",
+  "currency": "USD",
+  "tokenUnit": 1000000,
+  "effectiveDate": "2026-08-21",
+  "reviewAfter": "2026-11-21",
+  "notes": "Standard processing estimates only. Update this file when provider pricing changes; unknown models remain unestimated.",
+  "providers": {
+    "openai": {
+      "source": "https://developers.openai.com/api/docs/models",
+      "models": {
+        "gpt-4o-mini": {
+          "inputPerMillionTokens": 0.15,
+          "cachedInputPerMillionTokens": 0.075,
+          "outputPerMillionTokens": 0.6,
+          "source": "https://developers.openai.com/api/docs/models/gpt-4o-mini"
+        },
+        "gpt-4o-transcribe-diarize": {
+          "inputPerMillionTokens": 2.5,
+          "outputPerMillionTokens": 10.0,
+          "source": "https://developers.openai.com/api/docs/models/gpt-4o-transcribe-diarize",
+          "notes": "An estimate is available only when the transcription response includes token usage. Audio duration is retained for future duration-based pricing support."
+        },
+        "gpt-5.6-sol": {
+          "inputPerMillionTokens": 4.0,
+          "cachedInputPerMillionTokens": 0.4,
+          "outputPerMillionTokens": 20.0,
+          "source": "https://developers.openai.com/api/docs/models/gpt-5.6-sol",
+          "notes": "Promotional standard-processing pricing reported as available at least through 2026-11-21."
+        }
+      }
+    },
+    "deepgram": {
+      "models": {
+        "nova-3": {
+          "audioPerMinute": null,
+          "notes": "Configure the applicable Deepgram contract price before relying on dollar estimates. Audio duration is still recorded when exposed."
+        }
+      }
+    }
+  }
+}

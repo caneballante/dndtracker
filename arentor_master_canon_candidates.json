@@ -1,0 +1,2798 @@
+{
+  "schemaVersion": 1,
+  "world": "Arentor",
+  "status": "candidate",
+  "entities": [
+    {
+      "id": "afc16042-035f-58d7-a15b-1ce7e5295b88",
+      "canonicalName": "Gerth the Watch",
+      "type": "person",
+      "aliases": [],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "An Arentorian city guard found drunk and asleep in the Guard Hall beneath the council building.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Guard Hall"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "407a5172-25f6-5d66-8261-9899f42161cc",
+      "canonicalName": "Marcel Dennet",
+      "type": "person",
+      "aliases": [],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Senior record-keeper in the Chancellor’s Office; suspicious, calculating, and loyal to Chancellor Vayne.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Clerk’s Hall and Offices — The Clerk: Marcel Dennet"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "2ea96860-8c78-50a2-96d7-a3f6e092defb",
+      "canonicalName": "Rallin Dore",
+      "type": "person",
+      "aliases": [],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Master of the Stewards, a broad-shouldered official with authority in the council building.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Rallin Dore’s Intervention"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "b540a3f2-64c5-5e41-a617-ca9cf8909320",
+      "canonicalName": "Meredyn Calvane",
+      "type": "person",
+      "aliases": [
+        "High Councilor Meredyn Calvane",
+        "The Quill and the Scales"
+      ],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Current High Councilor and chair of Arentoria’s five-member council; an aging scholar who values lawful order and precedent.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "fa435ee7-701d-55df-8c51-a15b370830f3",
+      "canonicalName": "Algren Vayne",
+      "type": "person",
+      "aliases": [
+        "Chancellor Algren Vayne",
+        "Chancellor Vayne",
+        "Vayne",
+        "The Silver Tongue of the South Hall"
+      ],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Chancellor of Commerce and Arentoria councilor; an ambitious political schemer seeking greater centralized power.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "834352c4-03fb-505a-b48f-08f68457fad8",
+      "canonicalName": "Eldric Thornwall",
+      "type": "person",
+      "aliases": [
+        "Sir Eldric Thornwall",
+        "The Iron Sentinel"
+      ],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Councilor of Defense and Captain of the City Guard; a veteran knight loyal to Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "b8a0f3a4-3609-5f50-af17-4dfbdc5e6074",
+      "canonicalName": "Seraphine Dyral",
+      "type": "person",
+      "aliases": [
+        "Magister Seraphine Dyral",
+        "Mistress of Mirrors"
+      ],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Councilor of Arcane Affairs and liaison to the Tower Arcanum; a half-elf mage studying Stoneback’s ancient wards.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "513cd40a-051b-5d0a-bf84-59d1256a4b23",
+      "canonicalName": "Roderic Marnwell",
+      "type": "person",
+      "aliases": [
+        "Councilor Roderic Marnwell",
+        "The Merchant’s Lion"
+      ],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Guild representative and Treasurer on the Council of Arentoria; a dwarf financier focused on profit and stability.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "32b735a6-73ed-5035-8b2b-e17f9fdf1879",
+      "canonicalName": "Councilor Brend",
+      "type": "person",
+      "aliases": [
+        "Brend"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "A councilor named in a city rumor as owing substantial debts to merchants.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 29"
+        }
+      ],
+      "reviewNotes": "Appears only in a rumor and is not part of the five-member council roster; identity/status needs review."
+    },
+    {
+      "id": "977850f6-ec61-56d6-960d-a94cd4e16b7b",
+      "canonicalName": "Helga Copperwhistle",
+      "type": "person",
+      "aliases": [],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Middle-aged dwarf clerk at the Blanders licensing office; sharp-tongued, curious, and fee-focused.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arentoria: Hitting the Town — Scene 1: The Blanders Licensing Office"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "e288373b-4c49-5024-8bf9-bfe88555e17b",
+      "canonicalName": "Brog Irontumbler",
+      "type": "person",
+      "aliases": [],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Dwarf bookkeeper at the Blanders warehouse office, encountered intoxicated on Deepcap Smoke.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arentoria: Hitting the Town — Scene 2: The Warehouse Office"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "613ab297-e0b5-5ee1-b780-261183f9ce96",
+      "canonicalName": "Dalla Broadbarrel",
+      "type": "person",
+      "aliases": [
+        "Dalla “Twitch” Broadbarrel",
+        "Twitch"
+      ],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Dwarf bookkeeper at the Blanders warehouse office, encountered intoxicated on Deepcap Smoke.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arentoria: Hitting the Town — Scene 2: The Warehouse Office"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "05286623-18ec-52c7-9ec9-bdd328c83d5e",
+      "canonicalName": "Archibald Brindlewink",
+      "type": "person",
+      "aliases": [
+        "Archibald “Archie” Brindlewink",
+        "Archie Brindlewink",
+        "Archie"
+      ],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Cheerful and verbose lodging agent who rents properties in several Arentoria districts.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arentoria: Hitting the Town — Scene 3: Rental Office"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "88339ece-c857-565f-9be8-908f1255c9c1",
+      "canonicalName": "High Brother Malrec",
+      "type": "person",
+      "aliases": [
+        "Malrec"
+      ],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Leader of a Red Flame street confrontation; a spellcaster who preaches submission to Azhurath’s cleansing flame.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Encounter: Harassed by the Cult of the Red Flame"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "770018f7-eb61-5467-bb3f-6f3b8f658205",
+      "canonicalName": "Sister Virel",
+      "type": "person",
+      "aliases": [
+        "Virel"
+      ],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "A stealthy Red Flame operative who poses as a pious follower while stealing and protecting Malrec.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Encounter: Harassed by the Cult of the Red Flame"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "967e25cc-8549-5a85-9060-b7192567aab4",
+      "canonicalName": "Fungion the Bleak",
+      "type": "person",
+      "aliases": [
+        "Boss F."
+      ],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Gnome artificer and black-market operator dealing in illegal arcane technology in Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Fungion the Bleak"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "dbbe95ab-e4f4-5c37-b357-2cb39dfa9cb5",
+      "canonicalName": "Julian Dan Brockpuddle",
+      "type": "person",
+      "aliases": [],
+      "status": "living/current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Half-elf Blanders alumnus and high-level rogue who approaches the party with a lucrative temple-clearing contract.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Adventure brainstorm / Julian Dan Brockpuddle"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "f1222fad-50b6-506f-b373-e32bac7df5c4",
+      "canonicalName": "Vardesh the Silkwright",
+      "type": "historical_character",
+      "aliases": [],
+      "status": "historical",
+      "era": "centuries ago",
+      "location": "Arentoria",
+      "shortDescription": "Alchemist whose phase-spider experiments are described as the origin of the Chitenborn during the Ash Fever quarantine.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Chitenborn — Origin"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "6686be20-cdcd-5a9c-b5af-149aa0cdcbad",
+      "canonicalName": "Torrin",
+      "type": "person",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "A contact at Marnel’s Vault named in a merchant-deal rumor.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 5"
+        }
+      ],
+      "reviewNotes": "Named only in the rumor table; confirm whether this is intended durable canon."
+    },
+    {
+      "id": "5774559d-b55d-56f0-8499-e9499dfb5467",
+      "canonicalName": "Jessa",
+      "type": "person",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "A person whose name is used as a referral for a discount at Marnel’s Vault.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 5"
+        }
+      ],
+      "reviewNotes": "Named only in the rumor table; confirm whether this is intended durable canon."
+    },
+    {
+      "id": "43f516a2-33fc-5df0-8a00-9f1341ee3a19",
+      "canonicalName": "Fennel the Quiet",
+      "type": "person",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "A dealer in rare goods said to operate behind the brewer’s guildhouse.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 21"
+        }
+      ],
+      "reviewNotes": "Named only in the rumor table; confirm whether this is intended durable canon."
+    },
+    {
+      "id": "d4aa5a83-0efa-59b6-8e0f-831281131646",
+      "canonicalName": "Grislan",
+      "type": "person",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "An armor seller said to work at the Hammered Star.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 41"
+        }
+      ],
+      "reviewNotes": "Named only in the rumor table; confirm whether this is intended durable canon."
+    },
+    {
+      "id": "06cded68-dfab-58e2-bce7-6b5795d6ba7f",
+      "canonicalName": "Darrin",
+      "type": "person",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Grislan’s brother, whose name is said to secure favorable armor pricing.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 41"
+        }
+      ],
+      "reviewNotes": "Named only in the rumor table; confirm whether this is intended durable canon."
+    },
+    {
+      "id": "348cab4e-fabe-5f1c-bb1a-d864c4f566f3",
+      "canonicalName": "Parmedia",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": null,
+      "shortDescription": "Nation/realm for which Arentoria is the capital and whose governing body is the Council of Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City of Arentoria / The Council of Arentoria"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "db0e478c-10e9-5d81-a418-0e6ecd931795",
+      "canonicalName": "Arentoria",
+      "type": "place",
+      "aliases": [
+        "The City of Crowns"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Capital of Parmedia, called the City of Crowns; a council-led city-state built in tiers around Stoneback Rise.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City of Arentoria (Numbered Reference Guide)"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "09638121-9ed3-53d9-af6a-6748d0260953",
+      "canonicalName": "Stoneback Rise",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Natural ridge of pale stone anchoring Arentoria’s western wall and giving its name to the Stoneback area.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City of Arentoria (Numbered Reference Guide)"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "6edc5b0f-cede-5d1c-9aa3-f33b7b9edcfb",
+      "canonicalName": "Crownward District",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Government and administrative core of Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "ec9d1bbf-3f34-5905-b13e-cc985fc003fa",
+      "canonicalName": "Highmarch Ward",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Noble and diplomatic quarter beneath the ridge’s shadow.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "191fdcff-3483-56c5-8295-50eadb253682",
+      "canonicalName": "Guildstrand",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Craft and trade hub of guilds, merchants, and artisans.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "65181098-bc5e-5e1e-af3e-a0a604d07cd1",
+      "canonicalName": "Grand Market",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Arentoria’s vast central bazaar and caravan plaza.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "c3e1cef0-3d0a-521f-a145-0f9c25bab52b",
+      "canonicalName": "Scholarium District",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "District of temples, academies, and the city’s arcane college.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "cd268215-ea47-5881-a00f-75af5b66667c",
+      "canonicalName": "Stoneback Ward",
+      "type": "place",
+      "aliases": [
+        "Stoneback"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Sparse ridge district of ancient fortifications and ruins.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "a43515f5-c988-5f51-bef9-401955b4e815",
+      "canonicalName": "The Commons",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Residential and labor district of Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "4988a1ac-8c47-5aea-a7b3-76096ac19b27",
+      "canonicalName": "The Shades",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Underground quarter and black market of Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "51c84796-bea1-55b5-ab9e-abd028e1ced8",
+      "canonicalName": "Hall of Crowns",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Seat of Arentoria’s council and government.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts / Sites, Landmarks, and Points of Interest"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "066e8561-67ad-5f7a-b831-cd2c27c1eb11",
+      "canonicalName": "Chancellor Vayne’s Office",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named office in the Crownward District.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Crownward District"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "184d8932-829d-580b-8043-2f99d347865d",
+      "canonicalName": "Clerk’s Annex",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named administrative site in the Crownward District.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Crownward District"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "61a09c53-1ec9-5965-b095-d5b1564044f0",
+      "canonicalName": "Records Tower",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named records building in the Crownward District.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Crownward District"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "bb4e2843-2a29-5e80-841e-836b5880828a",
+      "canonicalName": "Forum of the Twin Crowns",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named civic site in the Crownward District.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Crownward District"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "bff93a52-00d9-586e-bc23-4caadb9357bb",
+      "canonicalName": "Amber Conservatory",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named site in Highmarch Ward.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Highmarch Ward"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "26764064-0389-52c4-8754-c66ea55ee51c",
+      "canonicalName": "Azure Baths",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named site in Highmarch Ward.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Highmarch Ward"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "b1507ea6-1836-5acd-9729-7a9765fa82a3",
+      "canonicalName": "Seralienne Court",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named site in Highmarch Ward.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Highmarch Ward"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "443b64ab-cb8e-5687-bc4c-1721a98bb337",
+      "canonicalName": "Alchemists’ Collegium",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named institution/site in Guildstrand.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Guildstrand"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "d2029ec5-accb-59a6-af51-5533a84c0c88",
+      "canonicalName": "Mercenaries’ Hall of the Brazen Banner",
+      "type": "place",
+      "aliases": [
+        "Mercenaries’ Hall"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named mercenary hall in Guildstrand; the district list also shortens this to “Mercenaries’ Hall.”",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts / Sites, Landmarks, and Points of Interest"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "fe0e86e6-d7d8-5265-90cf-454131de035b",
+      "canonicalName": "Stonemasons’ Guild",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named guild/site in Guildstrand.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Guildstrand"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "c29338be-0207-5c1d-8aef-3b4d8bd52f5d",
+      "canonicalName": "Guildmen’s Cross",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named site in Guildstrand.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Guildstrand"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "15d1795a-b49e-5f09-94b6-c113b8dad3f1",
+      "canonicalName": "Crownreach Plaza",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named plaza in the Grand Market.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Grand Market"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "fd309ea2-f033-5eda-94da-62bcfa568bea",
+      "canonicalName": "Spice Row",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named market street/site in the Grand Market.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts / Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "3cf15ea7-db01-55f1-b698-c1e0aac1d040",
+      "canonicalName": "Lantern Loop",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Circular night-market road in Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts / Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "aab66258-db38-5f03-8b6c-cb70b8561128",
+      "canonicalName": "Tinker’s Hollow",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Alley of artificers in Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts / Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "2e5d9f24-931b-50b0-96d6-382bba45c471",
+      "canonicalName": "The Brass Mortar",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named establishment in the Grand Market.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Grand Market"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "971b12b9-d77c-5638-b889-10f589aaa403",
+      "canonicalName": "Thread & Thorn Tailory",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named establishment in the Grand Market.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Grand Market"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "ac125785-bc65-5748-90c0-cdbb404ac272",
+      "canonicalName": "Baelor’s Oddments",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named establishment in the Grand Market.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Grand Market"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "fffd66eb-2238-5b52-a4cd-822189d3c22f",
+      "canonicalName": "The Winking Kraken",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named establishment in the Grand Market.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Grand Market"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "865470d6-61d9-538f-9f00-598715899279",
+      "canonicalName": "Temple of Dawnfire and Starfall",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named temple in the Scholarium District.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Scholarium District"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "1996f3b7-6743-5b68-948b-92348cee4a44",
+      "canonicalName": "Selenic Library",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named library in the Scholarium District.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Scholarium District"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "03de0a9a-a171-5a22-ba4b-6a09dbba075e",
+      "canonicalName": "Blanders Annex",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named Blanders site in the Scholarium District.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Scholarium District"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "0a4bda8a-2f90-544a-90e9-1fee96ed8670",
+      "canonicalName": "Circle of Light and Shadow",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named site/institution in the Scholarium District.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Scholarium District"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "48ee9e32-b6df-5b8a-8a08-45ff4fbdfa42",
+      "canonicalName": "Ruined Keep of Aelwind",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named ruin in Stoneback Ward.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Stoneback Ward"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "2e12f968-eba4-5ebc-8237-06dd2b5452c2",
+      "canonicalName": "Catacombs of the Eight-Point Star",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named catacombs in Stoneback Ward.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Stoneback Ward"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "85a154fa-f5a6-5374-bcef-5499f95b337d",
+      "canonicalName": "Aelvarn Bastion",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named fortification in Stoneback Ward.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Stoneback Ward"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "b8a9ddfd-9766-5570-adec-6fa0f270207d",
+      "canonicalName": "Watchers’ Lodge",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named lodge in Stoneback Ward.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Stoneback Ward"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "f979545d-9023-5aa5-b6ee-6baf350f4c1a",
+      "canonicalName": "Aelvarn Gate",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named gate in Stoneback Ward.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — Stoneback Ward"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "96b279df-2c13-528b-8f8c-09fe7f27562e",
+      "canonicalName": "The Tumbler’s Cask",
+      "type": "place",
+      "aliases": [
+        "The Tumbler’s Cask Inn"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named inn/site in the Commons; the district list calls it “The Tumbler’s Cask Inn.”",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts / Sites, Landmarks, and Points of Interest"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "110780c4-5c51-53e1-864d-de59ac22352a",
+      "canonicalName": "Street of Lanterns",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named street in the Commons.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — The Commons"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "a015557e-123a-59e5-8c63-819ea441d2e8",
+      "canonicalName": "Brickmaker’s Court",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named craft yard/site in the Commons.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts / Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "e245b230-57c6-5eb0-9d5c-898f9fd105a1",
+      "canonicalName": "Coin-Shrine of Mercare",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named shrine in the Commons.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — The Commons"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "bf5bb833-dac5-573d-baa3-0e2432f61c8e",
+      "canonicalName": "Whisper Vault",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named location in the Shades.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — The Shades"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "8a065edc-7e5a-5429-9241-d3cbd01b8019",
+      "canonicalName": "Sunless Court",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named location in the Shades.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — The Shades"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "79c02931-d22e-535a-8c16-2fda6c742d9a",
+      "canonicalName": "Ember Channel",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named location in the Shades.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — The Shades"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "0a6eb58e-ae16-59f0-9fa1-dc4d6fd9a6f1",
+      "canonicalName": "King’s Mile",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Broad highway to Arentoria’s south gate.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts / Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "55540f6a-69f6-58d6-b84f-846dda31ae65",
+      "canonicalName": "Cherrytorn Road",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named road associated with the outer/caravan area.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts / Sites, Landmarks, and Points of Interest"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "56b6f9ed-f35d-532c-8a2b-cb80c7db8d44",
+      "canonicalName": "Farmer’s Spur",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named outer-city route/site.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts / Sites, Landmarks, and Points of Interest"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "d488a40e-9bc7-56d7-87b9-9c8958308620",
+      "canonicalName": "Paupers’ Field",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named outer-city field/cemetery area.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts / Sites, Landmarks, and Points of Interest"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "5aa3bb80-11df-5412-aab8-444ac4a6ef2d",
+      "canonicalName": "Shrine of the Royal Path",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named shrine in the outer-city area.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "dc13980b-9ee9-5a7a-bbbc-6a870c812888",
+      "canonicalName": "Starfall Avenue",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Ceremonial way to the Hall of Crowns.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "92950da9-f5b2-579e-b0dd-f984811ac407",
+      "canonicalName": "Seralienne Way",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Grand road through the noble quarter.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "a29b716c-a10c-5797-99f3-bd0b4f9dabd3",
+      "canonicalName": "Ironbell Road",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Main guild artery in Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "84eaf41a-4afc-5e69-9486-7015f7715378",
+      "canonicalName": "Crownreach Boulevard",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Road connecting the bazaar to the council quarter.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "256ed095-3636-5edf-bc65-cd83f1dc64cb",
+      "canonicalName": "Dawnfire Promenade",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Road ascending toward the temples and Scholarium.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "63b425c0-bf03-5e86-82a5-e32b534efd97",
+      "canonicalName": "Stoneback Road",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Road leading into the ridge and castle path.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "9ebe4a4f-1451-5ee5-902f-b4b3b574555c",
+      "canonicalName": "Cobbler’s Way",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Busy route through the Commons.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "5f8b90a8-ef7c-5392-947e-e11cc37c3ba1",
+      "canonicalName": "Ministry Row",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Street of bureaucratic offices.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "0c5ced7b-b00f-57ec-a4d5-cf525c2f579c",
+      "canonicalName": "Amberlight Street",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Street of perfumers and shops near Highmarch.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "02cabfab-7413-5ee3-85a4-73f079cb19e1",
+      "canonicalName": "Apprentice Way",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Street of training halls and workshops.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "0d7149af-17db-5a22-bf43-dbd4f2fc3324",
+      "canonicalName": "Oldback Steps",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Ancient stair into Stoneback Rise.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "eb54c32c-6baa-5e20-afde-4b4c4602b998",
+      "canonicalName": "Falconwatch Terrace",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Ridge overlook road.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "02fe180c-cbef-5cee-90b6-92d4775960cf",
+      "canonicalName": "Pilgrim’s Hollow Lane",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Trail toward the sealed shrine.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "f9b00cda-c293-5be4-ba1c-78bd0e0bb6af",
+      "canonicalName": "Street of Aelvarn",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Old guard street on the ridge.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "15426c6e-7018-5f25-8e10-ef40b5abeace",
+      "canonicalName": "Velvet Court Lane",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Secluded noble road.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Primary Streets and Roads"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "c985a743-0d63-58d2-b91c-9c02f176a797",
+      "canonicalName": "The Gilded Circle",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named point of interest in Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Sites, Landmarks, and Points of Interest"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "965acafe-7663-5477-8d44-f461cae94217",
+      "canonicalName": "Caravan Yards",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named caravan area in Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Sites, Landmarks, and Points of Interest"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "a3cc6bd7-2f0d-5790-bb77-ad34b186f93e",
+      "canonicalName": "Fountain of Seralienne",
+      "type": "place",
+      "aliases": [
+        "the Fountain Court"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Mythic remnant with warm waters, now called the Fountain Court.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Mythic Remnants (Forgotten Twin Legacy)"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "48eed1ac-6e3e-5454-bc16-e5c7eb465cfb",
+      "canonicalName": "Shrine of Aelvarn",
+      "type": "place",
+      "aliases": [
+        "the Watcher’s Niche"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Mythic remnant with an ever-cold brazier, now called the Watcher’s Niche.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Mythic Remnants (Forgotten Twin Legacy)"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "eeda4bbf-4162-5eda-b1ec-4fe50b790609",
+      "canonicalName": "Marnel’s Vault",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Merchant location on Ember Lane named in a city rumor.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 5"
+        }
+      ],
+      "reviewNotes": "Appears only in the rumor table; confirm whether this named place is intended durable canon."
+    },
+    {
+      "id": "4bc84143-99f5-5b41-a023-085b78db306f",
+      "canonicalName": "Ember Lane",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Street named as the location of Marnel’s Vault.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 5"
+        }
+      ],
+      "reviewNotes": "Appears only in the rumor table; confirm whether this named place is intended durable canon."
+    },
+    {
+      "id": "028a5959-1558-53e3-b2d5-8fdd962ee98a",
+      "canonicalName": "Golden Pike",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Inn named in a rumor as a place where the innkeeper sells secrets to guards.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 11"
+        }
+      ],
+      "reviewNotes": "Appears only in the rumor table; confirm whether this named place is intended durable canon."
+    },
+    {
+      "id": "7c25c059-ff1c-5e0d-8290-be903e17a58d",
+      "canonicalName": "Old Market",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Market area named in a rumor about a flame preacher.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 12"
+        }
+      ],
+      "reviewNotes": "Appears only in the rumor table; confirm whether this named place is intended durable canon."
+    },
+    {
+      "id": "3c46734c-d9ab-5cf5-9a4b-c5d4adb2836f",
+      "canonicalName": "South Road",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Road named in a rumor about a missing merchant caravan.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 13"
+        }
+      ],
+      "reviewNotes": "Appears only in the rumor table; confirm whether this named place is intended durable canon."
+    },
+    {
+      "id": "a04d816f-c675-5a6a-9317-cc57805b0a97",
+      "canonicalName": "Hammered Star",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Armor seller/shop named in a merchant-deal rumor.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 41"
+        }
+      ],
+      "reviewNotes": "Appears only in the rumor table; confirm whether this named place is intended durable canon."
+    },
+    {
+      "id": "8d4bc201-052f-5284-8ac9-dddff2b53d10",
+      "canonicalName": "Drowned Hound",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Establishment named in a rumor about spider-folk near the old caravan yard.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 42"
+        }
+      ],
+      "reviewNotes": "Appears only in the rumor table; confirm whether this named place is intended durable canon."
+    },
+    {
+      "id": "31812b9c-4751-5334-a28c-564d8c06404d",
+      "canonicalName": "Tower Arcanum",
+      "type": "place",
+      "aliases": [
+        "the Arcanum"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Arcane institution/place repeatedly associated with wizards and Seraphine Dyral.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors / The Council of Arentoria"
+        }
+      ],
+      "reviewNotes": "Appears only in the rumor table; confirm whether this named place is intended durable canon."
+    },
+    {
+      "id": "c5035d3b-7d56-58d4-99c8-b31e36ec8a91",
+      "canonicalName": "Guild Row",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Guild area the party is directed to visit for licensing.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Rallin Dore’s Intervention"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "96aac5a2-5d3a-5021-a776-b14ce3e82b78",
+      "canonicalName": "Blanders Licensing Office",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Blanders licensing and recruitment office at the south end of the Commons.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arentoria: Hitting the Town — Scene 1"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "a54d423f-162e-5ddc-b3a1-fee363cbd752",
+      "canonicalName": "Blanders Warehouse Office",
+      "type": "place",
+      "aliases": [
+        "BLANDERS — ACCOUNTS AND SUPPLY"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Blanders accounts and supply warehouse north of the Shades near the caravan yards.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arentoria: Hitting the Town — Scene 2"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "7ff7c6f6-b52e-54e2-b0e0-28f6332f3141",
+      "canonicalName": "The Drymarket",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Wagon-and-tent sprawl outside the walls near the Shades, associated with the discarded Ember-Scale concept.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arentoria: Hitting the Town — Scene 4"
+        }
+      ],
+      "reviewNotes": "Appears only inside an explicitly labeled alternative concept that the document says was not the final choice; likely exclude from canon."
+    },
+    {
+      "id": "cb8d556b-0874-5a42-a00b-9c92cfbbf8e7",
+      "canonicalName": "Fishwives’ Alley",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Location of a sandwich stand mentioned by the Blanders warehouse bookkeepers.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arentoria: Hitting the Town — Scene 2"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "7e0735ad-df4f-5945-b8e7-5b31c48b3e6f",
+      "canonicalName": "King’s Spire",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": null,
+      "shortDescription": "Place Helga says the party claims to be from; associated with a Blanders main campus.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arentoria: Hitting the Town — Scene 1"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "4a2e059a-65ae-537e-b579-1dffa48bdbb0",
+      "canonicalName": "Scornubel",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": null,
+      "shortDescription": "A distant city Julian says he is heading toward.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Adventure brainstorm"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "0900ce59-46c0-5e20-894e-8d540f1718ae",
+      "canonicalName": "Temple of Bane",
+      "type": "place",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "An abandoned temple Julian says he has a contract to clear and sanctify.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Adventure brainstorm"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "ffef7ab3-8571-5761-86da-1729ba3db0ec",
+      "canonicalName": "Council of Arentoria",
+      "type": "organization",
+      "aliases": [
+        "the Council"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Five-member governing body of Parmedia, seated in the Hall of Crowns.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "9853623c-1563-5eb9-9869-f7803c8dae9f",
+      "canonicalName": "Arentorian City Guard",
+      "type": "organization",
+      "aliases": [
+        "City Guard",
+        "Arentorian city guard"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "City guard force associated with the council; Eldric Thornwall is its captain.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria / The Guard Hall"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "fbb6cc3d-6f07-5d2a-ba57-da448e6083ec",
+      "canonicalName": "Archivist’s Guild",
+      "type": "organization",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Guild from which Meredyn Calvane rose before becoming High Councilor.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "90eb79c3-b67f-5bbf-9b96-259d2214dc57",
+      "canonicalName": "Blanders Everything Institute of Dungeoneering",
+      "type": "organization",
+      "aliases": [
+        "Blanders",
+        "BLANDERS EVERYTHING INSTITUTE OF DUNGEONEERING"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Adventuring institution with licensing, recruitment, alumni, annex, and accounts/supply operations in Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arentoria: Hitting the Town — Scene 1"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "8bc90cb0-ac74-5ab0-99db-2d26b05b4361",
+      "canonicalName": "Thieves’ Guild of Quiet Hands",
+      "type": "organization",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Named thieves’ guild in the Shades.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Major Districts — The Shades"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "6f5783d5-95c4-587c-8976-6fa921473042",
+      "canonicalName": "Guild of Candlemakers",
+      "type": "organization",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Guild accused in a city rumor of laundering cult money through wax sales.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "City Rumors — rumor 15"
+        }
+      ],
+      "reviewNotes": "Organization is named only in a rumor; confirm intended canon status."
+    },
+    {
+      "id": "016ada3e-d6f4-55b8-8a5a-3c5eaa0d1f17",
+      "canonicalName": "The Chitenborn",
+      "type": "organization",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Part-guild, part-hive mutant society that stalks the underside of Arentoria and hunts in web-cells.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Chitenborn"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "2ac9b8e4-01c9-545d-a1d7-3b3310b299be",
+      "canonicalName": "Ember-Scale Collective",
+      "type": "organization",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Alternative concept for desert-dwelling lizardfolk caravan mercenaries; the document explicitly says the final choice was the Chitenborn.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arentoria: Hitting the Town — Scene 4"
+        }
+      ],
+      "reviewNotes": "Explicitly marked as an alternative concept superseded by the Chitenborn; likely exclude from canon."
+    },
+    {
+      "id": "61d23cf4-cd6d-5362-9daf-beeca0f6c5af",
+      "canonicalName": "The Twin Flame of Dawnfire",
+      "type": "religion",
+      "aliases": [
+        "the Dawnfire",
+        "Dawnfire"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Ancient faith of both Seralith and Aerlan, remembered in modern shorthand as the Dawnfire and associated with the joined Eight-Pointed Star and Sunburst.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Adventure brainstorm — Dawnfire religion Q&A"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "9a9f9562-2880-55ca-b7b0-92774f3d3c22",
+      "canonicalName": "Cult of the Red Flame",
+      "type": "religion",
+      "aliases": [
+        "The Cleansed",
+        "The Cleansing Flame of Azhurath",
+        "Cult of the Flame",
+        "Red Flame"
+      ],
+      "status": "active",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Demon-worshipping faith devoted to Azhurath as a purifying flame; its street preachers are called the Cleansed.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Adventure brainstorm — cult religion Q&A"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "df037a60-a87b-576b-be7c-790f796ccca6",
+      "canonicalName": "The Weaver Below",
+      "type": "religion",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Entity or object of worship revered by the Chitenborn and described as an echo of Azhurath’s corruption.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Chitenborn"
+        }
+      ],
+      "reviewNotes": "The source does not establish whether the Weaver Below is a god, demon, title, or religious tradition; category is provisional."
+    },
+    {
+      "id": "1460528a-13f6-5104-b4b0-65f2551fc85f",
+      "canonicalName": "Tharr-Vesh the Parched Serpent",
+      "type": "religion",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": null,
+      "shortDescription": "Spirit of balance and drought worshipped by the Ember-Scale Collective in an explicitly discarded alternative concept.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arentoria: Hitting the Town — Scene 4"
+        }
+      ],
+      "reviewNotes": "Belongs to an explicitly labeled alternative concept that was not the final choice; likely exclude from canon."
+    },
+    {
+      "id": "556a6a7d-53dd-5c77-b031-10e648015c8a",
+      "canonicalName": "Bane",
+      "type": "religion",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": null,
+      "shortDescription": "Named deity associated with the abandoned temple in Julian’s proposed contract.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Adventure brainstorm"
+        }
+      ],
+      "reviewNotes": "The source names Bane only through the Temple of Bane and gives no Arentor-specific description."
+    },
+    {
+      "id": "5f3ed264-fb5e-58d0-9cd0-17124186d039",
+      "canonicalName": "High Councilor",
+      "type": "title_office",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Chair of the five-member Council of Arentoria; currently held by Meredyn Calvane.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria / Rallin Dore’s Intervention"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "1ace7f9d-cc89-5596-b563-a0e238f3d91a",
+      "canonicalName": "Chancellor of Commerce",
+      "type": "title_office",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Council office held by Algren Vayne.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria / Rallin Dore’s Intervention"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "915ec2be-93aa-53e7-9b7e-fa85bff36baa",
+      "canonicalName": "Councilor of Defense",
+      "type": "title_office",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Council office held by Eldric Thornwall.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria / Rallin Dore’s Intervention"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "7760b8fd-7366-5936-90da-6a45151bdcf2",
+      "canonicalName": "Captain of the City Guard",
+      "type": "title_office",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Office held by Eldric Thornwall.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria / Rallin Dore’s Intervention"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "a72f591b-1000-56bb-bbbb-eb8aeb4bc24b",
+      "canonicalName": "Councilor of Arcane Affairs",
+      "type": "title_office",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Council office held by Seraphine Dyral.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria / Rallin Dore’s Intervention"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "030be7f3-dcd8-5768-9d5a-442552911258",
+      "canonicalName": "Treasurer of the City",
+      "type": "title_office",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Council office held by Roderic Marnwell.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria / Rallin Dore’s Intervention"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "8fa9acd0-b292-56de-a738-16aedeaaf909",
+      "canonicalName": "Master of the Stewards",
+      "type": "title_office",
+      "aliases": [],
+      "status": "current",
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Stewardship office held by Rallin Dore.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Council of Arentoria / Rallin Dore’s Intervention"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "74ca86a8-5ff0-5bf4-891d-d81e67112f11",
+      "canonicalName": "Oath Rings of the Crowned Flame",
+      "type": "artifact",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Intertwined gold bands preserved among sealed royal relics; they pulse faintly when touched together.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Forgotten Storeroom — The Far Wall and Ornate Door"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "87d09963-11b8-517c-8e17-d45d0ee64eaa",
+      "canonicalName": "Arcane Restraints of Arentoria",
+      "type": "artifact",
+      "aliases": [
+        "restraint bands",
+        "bracelets"
+      ],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Council-linked magical bracelets used to suppress, track, and punish restrained wearers.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arcane Restraints of Arentoria"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "8f94728b-28a1-5ac2-9298-a77805cccecc",
+      "canonicalName": "Banner of Arentoria",
+      "type": "artifact",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Deep-blue and gold civic banner bearing the merged starburst of Seralith and Aerlan and the motto “In unity, the flame endures.”",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Guard Hall"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "dea8428d-9ad9-5de7-8fdf-f0621db6150b",
+      "canonicalName": "Eight-Point Motif",
+      "type": "artifact",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Recurring eight-pointed royal/twin-legacy symbol found on Arentorian arches, coins, and lanterns.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Mythic Remnants (Forgotten Twin Legacy)"
+        }
+      ],
+      "reviewNotes": "This is a recurring symbol rather than a discrete artifact; confirm whether symbols belong in the artifact category."
+    },
+    {
+      "id": "b6686d6a-c99a-596b-b84d-5452c2e284f6",
+      "canonicalName": "Twin Bell Chimes",
+      "type": "artifact",
+      "aliases": [],
+      "status": null,
+      "era": null,
+      "location": "Arentoria",
+      "shortDescription": "Paired morning bell tradition/remnant in which bells ring east and west.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Mythic Remnants (Forgotten Twin Legacy)"
+        }
+      ],
+      "reviewNotes": "May be better treated as a cultural tradition rather than an artifact; schema has no tradition category."
+    },
+    {
+      "id": "0df983e5-3b96-5776-a002-cd44172b2203",
+      "canonicalName": "Ash Fever quarantine",
+      "type": "historical_event",
+      "aliases": [],
+      "status": null,
+      "era": "centuries ago",
+      "location": "Arentoria",
+      "shortDescription": "Past quarantine during which Vardesh the Silkwright’s laboratory collapsed; the Chitenborn origin is tied to this event.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Chitenborn — Origin"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "194853a4-844b-5d98-b1f8-5db96733c111",
+      "canonicalName": "War of the Ruby Flame",
+      "type": "historical_event",
+      "aliases": [],
+      "status": null,
+      "era": "historical",
+      "location": "Arentoria",
+      "shortDescription": "Past war referenced as preceding the forging of Arentoria’s modern arcane restraints.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Arcane Restraints of Arentoria — Lore & Flavor"
+        }
+      ],
+      "reviewNotes": "The source provides only a brief reference and no event details."
+    },
+    {
+      "id": "2446a80e-acac-5dbe-a208-6473280700f9",
+      "canonicalName": "Arentoria’s founding",
+      "type": "historical_event",
+      "aliases": [],
+      "status": null,
+      "era": "historical",
+      "location": "Arentoria",
+      "shortDescription": "Founding of Arentoria depicted in murals with Seralith and Aerlan as mythic heroes blessing a city rising from the sea.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Main Hall"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "38a994a3-ab90-559d-b251-2b1a7dd0272b",
+      "canonicalName": "Seralith",
+      "type": "historical_character",
+      "aliases": [
+        "Queen Seralith",
+        "Radiant Dawn"
+      ],
+      "status": "historical/legendary",
+      "era": "ancient royal era",
+      "location": "Arentoria",
+      "shortDescription": "Ancient queen/mythic figure of Arentoria’s twin legacy, associated with the sunburst, Dawnfire, and the city’s old royal symbolism.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Forgotten Storeroom / City of Arentoria"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "4c063693-0470-5ecc-a61b-66a3a00365b3",
+      "canonicalName": "Aerlan",
+      "type": "historical_character",
+      "aliases": [
+        "Steadfast Star"
+      ],
+      "status": "historical/legendary",
+      "era": "ancient royal era",
+      "location": "Arentoria",
+      "shortDescription": "Ancient king/mythic figure of Arentoria’s twin legacy, associated with the iron star, Starfall, and steadfastness.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "The Forgotten Storeroom / City of Arentoria"
+        }
+      ],
+      "reviewNotes": null
+    },
+    {
+      "id": "66228e42-364f-5ea7-b634-f7157e736337",
+      "canonicalName": "Azhurath",
+      "type": "historical_character",
+      "aliases": [
+        "the Flame-Veiled"
+      ],
+      "status": "unclear",
+      "era": null,
+      "location": null,
+      "shortDescription": "Flame-associated demonic figure worshipped by the Cult of the Red Flame and linked to corruption remembered in Arentoria.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Encounter: Harassed by the Cult of the Red Flame / cult religion Q&A"
+        }
+      ],
+      "reviewNotes": "The source treats Azhurath as a demon/purifying god rather than a mortal person; historical_character is the closest requested category but should be reviewed."
+    },
+    {
+      "id": "c5777507-a401-5679-b1a8-937c368843db",
+      "canonicalName": "Ghurzag",
+      "type": "person",
+      "aliases": [],
+      "status": "unclear",
+      "era": null,
+      "location": null,
+      "shortDescription": "Figure named in the Red Flame battle chant: “Ghurzag rises, speaks the name.” No further identity is established in this source.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Adventure brainstorm — cult religion Q&A"
+        }
+      ],
+      "reviewNotes": "The current Arentoria document does not establish who or what Ghurzag is; do not import identity from older files."
+    },
+    {
+      "id": "8478109a-b6df-54fe-8ecd-dd88f2ec6add",
+      "canonicalName": "Heral",
+      "type": "person",
+      "aliases": [],
+      "status": "unclear",
+      "era": null,
+      "location": null,
+      "shortDescription": "Person identified only as Julian Dan Brockpuddle’s cousin in the adventure brainstorm.",
+      "visibility": "unknown",
+      "tags": [],
+      "sources": [
+        {
+          "document": "Arentoria-adventure.docx",
+          "section": "Adventure brainstorm"
+        }
+      ],
+      "reviewNotes": "The source provides no further identity, location, or status for Heral."
+    }
+  ]
+}
