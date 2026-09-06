@@ -34,6 +34,7 @@ DnD Tracker is a local web app for recording DnD sessions in audio chunks, trans
 
 ## Verification
 
+- New browser CSS/JS must be listed explicitly in `server.py`'s `PUBLIC_STATIC_FILES`. Run `test_static_ui_assets.py`; DOM-only tests do not verify HTTP asset delivery. Never allow the whole repository to be served.
 - For backend or route changes, start the server and verify `http://127.0.0.1:8000/`.
 - If port `8000` is busy, use the stop script before trying unrelated ports.
 - Early transcript/notes 404s are expected before the first chunk finishes processing.

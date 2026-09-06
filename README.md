@@ -111,9 +111,39 @@ World-aware bounded reference retrieval when enabled. The session History UI loa
 stores directly and uses an explicitly confirmed **Build/Rebuild Session Memory** action;
 it does not convert them into legacy Notes or regenerate a published recap.
 
+## Table console (Phase 4.1)
+
+The Live Session console uses warm appliance panels, dark instrument readouts, and
+a compact **At the table** display. **Edit…** opens a draft participant selection:
+Cancel discards it; Save applies only to this session (or the next recording before Start).
+Campaign roster and World Canon are not rewritten. Players/DM and participating companions
+are separate from searchable world identities; you do not need to preload every NPC.
+The dialog searches the saved campaign roster and its NPC/historical name list, not the
+whole World Canon. The full reference index remains available to existing backend retrieval.
+
+- **Recent Play:** the existing rolling mini-summary; a temporary glance, not history.
+- **Player Companion:** on-demand 2/5/10-minute review; provisional and billable only on click.
+- **Session Memory:** durable post-session Events + Highlights; expanded in Sessions.
+
+Recorder controls and live input level are unchanged. The new elapsed readout measures
+session wall-clock time, including pauses. Advanced / Legacy retains old roster fields,
+note review/guidance, transcript tools and diagnostics. Saved name-list maintenance is
+collapsed in Campaigns because legacy prompt context and reference providers still use it.
+Recap/handoff and DungeonShare remain together in Sessions. This checkout has no Gary
+page or standalone World & Canon navigation; no placeholder destinations were added.
+
+Offline UI tests use Node; the new DOM test additionally uses an existing `jsdom`
+installation (resolve normally or set `NODE_PATH` to its containing `node_modules`).
+It loads no browser resources and mocks all requests. Without jsdom, that test is reported
+as skipped. Run `python -m unittest discover -s tests -v` for the full suite.
+The production page retains its existing Bootstrap CDN dependency.
+
+Follow-up: transcription vocabulary / proper-name recognition (including Seralith and
+uncertain raw spellings). This UI phase adds no aliases or name-normalization logic.
+
 ## Player Companion — What Did I Miss?
 
-Experimental, on-demand player assistance in Live Review and historical session detail.
+Experimental, on-demand player assistance in Live Session and historical session detail.
 Enable explicitly with `ENABLE_LIVE_PLAYER_ASSISTANT=1` in your local `.env`, then restart
 through Quick Start. Disabled by default; no secret configuration is exposed in the UI.
 

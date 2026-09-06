@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Session Recorder</title>
+  <title>DungeonTracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 
@@ -236,6 +236,7 @@
       display: none;
     }
   </style>
+  <link rel="stylesheet" href="/table-ready.css">
 </head>
 
 <body class="bg-light">
@@ -248,12 +249,12 @@
             <div class="workspace-hero mb-4">
               <div class="d-flex align-items-start justify-content-between gap-3">
                 <div>
-                  <div class="soft-label mb-2">DnD Tracker</div>
-                  <h1 class="h3 mb-1">Campaign Session Workspace</h1>
+                  <div class="soft-label mb-2">Capture. Remember. Play on.</div>
+                  <h1 class="h3 mb-1">DungeonTracker</h1>
                   <div class="text-muted">
                     Start inside one campaign, record there, and review only that campaign's history.
                   </div>
-                  <div class="small mono text-secondary mt-2">Build: campaign-refactor-1</div>
+                  <div class="small mono text-secondary mt-2">TABLE CONSOLE · 4.1</div>
                 </div>
                 <div class="text-end">
                   <div class="soft-label">Current Session</div>
@@ -1079,12 +1080,12 @@
                     <div class="faq-section">
                       <div class="soft-label mb-2">History Page</div>
                       <ul class="small mb-0">
-                        <li><strong>Rebuild Notes + Summary</strong> now uses the settled default notes window automatically.</li>
+                        <li><strong>Legacy: Rebuild DM Notes</strong> uses the settled notes window. It does not build Session Memory.</li>
                         <li>Use <strong>Notes Lab</strong> if you want to experiment with different chunk windows on a smaller slice before changing anything else.</li>
                         <li><strong>Backfill Missing Audio</strong> retranscribes saved audio chunks that exist on disk but are missing from the transcript, such as chunks recorded while you were offline.</li>
                         <li><strong>Retranscribe Chunk Range</strong> replaces existing transcript entries for a specific saved audio slice when you want to test a different transcription model or repair a known section.</li>
                         <li><strong>Rebuild Clean Transcript</strong> rewrites the readable transcript from the raw transcript entries. It does not recover missing audio on its own.</li>
-                        <li><strong>Rebuild Notes + Summary</strong> regenerates DM notes and the rolling notes summary from the transcript.</li>
+                        <li><strong>Legacy: Rebuild DM Notes</strong> regenerates the old Notes timeline and rolling summary from the transcript.</li>
                         <li><strong>Generate Game Summary</strong> and <strong>Generate Narrative</strong> are best run after transcript and notes look correct.</li>
                       </ul>
                     </div>
@@ -1094,7 +1095,7 @@
                       <ol class="small mb-0">
                         <li>If transcript chunks are missing, run <strong>Backfill Missing Audio</strong> first.</li>
                         <li>If the transcript is present but messy, run <strong>Rebuild Clean Transcript</strong>.</li>
-                        <li>Run <strong>Rebuild Notes + Summary</strong> after transcript recovery or cleanup.</li>
+                        <li>Run <strong>Legacy: Rebuild DM Notes</strong> after transcript recovery or cleanup if you need legacy outputs.</li>
                         <li>Then regenerate <strong>Game Summary</strong> or <strong>Narrative</strong> if needed.</li>
                       </ol>
                     </div>
@@ -1358,7 +1359,30 @@
   function syncPartyMetaFromRoster() {
     if (!partyMetaEl) return;
     partyMetaEl.value = rosterToPartyMetaText(partyRoster);
+    window.dispatchEvent(new Event('table-roster-updated'));
   }
+
+  // The dialog edits a copy. Only Save crosses this session-scoped boundary.
+  window.tableLiveRoster = {
+    get: () => partyRoster.map(row => ({ ...row })),
+    identity: () => activeRecordingSessionId() || `next-session:${campaignSelectEl.value}`,
+    async save(rows, identity) {
+      if ((activeRecordingSessionId() || `next-session:${campaignSelectEl.value}`) !== identity) throw new Error('Session changed. Reopen the participant editor.');
+      const party = rosterToPartyMetaText(rows);
+      if (!party) throw new Error('Select at least one named participant.');
+      if (activeRecordingSessionId()) {
+        const res = await fetch('/api/meta', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: identity, party }) });
+        const json = await res.json();
+        if (!res.ok || !json.ok) throw new Error(json.error || 'Roster save failed.');
+      }
+      if ((activeRecordingSessionId() || `next-session:${campaignSelectEl.value}`) !== identity) throw new Error('Saved to the original session. Reopen the editor for the current session.');
+      partyRoster = rows.map(row => ({ ...row }));
+      metaPosted = Boolean(activeRecordingSessionId());
+      renderPartyRoster();
+      setPartyMetaStatus(activeRecordingSessionId() ? 'Session participants saved.' : 'Participants ready for the next recording.');
+    }
+  };
 
   function renderPartyRoster() {
     if (!partyRosterBodyEl) return;
@@ -2228,6 +2252,9 @@ async function postMetaOnce() {
           if (notesSummaryEl) {
             notesSummaryEl.textContent = sessionJson.summary ? `Summary: ${sessionJson.summary.trim()}` : "";
           }
+          window.dispatchEvent(new CustomEvent('table-recent-play', { detail: {
+            text: sessionJson.summary || '', updatedAt: data.notesUpdatedAt || null
+          } }));
           if (notesStateEl) {
             notesStateEl.textContent = formatNotesState(sessionJson.notesState);
           }
@@ -2621,9 +2648,8 @@ async function postMetaOnce() {
     const contextPreview = String(preview || "").trim();
     if (workspaceCampaignTitleEl) workspaceCampaignTitleEl.textContent = campaignName;
     if (workspaceCampaignSubtitleEl) {
-      workspaceCampaignSubtitleEl.textContent = contextPreview
-        ? `${campaignId} • ${contextPreview.slice(0, 180)}${contextPreview.length > 180 ? "..." : ""}`
-        : `${campaignId} • no compiled context yet`;
+      const worldLabel = campaign.worldId ? String(campaign.worldId).replace(/[-_]/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase()) : 'Not linked';
+      workspaceCampaignSubtitleEl.textContent = `World: ${worldLabel} · Campaign: ${campaignId}`;
     }
     if (recordingCampaignContextPreviewEl) {
       recordingCampaignContextPreviewEl.textContent = contextPreview || "(no compiled context yet)";
@@ -2864,8 +2890,10 @@ async function postMetaOnce() {
   }
 
   function renderCampaign(campaign, preview) {
+    window.tableKnownPeople = (campaign?.canonNames || []).filter(item => ['npc', 'historical'].includes(item.type || 'npc'));
     if (campaignNameEl) campaignNameEl.value = campaign?.name || selectedCampaignId();
     campaignPartyRoster = parsePartyMetaText(campaign?.party || "");
+    window.tableSavedRoster = campaignPartyRoster.map(row => ({ ...row }));
     renderCampaignRoster();
     if (campaignPartyEl) campaignPartyEl.value = campaign?.party || "";
     setCampaignPartyStatus(campaignPartyRoster.length ? 'Campaign roster loaded.' : 'No saved campaign roster yet.');
@@ -3712,7 +3740,28 @@ async function postMetaOnce() {
   function syncSessionsPartyMeta(markDirty = false) {
     if (sessionsPartyMetaEl) sessionsPartyMetaEl.value = rosterToPartyMetaText(sessionsPartyRoster);
     if (markDirty) sessionsPartyDirty = true;
+    window.dispatchEvent(new Event('table-roster-updated'));
   }
+
+  let tableHistoryLoadedSessionId = '';
+  window.tableHistoryRoster = {
+    get: () => tableHistoryLoadedSessionId === currentHistorySessionId() ? sessionsPartyRoster.map(row => ({ ...row })) : [],
+    identity: () => tableHistoryLoadedSessionId === currentHistorySessionId() ? currentHistorySessionId() : '',
+    async save(rows, identity) {
+      if (!identity || tableHistoryLoadedSessionId !== identity || currentHistorySessionId() !== identity) throw new Error('Session changed. Reopen the participant editor.');
+      const party = rosterToPartyMetaText(rows);
+      if (!party) throw new Error('Select at least one named participant.');
+      const res = await fetch('/api/meta', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: identity, party }) });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Roster save failed.');
+      if (currentHistorySessionId() !== identity) throw new Error('Saved to the original session. Reopen the editor for the newly selected session.');
+      sessionsPartyRoster = rows.map(row => ({ ...row }));
+      sessionsPartyDirty = false;
+      renderSessionsRoster();
+      setSessionsPartyStatus('Session participants saved. Campaign roster and World Canon unchanged.');
+    }
+  };
 
   function renderSessionsRoster() {
     if (!sessionsRosterBodyEl) return;
@@ -3744,6 +3793,7 @@ async function postMetaOnce() {
   }
 
   function setSessionsRosterFromText(rawParty, message = '') {
+    tableHistoryLoadedSessionId = currentHistorySessionId();
     sessionsPartyRoster = parsePartyMetaText(rawParty || '');
     sessionsPartyDirty = false;
     renderSessionsRoster();
@@ -4486,6 +4536,9 @@ async function postMetaOnce() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
 
+      if (currentHistorySessionId() !== sessionId) return;
+      window.tableHistoryCampaignId = json.campaignId || '';
+
       if (sessionsInfoEl) sessionsInfoEl.textContent = 'Session ' + sessionId + (json.campaignName ? ` | Campaign: ${json.campaignName}` : '');
       if (sessionsNameInputEl) sessionsNameInputEl.value = json.sessionName || '';
       setSessionsRosterFromText(json.party || '', json.party ? 'Loaded saved session roster.' : 'No saved roster found for this session.');
@@ -4554,6 +4607,19 @@ async function postMetaOnce() {
       if (sessionsInfoEl) sessionsInfoEl.textContent = `Error: ${e.message}`;
     }
   }
+
+  window.tableOpenSessionMemory = async (sessionId) => {
+    if (!/^\d{8,20}$/.test(sessionId)) return;
+    if (!Array.from(sessionsSelectEl.options).some(option => option.value === sessionId)) {
+      const option = document.createElement('option');
+      option.value = sessionId; option.textContent = `Session ${sessionId}`;
+      sessionsSelectEl.appendChild(option);
+    }
+    sessionsSelectEl.value = sessionId;
+    window.bootstrap?.Tab.getOrCreateInstance(document.getElementById('tab-sessions')).show();
+    await loadSessionDetail(sessionId);
+    document.getElementById('session-memory-section').scrollIntoView({ block: 'start' });
+  };
 
   if (sessionsRosterLoadSessionEl) {
     sessionsRosterLoadSessionEl.addEventListener('click', async () => {
@@ -5692,6 +5758,7 @@ async function postMetaOnce() {
 })();
 </script>
 
+<script src="/table-ready.js"></script>
 <!-- Bootstrap JS (required for tabs) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 

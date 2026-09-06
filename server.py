@@ -112,7 +112,7 @@ TRANSCRIPTION_MODEL_DEFAULT = "gpt-4o-transcribe-diarize"
 DEEPGRAM_MODEL_DEFAULT = "nova-3"
 SERVER_STARTED_AT = int(time.time())
 CHUNK_AUDIO_RE = re.compile(r"^chunk_(\d+)\.(wav|webm|ogg|mp4|m4a|mp3)$", re.IGNORECASE)
-PUBLIC_STATIC_FILES = {"dnd-audio.html", "favicon.svg"}
+PUBLIC_STATIC_FILES = {"dnd-audio.html", "favicon.svg", "table-ready.css", "table-ready.js"}
 
 SESSION_ID_RE = re.compile(r"^[0-9]{8,20}$")  # timestamp-ish
 SESSION_NAME_MAX_LEN = 120
