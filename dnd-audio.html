@@ -824,10 +824,14 @@
                         <h2 class="h5 mb-1">Session Memory</h2>
                         <div class="small text-muted">Whole-session Events and Highlights derived from the saved transcript. Audio and transcript remain the durable evidence.</div>
                       </div>
-                      <button id="sessions-build-memory" class="btn btn-primary btn-sm">Build Session Memory</button>
+                      <div class="d-flex flex-wrap gap-2">
+                        <button id="sessions-edit-memory" class="btn btn-outline-primary btn-sm" type="button" disabled>Edit Session Memory</button>
+                        <button id="sessions-build-memory" class="btn btn-primary btn-sm">Build Session Memory</button>
+                      </div>
                     </div>
                     <div id="sessions-memory-status" class="small fw-semibold memory-operation mb-1" role="status" aria-live="polite">Select a session to inspect Session Memory.</div>
                     <div id="sessions-memory-meta" class="small text-muted mb-3"></div>
+                    <div id="sessions-memory-conflicts" class="memory-conflicts mb-3" role="alert" hidden></div>
                     <div id="sessions-memory-empty" class="memory-empty mb-3">
                       No Session Memory has been generated for this session.
                     </div>
@@ -847,6 +851,22 @@
                         <div id="sessions-memory-highlights" class="memory-list"></div>
                       </section>
                     </div>
+                    <section id="sessions-memory-publication" class="memory-publication mt-3" aria-labelledby="sessions-memory-publication-heading">
+                      <div class="memory-publication-copy">
+                        <div class="soft-label mb-1" id="sessions-memory-publication-heading">DungeonShare</div>
+                        <div id="sessions-memory-publish-state" class="memory-publication-state" role="status" aria-live="polite">Not published</div>
+                        <div class="small text-muted mt-1">Publishes the current canonical Session Memory exactly as reviewed. Saving edits never publishes automatically.</div>
+                      </div>
+                      <div class="memory-publication-actions">
+                        <label class="form-label small mb-0" for="sessions-memory-dungeonshare-campaign">
+                          DungeonShare campaign
+                          <select id="sessions-memory-dungeonshare-campaign" class="form-select form-select-sm mt-1" disabled>
+                            <option value="">Loading DungeonShare campaigns…</option>
+                          </select>
+                        </label>
+                        <button id="sessions-memory-preview-publish" class="btn btn-outline-primary btn-sm" type="button" disabled>Preview &amp; Publish</button>
+                      </div>
+                    </section>
                   </div>
 
                   <div id="history-player-companion" class="section-card" data-player-companion="history"></div>
@@ -1144,6 +1164,48 @@
       </div>
     </div>
   </div>
+
+  <dialog id="sessions-memory-edit-dialog" class="retro-modal memory-editor-dialog" aria-labelledby="sessions-memory-edit-title" aria-describedby="sessions-memory-edit-help">
+    <div class="retro-titlebar">
+      <h2 id="sessions-memory-edit-title" class="h5 mb-0">Edit Session Memory</h2>
+      <button id="sessions-memory-edit-close" class="btn" type="button" aria-label="Close without saving">×</button>
+    </div>
+    <div class="memory-dialog-intro">
+      <div id="sessions-memory-edit-revision" class="system-label">Revision —</div>
+      <p id="sessions-memory-edit-help" class="small text-muted mb-0">Correct the canonical record without changing audio, transcript, or generated provenance.</p>
+    </div>
+    <div id="sessions-memory-edit-body" class="memory-editor-body">
+      <section aria-labelledby="sessions-memory-edit-events-heading">
+        <h3 id="sessions-memory-edit-events-heading" class="panel-header">Events</h3>
+        <div id="sessions-memory-edit-events" class="memory-edit-list"></div>
+      </section>
+      <section aria-labelledby="sessions-memory-edit-highlights-heading">
+        <h3 id="sessions-memory-edit-highlights-heading" class="panel-header">Highlights</h3>
+        <div id="sessions-memory-edit-highlights" class="memory-edit-list"></div>
+      </section>
+    </div>
+    <div id="sessions-memory-edit-status" class="small participant-save-status" role="status" aria-live="polite"></div>
+    <div class="retro-modal-actions">
+      <button id="sessions-memory-edit-cancel" class="btn" type="button">Cancel</button>
+      <button id="sessions-memory-edit-save" class="btn btn-primary" type="button" disabled>Save Changes</button>
+    </div>
+  </dialog>
+
+  <dialog id="sessions-memory-publish-dialog" class="retro-modal memory-publish-dialog" aria-labelledby="sessions-memory-publish-title" aria-describedby="sessions-memory-publish-help">
+    <div class="retro-titlebar">
+      <h2 id="sessions-memory-publish-title" class="h5 mb-0">Publish Session Memory</h2>
+      <button id="sessions-memory-publish-close" class="btn" type="button" aria-label="Close without publishing">×</button>
+    </div>
+    <div class="memory-dialog-intro">
+      <p id="sessions-memory-publish-help" class="small text-muted mb-0">DungeonShare will receive the current canonical record exactly as reviewed.</p>
+    </div>
+    <div id="sessions-memory-preview-content" class="memory-preview-content" aria-live="polite"></div>
+    <div id="sessions-memory-publish-dialog-status" class="small participant-save-status" role="status" aria-live="polite"></div>
+    <div class="retro-modal-actions">
+      <button id="sessions-memory-publish-cancel" class="btn" type="button">Cancel</button>
+      <button id="sessions-memory-publish-confirm" class="btn btn-primary" type="button" disabled>Publish to DungeonShare</button>
+    </div>
+  </dialog>
 
 <script>
 // ================================
@@ -3448,6 +3510,7 @@ async function postMetaOnce() {
   const sessionsRetranscribeToEl = document.getElementById("sessions-retranscribe-to");
   const sessionsCleanTranscriptEl = document.getElementById("sessions-clean-transcript");
   const sessionsBuildMemoryEl = document.getElementById("sessions-build-memory");
+  const sessionsEditMemoryEl = document.getElementById("sessions-edit-memory");
   const sessionsMemoryStatusEl = document.getElementById("sessions-memory-status");
   const sessionsMemoryMetaEl = document.getElementById("sessions-memory-meta");
   const sessionsMemoryEmptyEl = document.getElementById("sessions-memory-empty");
@@ -3461,6 +3524,8 @@ async function postMetaOnce() {
   const sessionsGenerateSummaryEl = document.getElementById("sessions-generate-summary");
   const sessionsSaveSummaryEl = document.getElementById("sessions-save-summary");
   const sessionsDungeonShareCampaignEl = document.getElementById("sessions-dungeonshare-campaign");
+  const sessionsMemoryDungeonShareCampaignEl = document.getElementById("sessions-memory-dungeonshare-campaign");
+  const sessionsMemoryPreviewPublishEl = document.getElementById("sessions-memory-preview-publish");
   const sessionsShareSummaryEl = document.getElementById("sessions-share-summary");
   const sessionsShareStatusEl = document.getElementById("sessions-share-status");
   const sessionsGenerateNarrativeEl = document.getElementById("sessions-generate-narrative");
@@ -3509,6 +3574,18 @@ async function postMetaOnce() {
   let reprocessStartPending = false;
   let sessionMemoryBuildPending = false;
   let currentSessionMemoryStatus = {};
+  let currentCanonicalSessionMemory = {
+    revision: 0,
+    editedAt: null,
+    hasHumanEdits: false,
+    canonicalDigest: '',
+    events: [],
+    highlights: [],
+    removedEvents: [],
+    removedHighlights: [],
+    conflicts: [],
+  };
+  let currentSessionMemoryPublication = { state: 'not_published', lastSuccessful: null, lastAttempt: null };
   let sessionMemoryOperationSessionId = '';
   let cleanTranscriptStartPending = false;
   let transcriptBackfillStartPending = false;
@@ -3582,10 +3659,16 @@ async function postMetaOnce() {
       : [];
   }
 
-  function renderSessionMemoryEvents(eventStore) {
+  function canonicalMemoryRecords(value) {
+    return Array.isArray(value)
+      ? value.filter((item) => item && typeof item === 'object')
+      : [];
+  }
+
+  function renderSessionMemoryEvents(eventRecords) {
     if (!sessionsMemoryEventsEl) return [];
     sessionsMemoryEventsEl.replaceChildren();
-    const events = memoryStoreRecords(eventStore, 'events');
+    const events = canonicalMemoryRecords(eventRecords);
     events.forEach((event) => {
       const card = document.createElement('article');
       card.className = 'memory-item';
@@ -3626,10 +3709,10 @@ async function postMetaOnce() {
     return events;
   }
 
-  function renderSessionMemoryHighlights(highlightStore) {
+  function renderSessionMemoryHighlights(highlightRecords) {
     if (!sessionsMemoryHighlightsEl) return [];
     sessionsMemoryHighlightsEl.replaceChildren();
-    const highlights = memoryStoreRecords(highlightStore, 'highlights');
+    const highlights = canonicalMemoryRecords(highlightRecords);
     highlights.forEach((highlight) => {
       const card = document.createElement('article');
       card.className = 'memory-item memory-item-highlight';
@@ -3660,13 +3743,35 @@ async function postMetaOnce() {
     return Number.isFinite(cost) && cost > 0 ? `$${cost.toFixed(cost < 0.01 ? 4 : 2)}` : '';
   }
 
-  function renderSessionMemory(status, eventStore, highlightStore, options = {}) {
+  function renderSessionMemory(status, canonicalMemory, publication, options = {}) {
     currentSessionMemoryStatus = status && typeof status === 'object' ? status : {};
-    const events = renderSessionMemoryEvents(eventStore);
-    const highlights = renderSessionMemoryHighlights(highlightStore);
+    currentCanonicalSessionMemory = canonicalMemory && typeof canonicalMemory === 'object'
+      ? {
+          revision: Number(canonicalMemory.revision || 0),
+          editedAt: canonicalMemory.editedAt || null,
+          hasHumanEdits: Boolean(canonicalMemory.hasHumanEdits),
+          canonicalDigest: String(canonicalMemory.canonicalDigest || ''),
+          events: canonicalMemoryRecords(canonicalMemory.events),
+          highlights: canonicalMemoryRecords(canonicalMemory.highlights),
+          removedEvents: canonicalMemoryRecords(canonicalMemory.removedEvents),
+          removedHighlights: canonicalMemoryRecords(canonicalMemory.removedHighlights),
+          conflicts: Array.isArray(canonicalMemory.conflicts) ? canonicalMemory.conflicts : [],
+        }
+      : {
+          revision: 0, editedAt: null, hasHumanEdits: false, canonicalDigest: '',
+          events: [], highlights: [], removedEvents: [], removedHighlights: [], conflicts: [],
+        };
+    currentSessionMemoryPublication = publication && typeof publication === 'object'
+      ? publication
+      : { state: 'not_published', lastSuccessful: null, lastAttempt: null };
+    const events = renderSessionMemoryEvents(currentCanonicalSessionMemory.events);
+    const highlights = renderSessionMemoryHighlights(currentCanonicalSessionMemory.highlights);
     const operation = currentSessionMemoryStatus.operation || {};
-    const memory = currentSessionMemoryStatus.memory || {};
-    const built = Boolean(memory.built || events.length || highlights.length);
+    const generatedMemory = currentSessionMemoryStatus.memory || {};
+    const built = Boolean(
+      generatedMemory.built || currentCanonicalSessionMemory.revision || events.length || highlights.length ||
+      currentCanonicalSessionMemory.removedEvents.length || currentCanonicalSessionMemory.removedHighlights.length
+    );
     const running = Boolean(operation.running || operation.state === 'reconciliation_in_progress');
     const error = String(operation.error || '').trim();
     const enabled = currentSessionMemoryStatus.enabled !== false;
@@ -3691,6 +3796,15 @@ async function postMetaOnce() {
     }
     if (sessionsMemoryMetaEl) {
       const parts = [`Transcript: ${chunkCount} chunk${chunkCount === 1 ? '' : 's'} available`];
+      if (currentCanonicalSessionMemory.revision) parts.unshift(`Revision ${currentCanonicalSessionMemory.revision}`);
+      if (currentCanonicalSessionMemory.editedAt) {
+        const edited = new Date(
+          typeof currentCanonicalSessionMemory.editedAt === 'number'
+            ? currentCanonicalSessionMemory.editedAt * 1000
+            : currentCanonicalSessionMemory.editedAt
+        );
+        if (!Number.isNaN(edited.getTime())) parts.push(`Edited ${edited.toLocaleDateString()}`);
+      }
       if (built) parts.push(`${events.length} Event${events.length === 1 ? '' : 's'}`);
       if (built) parts.push(`${highlights.length} Highlight${highlights.length === 1 ? '' : 's'}`);
       if (cost) parts.push(`${cost} AI cost`);
@@ -3700,8 +3814,18 @@ async function postMetaOnce() {
       sessionsBuildMemoryEl.textContent = built ? 'Rebuild Session Memory' : 'Build Session Memory';
       sessionsBuildMemoryEl.disabled = Boolean(!enabled || running || sessionMemoryBuildPending || currentReprocessStatus?.running);
     }
+    if (sessionsEditMemoryEl) sessionsEditMemoryEl.disabled = Boolean(!built || running || sessionMemoryBuildPending);
+    if (sessionsMemoryPreviewPublishEl) sessionsMemoryPreviewPublishEl.disabled = Boolean(!built || running || sessionMemoryBuildPending);
     if (sessionsSelectEl) sessionsSelectEl.disabled = Boolean(running || sessionMemoryBuildPending);
     updateReprocessControls(currentReprocessStatus || {});
+    window.dispatchEvent(new CustomEvent('table-session-memory-updated', {
+      detail: {
+        sessionId: currentHistorySessionId(),
+        status: currentSessionMemoryStatus,
+        memory: currentCanonicalSessionMemory,
+        publication: currentSessionMemoryPublication,
+      }
+    }));
   }
 
   async function fetchSessionMemoryJson(url, fallback) {
@@ -3716,18 +3840,28 @@ async function postMetaOnce() {
     if (!sessionId) return;
     const encoded = encodeURIComponent(sessionId);
     try {
-      const [eventsJson, highlightsJson, statusJson] = await Promise.all([
-        fetchSessionMemoryJson(`/api/session/events?sessionId=${encoded}`, { eventStore: { events: {} } }),
-        fetchSessionMemoryJson(`/api/session/highlights?sessionId=${encoded}`, { highlightStore: { highlights: {} } }),
+      const [memoryJson, statusJson] = await Promise.all([
+        fetchSessionMemoryJson(`/api/session/memory?sessionId=${encoded}`, {
+          memory: {
+            revision: 0, editedAt: null, hasHumanEdits: false, canonicalDigest: '',
+            events: [], highlights: [], removedEvents: [], removedHighlights: [], conflicts: [],
+          },
+          publication: { state: 'not_published', lastSuccessful: null, lastAttempt: null },
+        }),
         fetchSessionMemoryJson(`/api/session/reconciliation/status?sessionId=${encoded}&_t=${Date.now()}`, {})
       ]);
+      if (currentHistorySessionId() !== sessionId) return null;
       renderSessionMemory(
         statusJson,
-        eventsJson.eventStore || { events: {} },
-        highlightsJson.highlightStore || { highlights: {} },
+        memoryJson.memory || {},
+        memoryJson.publication || {},
         options
       );
-      return { status: statusJson, eventStore: eventsJson.eventStore, highlightStore: highlightsJson.highlightStore };
+      return {
+        status: statusJson,
+        memory: currentCanonicalSessionMemory,
+        publication: currentSessionMemoryPublication,
+      };
     } catch (error) {
       if (sessionsMemoryStatusEl) {
         sessionsMemoryStatusEl.textContent = `SESSION MEMORY NEEDS ATTENTION — Session ${sessionId}: ${error.message}`;
@@ -3736,6 +3870,21 @@ async function postMetaOnce() {
       return null;
     }
   }
+
+  window.tableSessionMemory = {
+    identity: () => currentHistorySessionId(),
+    get: () => ({
+      sessionId: currentHistorySessionId(),
+      status: currentSessionMemoryStatus,
+      memory: currentCanonicalSessionMemory,
+      publication: currentSessionMemoryPublication,
+    }),
+    reload: async (identity) => {
+      const current = currentHistorySessionId();
+      if (!identity || identity !== current) throw new Error('Session changed while Session Memory was open.');
+      return loadSessionMemory(identity);
+    },
+  };
 
   function syncSessionsPartyMeta(markDirty = false) {
     if (sessionsPartyMetaEl) sessionsPartyMetaEl.value = rosterToPartyMetaText(sessionsPartyRoster);
@@ -4438,26 +4587,40 @@ async function postMetaOnce() {
   }
 
   async function loadDungeonShareCampaignOptions(localCampaignId = '', localCampaignName = '') {
-    if (!sessionsDungeonShareCampaignEl || !sessionsShareSummaryEl) return;
+    const selectors = [sessionsDungeonShareCampaignEl, sessionsMemoryDungeonShareCampaignEl].filter(Boolean);
+    if (!selectors.length) return;
     currentDungeonShareLocalCampaignId = String(localCampaignId || '').trim();
-    sessionsDungeonShareCampaignEl.disabled = true;
-    sessionsShareSummaryEl.disabled = true;
-    sessionsDungeonShareCampaignEl.innerHTML = '<option value="">Loading Dungeon Share campaignsâ€¦</option>';
+    const singleOption = (select, label) => {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = label;
+      select.replaceChildren(option);
+    };
+    selectors.forEach((select) => {
+      select.disabled = true;
+      singleOption(select, 'Loading DungeonShare campaigns…');
+    });
+    if (sessionsShareSummaryEl) sessionsShareSummaryEl.disabled = true;
     try {
       const res = await fetch('/api/dungeonshare/campaigns', { cache: 'no-store' });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json?.error || `HTTP ${res.status}`);
       const campaigns = Array.isArray(json.campaigns) ? json.campaigns : [];
-      sessionsDungeonShareCampaignEl.innerHTML = '';
-      campaigns.forEach((campaign) => {
-        const option = document.createElement('option');
-        option.value = String(campaign.slug || '');
-        option.textContent = String(campaign.name || campaign.slug || 'Campaign');
-        sessionsDungeonShareCampaignEl.appendChild(option);
+      selectors.forEach((select) => {
+        select.replaceChildren();
+        campaigns.forEach((campaign) => {
+          const option = document.createElement('option');
+          option.value = String(campaign.slug || '');
+          option.textContent = String(campaign.name || campaign.slug || 'Campaign');
+          select.appendChild(option);
+        });
       });
       if (!campaigns.length) {
-        sessionsDungeonShareCampaignEl.innerHTML = '<option value="">No Dungeon Share campaigns yet</option>';
+        selectors.forEach((select) => singleOption(select, 'No DungeonShare campaigns yet'));
         if (sessionsShareStatusEl) sessionsShareStatusEl.textContent = 'Create a campaign in the Dungeon Share manager first.';
+        window.dispatchEvent(new CustomEvent('table-dungeonshare-campaigns-updated', {
+          detail: { localCampaignId: currentDungeonShareLocalCampaignId, campaignSlug: '', available: false }
+        }));
         return;
       }
 
@@ -4472,13 +4635,25 @@ async function postMetaOnce() {
       ].filter(Boolean);
       const slugs = new Set(campaigns.map((campaign) => String(campaign.slug || '')));
       const preferred = candidates.find((candidate) => slugs.has(candidate));
-      if (preferred) sessionsDungeonShareCampaignEl.value = preferred;
-      sessionsDungeonShareCampaignEl.disabled = false;
+      selectors.forEach((select) => {
+        if (preferred) select.value = preferred;
+        select.disabled = false;
+      });
       updateGameSummaryEditState();
       if (sessionsShareStatusEl) sessionsShareStatusEl.textContent = 'The summary will arrive in the manager as a draft.';
+      window.dispatchEvent(new CustomEvent('table-dungeonshare-campaigns-updated', {
+        detail: {
+          localCampaignId: currentDungeonShareLocalCampaignId,
+          campaignSlug: String(sessionsMemoryDungeonShareCampaignEl?.value || sessionsDungeonShareCampaignEl?.value || ''),
+          available: true,
+        }
+      }));
     } catch (e) {
-      sessionsDungeonShareCampaignEl.innerHTML = '<option value="">Dungeon Share unavailable</option>';
+      selectors.forEach((select) => singleOption(select, 'DungeonShare unavailable'));
       if (sessionsShareStatusEl) sessionsShareStatusEl.textContent = `Dungeon Share: ${e.message}`;
+      window.dispatchEvent(new CustomEvent('table-dungeonshare-campaigns-updated', {
+        detail: { localCampaignId: currentDungeonShareLocalCampaignId, campaignSlug: '', available: false }
+      }));
     }
   }
 
@@ -4507,6 +4682,7 @@ async function postMetaOnce() {
         setGameSummaryEditorValue('', true, false);
         if (sessionsGameNarrativeEl) sessionsGameNarrativeEl.textContent = '';
         if (sessionsFullDiarizedTranscriptEl) sessionsFullDiarizedTranscriptEl.textContent = '';
+        renderSessionMemory({}, {}, {});
         if (sessionsInfoEl) sessionsInfoEl.textContent = activeCampaignId ? `No history yet for ${activeCampaignId}.` : '';
         return;
       }
@@ -4869,6 +5045,7 @@ async function postMetaOnce() {
     if (!sessionId || sessionMemoryBuildPending) return null;
     sessionMemoryOperationSessionId = sessionId;
     sessionMemoryBuildPending = true;
+    window.dispatchEvent(new CustomEvent('table-session-memory-busy', { detail: { sessionId, busy: true } }));
     if (sessionsSelectEl && currentHistorySessionId() === sessionId) sessionsSelectEl.disabled = true;
     setSessionMemoryOperationMessage(sessionId, 'PREPARING SESSION MEMORY…', source);
     updateReprocessControls(currentReprocessStatus || {});
@@ -4891,11 +5068,28 @@ async function postMetaOnce() {
       if (!preview.wouldRun) throw new Error('The server cost/input safety check refused this Session Memory build.');
 
       const verb = rebuild ? 'REBUILD' : 'BUILD';
+      const sameLoadedSession = currentHistorySessionId() === sessionId;
+      const humanEditProtection = preview?.humanEditProtection && typeof preview.humanEditProtection === 'object'
+        ? preview.humanEditProtection
+        : {};
+      const expectedMemoryRevision = Number(
+        humanEditProtection.expectedMemoryRevision ?? preview.expectedMemoryRevision ?? preview.memoryRevision ?? preview.memory?.revision ??
+        (sameLoadedSession ? currentCanonicalSessionMemory.revision : 0)
+      );
+      const hasHumanEdits = Boolean(
+        humanEditProtection.hasHumanEdits ?? preview.hasHumanEdits ?? preview.memory?.hasHumanEdits ??
+        (sameLoadedSession && currentCanonicalSessionMemory.hasHumanEdits)
+      );
+      const humanEditWarningText = String(humanEditProtection.warning || 'This session contains human edits. Rebuilding may replace the generated memory those edits were based on.');
+      const humanEditWarning = rebuild && hasHumanEdits
+        ? `${humanEditWarningText}\n\n`
+        : '';
       const confirmed = window.confirm(
         `${verb} SESSION MEMORY?\n\n` +
         'This makes a billable model call to analyze the full saved transcript using the current Session Memory system.\n\n' +
         'Audio, transcript, legacy Notes, published recap, and campaign handoff will not be changed. ' +
         (rebuild ? 'Existing generated Events and Highlights may be revised or replaced.\n\n' : '\n\n') +
+        humanEditWarning +
         reconciliationPreviewCost(preview)
       );
       if (!confirmed) {
@@ -4909,7 +5103,13 @@ async function postMetaOnce() {
       const response = await fetch('/api/session/reconcile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, confirm: true, rebuild })
+        body: JSON.stringify({
+          sessionId,
+          confirm: true,
+          rebuild,
+          expectedMemoryRevision,
+          ...(hasHumanEdits ? { confirmHumanEdits: true } : {}),
+        })
       });
       const json = await response.json().catch(() => ({}));
       if (!response.ok || !json.ok) throw new Error(json?.error || `HTTP ${response.status}`);
@@ -4934,6 +5134,7 @@ async function postMetaOnce() {
     } finally {
       sessionMemoryBuildPending = false;
       sessionMemoryOperationSessionId = '';
+      window.dispatchEvent(new CustomEvent('table-session-memory-busy', { detail: { sessionId, busy: false } }));
       if (sessionsSelectEl) sessionsSelectEl.disabled = false;
       updateReprocessControls(currentReprocessStatus || {});
     }
@@ -5163,16 +5364,26 @@ async function postMetaOnce() {
       }
     });
   }
-  if (sessionsDungeonShareCampaignEl) {
-    sessionsDungeonShareCampaignEl.addEventListener('change', () => {
-      if (currentDungeonShareLocalCampaignId) {
-        localStorage.setItem(
-          `dungeonShareCampaign:${currentDungeonShareLocalCampaignId}`,
-          String(sessionsDungeonShareCampaignEl.value || '')
-        );
+  function synchronizeDungeonShareCampaign(source) {
+    const campaignSlug = String(source?.value || '');
+    [sessionsDungeonShareCampaignEl, sessionsMemoryDungeonShareCampaignEl].filter(Boolean).forEach((select) => {
+      if (select !== source && Array.from(select.options).some((option) => option.value === campaignSlug)) {
+        select.value = campaignSlug;
       }
-      updateGameSummaryEditState();
     });
+    if (currentDungeonShareLocalCampaignId) {
+      localStorage.setItem(`dungeonShareCampaign:${currentDungeonShareLocalCampaignId}`, campaignSlug);
+    }
+    updateGameSummaryEditState();
+    window.dispatchEvent(new CustomEvent('table-dungeonshare-campaigns-updated', {
+      detail: { localCampaignId: currentDungeonShareLocalCampaignId, campaignSlug, available: Boolean(campaignSlug) }
+    }));
+  }
+  if (sessionsDungeonShareCampaignEl) {
+    sessionsDungeonShareCampaignEl.addEventListener('change', () => synchronizeDungeonShareCampaign(sessionsDungeonShareCampaignEl));
+  }
+  if (sessionsMemoryDungeonShareCampaignEl) {
+    sessionsMemoryDungeonShareCampaignEl.addEventListener('change', () => synchronizeDungeonShareCampaign(sessionsMemoryDungeonShareCampaignEl));
   }
   if (sessionsShareSummaryEl) {
     sessionsShareSummaryEl.addEventListener('click', async () => {

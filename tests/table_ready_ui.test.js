@@ -24,14 +24,56 @@ async function run() {
   w.HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new w.Event('close')); };
   const tabs = [], requests = [], saved = [];
   w.bootstrap = { Tab: { getOrCreateInstance: node => ({ show: () => tabs.push(node.id) }) } };
+  const eventId = 'evt_11111111111111111111111111111111';
+  const removedEventId = 'evt_22222222222222222222222222222222';
+  const highlightId = 'hlt_11111111111111111111111111111111';
+  let memoryState = {
+    sessionId: '1234567890124',
+    status: { memory: { built: true }, operation: { running: false } },
+    memory: {
+      revision: 3, editedAt: 1788730807, hasHumanEdits: true, canonicalDigest: 'digest-r3', conflicts: [],
+      events: [{ eventId, summary: 'The party opened the gate.', facts: ['A bronze key worked.'], entities: ['Vayne'],
+        type: 'discovery', status: 'active', importance: 'high', confidence: 'high', sourceChunks: [2, 3] }],
+      highlights: [{ highlightId, summary: 'Vayne solved the lock.', categories: ['clever_solution'], participants: ['Vayne'],
+        confidence: 'high', sourceChunks: [3] }],
+      removedEvents: [{ eventId: removedEventId, summary: 'Incorrect generated event.', facts: [], entities: [],
+        type: 'other', status: 'active', importance: 'low', confidence: 'low', sourceChunks: [4] }],
+      removedHighlights: [],
+    },
+    publication: { state: 'stale', lastSuccessful: { revision: 2, publishedAt: 1788644407 }, lastAttempt: null },
+  };
   w.fetch = async (url, options) => {
     requests.push({ url, options });
-    if (url !== '/api/session/player/status' && url !== '/api/session/player/missed') throw Error('Unexpected network path');
-    return { ok: true, json: async () => url.endsWith('/status') ? { ok: true, enabled: true, sessionBudgetUsd: 1 } : {
-      ok: true, state: 'complete', cached: true, windowMinutes: JSON.parse(options.body).windowMinutes,
-      answer: { summary: 'The party chose a route.', keyDevelopments: [], peopleMentioned: [], uncertainties: [] },
-      evidence: { throughTimestamp: 1700000000 }, newSpend: 0, budget: { spent: 0.08, limit: 1 }
-    } };
+    if (url === '/api/session/player/status') {
+      return { ok: true, json: async () => ({ ok: true, enabled: true, sessionBudgetUsd: 1 }) };
+    }
+    if (url === '/api/session/player/missed') {
+      return { ok: true, json: async () => ({
+        ok: true, state: 'complete', cached: true, windowMinutes: JSON.parse(options.body).windowMinutes,
+        answer: { summary: 'The party chose a route.', keyDevelopments: [], peopleMentioned: [], uncertainties: [] },
+        evidence: { throughTimestamp: 1700000000 }, newSpend: 0, budget: { spent: 0.08, limit: 1 }
+      }) };
+    }
+    if (url === '/api/session/memory/edit') {
+      const body = JSON.parse(options.body);
+      const eventUpdate = body.changes.find(change => change.kind === 'event' && change.action === 'update');
+      if (eventUpdate?.fields?.summary) memoryState.memory.events[0].summary = eventUpdate.fields.summary;
+      memoryState.memory.revision += 1;
+      memoryState.memory.canonicalDigest = 'digest-r4';
+      return { ok: true, json: async () => ({ ok: true, memory: copy(memoryState.memory) }) };
+    }
+    if (String(url).startsWith('/api/session/dungeonshare/preview?')) {
+      return { ok: true, json: async () => ({ ok: true,
+        preview: { session: { title: 'The Bronze Gate', date: '2026-09-05' }, memory: copy(memoryState.memory) },
+        payload: { schemaVersion: 1, kind: 'dungeontracker_session_memory', memory: copy(memoryState.memory) }
+      }) };
+    }
+    if (url === '/api/session/dungeonshare/publish') {
+      const body = JSON.parse(options.body);
+      memoryState.publication = { state: 'current', lastSuccessful: { revision: body.expectedRevision, publishedAt: 1788730807 }, lastAttempt: { status: 'success' } };
+      return { ok: true, json: async () => ({ ok: true }) };
+    }
+    throw Error(`Unexpected network path: ${url}`);
   };
   let live = [{ role: 'Player', playerName: 'Jon', characterName: 'Pippin', included: true },
     { role: 'NPC', playerName: '', characterName: 'Vexatious', included: true }];
@@ -51,6 +93,18 @@ async function run() {
   w.tableHistoryCampaignId = 'default';
   d.getElementById('sessionId').textContent = '1234567890123';
   d.getElementById('sessions-select').innerHTML = '<option value="1234567890124">Previous session</option>';
+  const memoryCampaign = d.getElementById('sessions-memory-dungeonshare-campaign');
+  memoryCampaign.innerHTML = '<option value="three-friends">Three Friends</option>';
+  memoryCampaign.disabled = false;
+  w.tableSessionMemory = {
+    identity: () => memoryState.sessionId,
+    get: () => copy(memoryState),
+    reload: async sessionId => {
+      assert.equal(sessionId, memoryState.sessionId);
+      w.dispatchEvent(new w.CustomEvent('table-session-memory-updated', { detail: copy(memoryState) }));
+      return copy(memoryState);
+    },
+  };
   const memoryIds = [];
   w.tableOpenSessionMemory = id => memoryIds.push(id);
   const pc = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].find(m => m[1].includes('// PLAYER COMPANION P0:'))[1];
@@ -73,7 +127,13 @@ async function run() {
   assert.ok(d.getElementById('campaignCanonNamesTable').closest('details'));
   assert.ok(!d.getElementById('session-memory-section').closest('details'), 'durable memory remains expanded');
   assert.ok(d.getElementById('sessions-reprocess').closest('#history-legacy'));
+  assert.ok(d.getElementById('history-publishing').closest('#history-legacy'), 'legacy recap/handoff is demoted');
+  assert.ok(d.getElementById('sessions-game-narrative').closest('#history-narrative'), 'narrative is demoted intact');
   assert.ok(d.getElementById('live-guidance-text').closest('details'));
+  assert.match(d.getElementById('sessions-memory-publish-state').textContent, /Published Revision 2/);
+  assert.match(d.getElementById('sessions-memory-publish-state').textContent, /UPDATE AVAILABLE/);
+  assert.equal(d.getElementById('sessions-memory-preview-publish').textContent, 'Preview & Republish');
+  assert.equal(d.getElementById('sessions-memory-conflicts').hidden, true);
   assert.match(d.getElementById('table-live-names').textContent, /Jon · Vexatious/);
   assert.match(d.getElementById('table-live-count').textContent, /2 participants/);
   assert.equal(d.querySelector('.recent-play [data-live-action]'), null);
@@ -121,7 +181,86 @@ async function run() {
   clickText(d.querySelector('.memory-overview'), 'View / Build / Rebuild…');
   assert.deepEqual(memoryIds, ['1234567890123']);
   clickText(d.querySelector('.appliance-nav'), '↗  DungeonShare');
-  assert.equal(tabs.at(-1), 'tab-sessions'); assert.equal(d.getElementById('history-publishing').open, true);
+  assert.equal(tabs.at(-1), 'tab-sessions');
+  assert.equal(d.activeElement.id, 'sessions-memory-preview-publish');
+
+  // Session Memory editing is transactional: Cancel writes nothing; Save makes one bounded request.
+  const memoryEditDialog = d.getElementById('sessions-memory-edit-dialog');
+  const editCallsBefore = requests.filter(call => call.url === '/api/session/memory/edit').length;
+  d.getElementById('sessions-edit-memory').click();
+  assert.equal(memoryEditDialog.open, true);
+  assert.equal(
+    memoryEditDialog.querySelector(`[data-memory-kind="event"][data-memory-id="${removedEventId}"][data-memory-field="summary"]`).value,
+    'Incorrect generated event.'
+  );
+  let eventSummary = memoryEditDialog.querySelector(`[data-memory-kind="event"][data-memory-id="${eventId}"][data-memory-field="summary"]`);
+  eventSummary.value = 'Canceled correction';
+  eventSummary.dispatchEvent(new w.Event('input', { bubbles: true }));
+  clickText(memoryEditDialog, 'Cancel');
+  assert.equal(memoryEditDialog.open, false);
+  assert.equal(requests.filter(call => call.url === '/api/session/memory/edit').length, editCallsBefore);
+
+  d.getElementById('sessions-edit-memory').click();
+  eventSummary = memoryEditDialog.querySelector(`[data-memory-kind="event"][data-memory-id="${eventId}"][data-memory-field="summary"]`);
+  eventSummary.value = 'The party opened the bronze gate.';
+  eventSummary.dispatchEvent(new w.Event('input', { bubbles: true }));
+  const removedCard = memoryEditDialog.querySelector(`article[data-memory-id="${removedEventId}"]`);
+  clickText(removedCard, 'Restore');
+  const highlightCard = memoryEditDialog.querySelector(`article[data-memory-id="${highlightId}"]`);
+  clickText(highlightCard, 'Remove from Session Memory');
+  clickText(memoryEditDialog, 'Save Changes');
+  await tick(); await tick();
+  const editCalls = requests.filter(call => call.url === '/api/session/memory/edit');
+  assert.equal(editCalls.length, editCallsBefore + 1);
+  const editBody = JSON.parse(editCalls.at(-1).options.body);
+  assert.equal(editBody.sessionId, '1234567890124');
+  assert.equal(editBody.baseRevision, 3);
+  assert.equal(editBody.baseDigest, 'digest-r3');
+  assert.ok(editBody.changes.some(change => change.kind === 'event' && change.action === 'update' && change.fields.summary === 'The party opened the bronze gate.'));
+  assert.ok(editBody.changes.some(change => change.id === removedEventId && change.action === 'restore'));
+  assert.ok(editBody.changes.some(change => change.id === highlightId && change.action === 'remove'));
+  assert.doesNotMatch(JSON.stringify(editBody), /sourceChunks|firstChunk|lastChunk|createdAt|updatedAt/);
+  assert.equal(memoryEditDialog.open, false);
+
+  // Preview is readable and cancelable; only the second explicit confirmation publishes.
+  const publishDialog = d.getElementById('sessions-memory-publish-dialog');
+  d.getElementById('sessions-memory-preview-publish').click();
+  await tick();
+  assert.equal(publishDialog.open, true);
+  assert.match(d.getElementById('sessions-memory-preview-content').textContent, /The Bronze Gate/);
+  assert.match(d.getElementById('sessions-memory-preview-content').textContent, /Highlights/);
+  assert.match(d.getElementById('sessions-memory-preview-content').textContent, /Events/);
+  clickText(publishDialog, 'Cancel');
+  assert.equal(requests.filter(call => call.url === '/api/session/dungeonshare/publish').length, 0);
+  d.getElementById('sessions-memory-preview-publish').click();
+  await tick();
+  clickText(publishDialog, 'Publish to DungeonShare');
+  await tick(); await tick();
+  const publishCalls = requests.filter(call => call.url === '/api/session/dungeonshare/publish');
+  assert.equal(publishCalls.length, 1);
+  const publishBody = JSON.parse(publishCalls[0].options.body);
+  assert.deepEqual(publishBody, {
+    sessionId: '1234567890124', campaignSlug: 'three-friends', expectedRevision: 4, expectedDigest: 'digest-r4', confirm: true
+  });
+  assert.match(d.getElementById('sessions-memory-publish-state').textContent, /DungeonShare is current/);
+
+  // Conflicts are prominent and hard-disable publishing; a later failed attempt keeps prior success visible.
+  memoryState.memory.revision = 5;
+  memoryState.memory.conflicts = [{ message: 'Edited Event no longer matches the rebuilt generated item.' }];
+  memoryState.publication.state = 'stale';
+  w.dispatchEvent(new w.CustomEvent('table-session-memory-updated', { detail: copy(memoryState) }));
+  assert.equal(d.getElementById('sessions-memory-conflicts').hidden, false);
+  assert.match(d.getElementById('sessions-memory-conflicts').textContent, /Edited Event no longer matches/);
+  assert.equal(d.getElementById('sessions-memory-preview-publish').disabled, true);
+  memoryState.memory.conflicts = [];
+  memoryState.publication = {
+    state: 'failed',
+    lastSuccessful: { revision: 4, publishedAt: 1788730807 },
+    lastAttempt: { status: 'failed', attemptedAt: 1788817207, error: 'Destination unavailable.' },
+  };
+  w.dispatchEvent(new w.CustomEvent('table-session-memory-updated', { detail: copy(memoryState) }));
+  assert.match(d.getElementById('sessions-memory-publish-state').textContent, /Published Revision 4/);
+  assert.match(d.getElementById('sessions-memory-publish-state').textContent, /PUBLISH NEEDS ATTENTION/);
   d.getElementById('startBtn').click(); d.getElementById('stopBtn').disabled = false; d.getElementById('stopBtn').click();
   assert.equal(starts, 1); assert.equal(stops, 1);
   for (const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) new Function(match[1]);

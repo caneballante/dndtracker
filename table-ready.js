@@ -1,4 +1,4 @@
-/* Phase 4.1 presentation only. Existing nodes retain their IDs and listeners. */
+/* Table-ready presentation and focused Session Memory interactions. Existing nodes retain their IDs and listeners. */
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
@@ -44,9 +44,8 @@
   const shareNav = make('li', 'nav-item');
   shareNav.append(button('↗  DungeonShare', () => {
     tab('tab-sessions');
-    $('history-publishing').open = true;
-    $('sessions-dungeonshare-campaign').scrollIntoView({ block: 'center' });
-    $('sessions-dungeonshare-campaign').focus();
+    $('sessions-memory-publication').scrollIntoView({ block: 'center' });
+    $('sessions-memory-preview-publish').focus();
   }, 'nav-link'));
   nav.insertBefore(shareNav, $('tab-live-review').parentElement);
   const shellBody = $('workspaceMain');
@@ -130,7 +129,9 @@
       $('sessions-reprocess').closest('details').open = true;
       $('sessions-reprocess').scrollIntoView({ block: 'center' });
     }), button('Player recap / handoff', () => {
-      tab('tab-sessions'); $('history-publishing').open = true;
+      tab('tab-sessions');
+      $('history-legacy').open = true;
+      $('history-publishing').open = true;
     }));
   main.append(liveTable, recorder, recent);
   side.append(companion, memory, shortcuts);
@@ -151,16 +152,642 @@
   historyLegacy.id = 'history-legacy';
   historyLegacy.append(fold('Legacy session roster fields', historyRoster));
   historyStack.append(historyLegacy);
-  const publishing = fold('Player recap / handoff & DungeonShare');
+  const publishing = fold('Legacy player recap / campaign handoff & DungeonShare draft');
   publishing.id = 'history-publishing';
   const recap = $('sessions-game-summary').closest('.section-card');
   const narrative = $('sessions-game-narrative').closest('.section-card');
-  publishing.append(recap, narrative);
-  historyLegacy.before(publishing);
+  publishing.append(recap);
+  const legacyNarrative = fold('Legacy Narrative / Recap', narrative);
+  legacyNarrative.id = 'history-narrative';
+  historyLegacy.append(publishing, legacyNarrative);
   const evidence = $('sessions-transcript').closest('.section-card');
   historyLegacy.append(fold('Transcript & evidence tools', evidence));
   const historyIntro = $('pane-sessions').querySelector('.help-callout .small.text-muted');
   historyIntro.textContent = 'Select a session. Review its participants and durable Session Memory. Older outputs and repair tools are below.';
+
+  // Canonical Session Memory editing is draft-first: only Save writes, and publishing is separate.
+  const memoryEditTrigger = $('sessions-edit-memory');
+  const memoryEditDialog = $('sessions-memory-edit-dialog');
+  const memoryEditClose = $('sessions-memory-edit-close');
+  const memoryEditCancel = $('sessions-memory-edit-cancel');
+  const memoryEditSave = $('sessions-memory-edit-save');
+  const memoryEditStatus = $('sessions-memory-edit-status');
+  const memoryEditRevision = $('sessions-memory-edit-revision');
+  const memoryEditBody = $('sessions-memory-edit-body');
+  const memoryEditEvents = $('sessions-memory-edit-events');
+  const memoryEditHighlights = $('sessions-memory-edit-highlights');
+  const memoryConflictPanel = $('sessions-memory-conflicts');
+  const memoryPublishPanel = $('sessions-memory-publication');
+  const memoryPublishState = $('sessions-memory-publish-state');
+  const memoryCampaignSelect = $('sessions-memory-dungeonshare-campaign');
+  const memoryPreviewTrigger = $('sessions-memory-preview-publish');
+  const memoryPublishDialog = $('sessions-memory-publish-dialog');
+  const memoryPublishClose = $('sessions-memory-publish-close');
+  const memoryPublishCancel = $('sessions-memory-publish-cancel');
+  const memoryPublishConfirm = $('sessions-memory-publish-confirm');
+  const memoryPublishDialogStatus = $('sessions-memory-publish-dialog-status');
+  const memoryPreviewContent = $('sessions-memory-preview-content');
+  const copyValue = value => value == null ? value : JSON.parse(JSON.stringify(value));
+  const emptyMemoryState = () => ({
+    sessionId: '', status: {},
+    memory: {
+      revision: 0, editedAt: null, hasHumanEdits: false, canonicalDigest: '',
+      events: [], highlights: [], removedEvents: [], removedHighlights: [], conflicts: [],
+    },
+    publication: { state: 'not_published', lastSuccessful: null, lastAttempt: null },
+  });
+  let memoryUiState = emptyMemoryState();
+  let memoryDraft = null;
+  let memoryEditPending = false;
+  let memoryPublishPending = false;
+  let memoryBuildPending = false;
+  let memoryEditOpener = null;
+  let memoryPublishOpener = null;
+  let memoryPreviewSnapshot = null;
+  let memoryPreviewRequest = 0;
+
+  function recordId(kind, record) {
+    return String(record?.[kind === 'event' ? 'eventId' : 'highlightId'] || record?.id || '').trim();
+  }
+
+  function listValues(value, objectKeys = []) {
+    if (!Array.isArray(value)) return [];
+    return value.map(item => {
+      if (typeof item === 'string' || typeof item === 'number') return String(item).trim();
+      if (!item || typeof item !== 'object') return '';
+      for (const key of objectKeys) {
+        const candidate = String(item[key] || '').trim();
+        if (candidate) return candidate;
+      }
+      return '';
+    }).filter(Boolean);
+  }
+
+  function listText(value, objectKeys = []) {
+    return listValues(value, objectKeys).join('\n');
+  }
+
+  function editableValues(kind, record) {
+    if (kind === 'event') {
+      return {
+        summary: String(record?.summary || ''),
+        facts: listText(record?.facts, ['summary', 'text', 'fact']),
+        entities: listText(record?.entities, ['canonicalName', 'displayName', 'name', 'label']),
+        type: String(record?.type || 'other'),
+        status: String(record?.status || 'unresolved'),
+        importance: String(record?.importance || 'medium'),
+        confidence: String(record?.confidence || 'unknown'),
+      };
+    }
+    return {
+      summary: String(record?.summary || ''),
+      categories: listValues(record?.categories).join(', '),
+      participants: listText(record?.participants, ['displayName', 'name', 'label']),
+      confidence: String(record?.confidence || 'unknown'),
+    };
+  }
+
+  function makeDraftEntries(kind, current, removed) {
+    const entries = [];
+    const seen = new Set();
+    const append = (record, isRemoved) => {
+      const id = recordId(kind, record);
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      const values = editableValues(kind, record);
+      entries.push({
+        kind, id, record: copyValue(record), initialRemoved: isRemoved, removed: isRemoved,
+        canRestore: !isRemoved || record?.canRestore !== false,
+        baseline: copyValue(values), values: copyValue(values),
+      });
+    };
+    (Array.isArray(current) ? current : []).forEach(record => append(record, false));
+    (Array.isArray(removed) ? removed : []).forEach(record => append(record, true));
+    return entries;
+  }
+
+  function memoryChoiceField(entry, field, labelText, choices) {
+    const label = make('label', 'memory-edit-field');
+    label.append(make('span', 'system-label', labelText));
+    const select = make('select', 'form-select form-select-sm');
+    select.dataset.memoryKind = entry.kind;
+    select.dataset.memoryId = entry.id;
+    select.dataset.memoryField = field;
+    choices.forEach(value => {
+      const option = make('option', '', value.replace(/[_-]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase()));
+      option.value = value;
+      select.append(option);
+    });
+    if (!choices.includes(entry.values[field])) {
+      const option = make('option', '', entry.values[field] || 'Other');
+      option.value = entry.values[field];
+      select.append(option);
+    }
+    select.value = entry.values[field];
+    select.disabled = entry.removed;
+    label.append(select);
+    return label;
+  }
+
+  function memoryTextField(entry, field, labelText, rows = 1, help = '') {
+    const label = make('label', 'memory-edit-field');
+    label.append(make('span', 'system-label', labelText));
+    const input = rows > 1 ? make('textarea', 'form-control') : make('input', 'form-control');
+    if (rows > 1) input.rows = rows;
+    input.value = entry.values[field];
+    input.dataset.memoryKind = entry.kind;
+    input.dataset.memoryId = entry.id;
+    input.dataset.memoryField = field;
+    input.disabled = entry.removed;
+    if (field === 'summary') input.maxLength = entry.kind === 'event' ? 2000 : 1200;
+    label.append(input);
+    if (help) label.append(make('small', 'text-muted', help));
+    return label;
+  }
+
+  function renderMemoryDraftCard(entry) {
+    const card = make('article', `memory-edit-card${entry.removed ? ' is-removed' : ''}`);
+    card.dataset.memoryKind = entry.kind;
+    card.dataset.memoryId = entry.id;
+    const header = make('div', 'memory-edit-card-header');
+    const heading = make('div');
+    heading.append(make('div', 'system-label', entry.kind === 'event' ? 'Event' : 'Highlight'));
+    heading.append(make('div', 'small text-muted', entry.removed
+      ? (entry.canRestore
+          ? 'Removed from canonical Session Memory. Restore to include it again.'
+          : 'No longer available in generated Session Memory; rebuild review is required.')
+      : 'Canonical content; generated provenance remains unchanged.'));
+    const toggle = make('button', `btn btn-sm ${entry.removed ? 'btn-outline-primary' : ''}`,
+      entry.removed ? (entry.canRestore ? 'Restore' : 'Restore unavailable') : 'Remove from Session Memory');
+    toggle.type = 'button';
+    toggle.disabled = entry.removed && !entry.canRestore;
+    toggle.dataset.memoryToggle = 'true';
+    toggle.dataset.memoryKind = entry.kind;
+    toggle.dataset.memoryId = entry.id;
+    header.append(heading, toggle);
+    card.append(header);
+    const fields = make('div', 'memory-edit-fields');
+    fields.append(memoryTextField(entry, 'summary', 'Summary', 2));
+    if (entry.kind === 'event') {
+      fields.append(memoryTextField(entry, 'facts', 'Facts', 4, 'One fact per line.'));
+      fields.append(memoryTextField(entry, 'entities', 'Entities', 3, 'One canonical display name per line.'));
+      const choices = make('div', 'memory-edit-choices');
+      choices.append(memoryTextField(entry, 'type', 'Type'));
+      choices.append(memoryChoiceField(entry, 'status', 'Status', ['active', 'unresolved', 'resolved']));
+      choices.append(memoryChoiceField(entry, 'importance', 'Importance', ['low', 'medium', 'high', 'critical']));
+      choices.append(memoryChoiceField(entry, 'confidence', 'Confidence', ['unknown', 'low', 'medium', 'high']));
+      fields.append(choices);
+    } else {
+      fields.append(memoryTextField(entry, 'categories', 'Categories', 1, 'Separate categories with commas.'));
+      fields.append(memoryTextField(entry, 'participants', 'Participants', 3, 'One participant per line.'));
+      fields.append(memoryChoiceField(entry, 'confidence', 'Confidence', ['unknown', 'low', 'medium', 'high']));
+    }
+    card.append(fields);
+    return card;
+  }
+
+  function renderMemoryDraft() {
+    memoryEditEvents.replaceChildren();
+    memoryEditHighlights.replaceChildren();
+    if (!memoryDraft) return;
+    const events = memoryDraft.items.filter(item => item.kind === 'event');
+    const highlights = memoryDraft.items.filter(item => item.kind === 'highlight');
+    events.forEach(entry => memoryEditEvents.append(renderMemoryDraftCard(entry)));
+    highlights.forEach(entry => memoryEditHighlights.append(renderMemoryDraftCard(entry)));
+    if (!events.length) memoryEditEvents.append(make('p', 'memory-empty', 'No Events are available to edit.'));
+    if (!highlights.length) memoryEditHighlights.append(make('p', 'memory-empty', 'No Highlights are available to edit.'));
+    updateMemoryEditSaveState();
+  }
+
+  function splitLines(value) {
+    return String(value || '').split(/\r?\n/).map(item => item.trim()).filter((item, index, all) => item && all.indexOf(item) === index);
+  }
+
+  function splitCategories(value) {
+    return String(value || '').split(/[\r\n,]+/).map(item => item.trim().toLowerCase()).filter((item, index, all) => item && all.indexOf(item) === index);
+  }
+
+  function normalizedField(entry, field, value) {
+    if (field === 'facts' || field === 'entities' || field === 'participants') return splitLines(value);
+    if (field === 'categories') return splitCategories(value);
+    return String(value || '').trim();
+  }
+
+  function draftChanges() {
+    const changes = [];
+    if (!memoryDraft) return { changes, error: '' };
+    for (const entry of memoryDraft.items) {
+      if (!entry.removed && !String(entry.values.summary || '').trim()) {
+        return { changes: [], error: `${entry.kind === 'event' ? 'Event' : 'Highlight'} summary cannot be empty.` };
+      }
+      if (!entry.removed && entry.kind === 'event' && !String(entry.values.type || '').trim()) {
+        return { changes: [], error: 'Event type cannot be empty.' };
+      }
+      if (!entry.removed && entry.kind === 'highlight' && !splitCategories(entry.values.categories).length) {
+        return { changes: [], error: 'Each included Highlight needs at least one category.' };
+      }
+      if (entry.removed !== entry.initialRemoved) {
+        changes.push({ kind: entry.kind, id: entry.id, action: entry.removed ? 'remove' : 'restore' });
+      }
+      if (entry.removed) continue;
+      const fields = {};
+      Object.keys(entry.values).forEach(field => {
+        const before = normalizedField(entry, field, entry.baseline[field]);
+        const after = normalizedField(entry, field, entry.values[field]);
+        if (JSON.stringify(before) !== JSON.stringify(after)) fields[field] = after;
+      });
+      if (Object.keys(fields).length) changes.push({ kind: entry.kind, id: entry.id, action: 'update', fields });
+    }
+    return { changes, error: '' };
+  }
+
+  function updateMemoryEditSaveState() {
+    const result = draftChanges();
+    memoryEditSave.disabled = memoryEditPending || !memoryDraft || Boolean(result.error) || !result.changes.length;
+    if (!memoryEditPending) memoryEditStatus.textContent = result.error;
+  }
+
+  function updateDraftInput(event) {
+    const input = event.target.closest?.('[data-memory-field]');
+    if (!input || !memoryDraft) return;
+    const entry = memoryDraft.items.find(item => item.kind === input.dataset.memoryKind && item.id === input.dataset.memoryId);
+    if (!entry || entry.removed) return;
+    entry.values[input.dataset.memoryField] = input.value;
+    updateMemoryEditSaveState();
+  }
+
+  function closeMemoryEditor() {
+    if (!memoryEditPending && memoryEditDialog.open) memoryEditDialog.close();
+  }
+
+  function openMemoryEditor() {
+    const state = copyValue(window.tableSessionMemory?.get?.() || memoryUiState) || emptyMemoryState();
+    const sessionId = String(state.sessionId || window.tableSessionMemory?.identity?.() || '').trim();
+    const memory = state.memory || {};
+    if (!sessionId || !Number(memory.revision || 0)) return;
+    memoryEditOpener = document.activeElement;
+    memoryDraft = {
+      sessionId,
+      baseRevision: Number(memory.revision || 0),
+      baseDigest: String(memory.canonicalDigest || ''),
+      items: [
+        ...makeDraftEntries('event', memory.events, memory.removedEvents),
+        ...makeDraftEntries('highlight', memory.highlights, memory.removedHighlights),
+      ],
+    };
+    memoryEditRevision.textContent = `Revision ${memoryDraft.baseRevision}`;
+    memoryEditStatus.textContent = '';
+    renderMemoryDraft();
+    memoryEditDialog.showModal();
+    memoryEditDialog.querySelector('[data-memory-field]:not(:disabled)')?.focus();
+  }
+
+  async function requestJson(url, options) {
+    const response = await fetch(url, options);
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || !json.ok) throw new Error(json?.error || `HTTP ${response.status}`);
+    return json;
+  }
+
+  async function saveMemoryDraft() {
+    if (!memoryDraft || memoryEditPending) return;
+    const result = draftChanges();
+    if (result.error) { memoryEditStatus.textContent = result.error; return; }
+    if (!result.changes.length) { memoryEditStatus.textContent = 'No changes to save.'; return; }
+    const savedSessionId = memoryDraft.sessionId;
+    memoryEditPending = true;
+    memoryEditStatus.textContent = 'Saving canonical Session Memory…';
+    updateMemoryEditSaveState();
+    try {
+      await requestJson('/api/session/memory/edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: savedSessionId,
+          baseRevision: memoryDraft.baseRevision,
+          baseDigest: memoryDraft.baseDigest,
+          changes: result.changes,
+        }),
+      });
+      memoryEditPending = false;
+      memoryEditDialog.close();
+      try {
+        await window.tableSessionMemory?.reload?.(savedSessionId);
+      } catch (error) {
+        $('sessions-memory-status').textContent = `SESSION MEMORY SAVED — Refresh needed: ${error.message}`;
+      }
+    } catch (error) {
+      memoryEditPending = false;
+      updateMemoryEditSaveState();
+      memoryEditStatus.textContent = `SESSION MEMORY NEEDS ATTENTION — ${error.message}`;
+    }
+  }
+
+  memoryEditBody.addEventListener('input', updateDraftInput);
+  memoryEditBody.addEventListener('change', updateDraftInput);
+  memoryEditBody.addEventListener('click', event => {
+    const toggle = event.target.closest?.('[data-memory-toggle]');
+    if (!toggle || !memoryDraft || memoryEditPending) return;
+    const entry = memoryDraft.items.find(item => item.kind === toggle.dataset.memoryKind && item.id === toggle.dataset.memoryId);
+    if (!entry || (entry.removed && !entry.canRestore)) return;
+    entry.removed = !entry.removed;
+    renderMemoryDraft();
+    memoryEditStatus.textContent = entry.removed
+      ? 'Marked for removal. Save Changes to apply, or Restore / Cancel.'
+      : 'Restored in this draft. Save Changes to apply.';
+  });
+  memoryEditTrigger.addEventListener('click', openMemoryEditor);
+  memoryEditClose.addEventListener('click', closeMemoryEditor);
+  memoryEditCancel.addEventListener('click', closeMemoryEditor);
+  memoryEditSave.addEventListener('click', saveMemoryDraft);
+  memoryEditDialog.addEventListener('cancel', event => { if (memoryEditPending) event.preventDefault(); });
+  memoryEditDialog.addEventListener('close', () => {
+    memoryDraft = null;
+    memoryEditStatus.textContent = '';
+    memoryEditOpener?.focus?.();
+  });
+
+  function dateLabel(value) {
+    if (!value) return '';
+    const numeric = Number(value);
+    const date = new Date(Number.isFinite(numeric) && numeric > 0
+      ? (numeric < 1e12 ? numeric * 1000 : numeric)
+      : value);
+    return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+  }
+
+  function publicationRevision(value) {
+    const revision = Number(value?.memoryRevision ?? value?.revision ?? value?.publishedRevision ?? 0);
+    return Number.isFinite(revision) && revision > 0 ? revision : 0;
+  }
+
+  function failedPublicationAttempt(publication) {
+    const attempt = publication?.lastAttempt && typeof publication.lastAttempt === 'object'
+      ? publication.lastAttempt : null;
+    const state = String(publication?.state || '').toLowerCase();
+    const status = String(attempt?.status || attempt?.state || '').toLowerCase();
+    const failed = state.includes('fail') || state.includes('attention') || status.includes('fail') || status.includes('error');
+    if (!failed) return null;
+    return {
+      at: attempt?.occurredAt ?? attempt?.attemptedAt ?? attempt?.publishedAt ?? attempt?.updatedAt,
+      error: String(attempt?.error || attempt?.message || publication?.error || 'DungeonShare did not accept the publication.').trim(),
+    };
+  }
+
+  function conflictMessage(conflict) {
+    if (typeof conflict === 'string') return conflict.trim();
+    if (!conflict || typeof conflict !== 'object') return '';
+    return String(conflict.message || conflict.reason || conflict.summary || conflict.id || '').trim();
+  }
+
+  function renderMemoryConflicts(memory) {
+    const conflicts = Array.isArray(memory?.conflicts) ? memory.conflicts : [];
+    memoryConflictPanel.replaceChildren();
+    memoryConflictPanel.hidden = !conflicts.length;
+    if (!conflicts.length) return;
+    memoryConflictPanel.append(make('div', 'system-label', 'Session Memory needs review'));
+    memoryConflictPanel.append(make('p', 'small mb-2', 'Publishing is disabled until these human-edit conflicts are resolved.'));
+    const list = make('ul', 'small mb-0');
+    conflicts.slice(0, 8).forEach(conflict => {
+      const message = conflictMessage(conflict);
+      if (message) list.append(make('li', '', message));
+    });
+    if (list.children.length) memoryConflictPanel.append(list);
+  }
+
+  function renderPublicationState() {
+    const memory = memoryUiState.memory || {};
+    const publication = memoryUiState.publication || {};
+    const currentRevision = Number(memory.revision || 0);
+    const successful = publication.lastSuccessful && typeof publication.lastSuccessful === 'object'
+      ? publication.lastSuccessful : null;
+    const publishedRevision = publicationRevision(successful);
+    const publishedAt = dateLabel(successful?.occurredAt ?? successful?.publishedAt ?? successful?.succeededAt ?? successful?.updatedAt);
+    const explicitState = String(publication.state || '').toLowerCase();
+    const stale = Boolean(successful && (
+      explicitState === 'stale' || explicitState.includes('update') ||
+      (currentRevision && publishedRevision && currentRevision > publishedRevision)
+    ));
+    const failure = failedPublicationAttempt(publication);
+    memoryPublishState.replaceChildren();
+    memoryPublishState.className = `memory-publication-state${stale ? ' is-stale' : ''}${failure ? ' needs-attention' : ''}`;
+    if (!successful) {
+      memoryPublishState.append(make('div', 'data-readout', 'Not published'));
+    } else {
+      const pieces = [`Published Revision ${publishedRevision || '—'}`];
+      if (publishedAt) pieces.push(publishedAt);
+      memoryPublishState.append(make('div', 'data-readout', pieces.join(' · ')));
+      if (stale) {
+        memoryPublishState.append(make('div', 'memory-update-available', `Current Revision ${currentRevision} · UPDATE AVAILABLE`));
+      } else {
+        memoryPublishState.append(make('div', 'small', 'DungeonShare is current.'));
+      }
+    }
+    if (failure) {
+      const when = dateLabel(failure.at);
+      memoryPublishState.append(make('div', 'memory-publish-attention',
+        `DUNGEONSHARE PUBLISH NEEDS ATTENTION${when ? ` · ${when}` : ''} — ${failure.error}`));
+    }
+    memoryPreviewTrigger.textContent = stale ? 'Preview & Republish' : 'Preview & Publish';
+    renderMemoryConflicts(memory);
+  }
+
+  function syncMemoryControls(nextState) {
+    const source = nextState && typeof nextState === 'object'
+      ? nextState : (window.tableSessionMemory?.get?.() || emptyMemoryState());
+    memoryUiState = copyValue(source) || emptyMemoryState();
+    const memory = memoryUiState.memory || {};
+    const status = memoryUiState.status || {};
+    const hasRecords = [memory.events, memory.highlights, memory.removedEvents, memory.removedHighlights]
+      .some(records => Array.isArray(records) && records.length);
+    const built = Boolean(Number(memory.revision || 0) || hasRecords || status?.memory?.built);
+    const running = Boolean(status?.operation?.running || memoryBuildPending);
+    const conflicts = Array.isArray(memory.conflicts) ? memory.conflicts : [];
+    memoryEditTrigger.disabled = Boolean(!built || running || memoryEditPending || memoryPublishPending);
+    memoryPreviewTrigger.disabled = Boolean(
+      !built || running || memoryEditPending || memoryPublishPending || conflicts.length ||
+      memoryCampaignSelect.disabled || !String(memoryCampaignSelect.value || '').trim()
+    );
+    memoryPublishPanel.classList.toggle('has-update', String(memoryUiState.publication?.state || '').toLowerCase() === 'stale');
+    renderPublicationState();
+  }
+
+  function previewMemoryData(preview, payload) {
+    if (preview?.memory && typeof preview.memory === 'object') return preview.memory;
+    if (payload?.memory && typeof payload.memory === 'object') return payload.memory;
+    return {
+      revision: preview?.revision,
+      events: preview?.events,
+      highlights: preview?.highlights,
+    };
+  }
+
+  function renderPreviewList(container, headingText, records, kind) {
+    const section = make('section', 'memory-preview-section');
+    const heading = make('div', 'memory-preview-heading');
+    heading.append(make('h3', 'panel-header mb-0', headingText));
+    heading.append(make('span', 'memory-tag', String(records.length)));
+    section.append(heading);
+    if (!records.length) {
+      section.append(make('p', 'memory-empty', `No ${headingText.toLowerCase()} will be published.`));
+    }
+    records.forEach(record => {
+      const card = make('article', `memory-item${kind === 'highlight' ? ' memory-item-highlight' : ''}`);
+      card.append(make('div', 'memory-title', `${kind === 'highlight' ? '★ ' : ''}${String(record.summary || `Untitled ${kind}`)}`));
+      if (kind === 'event') {
+        const facts = listValues(record.facts, ['summary', 'text', 'fact']);
+        if (facts.length) {
+          const list = make('ul', 'memory-facts');
+          facts.forEach(fact => list.append(make('li', '', fact)));
+          card.append(list);
+        }
+      } else {
+        const participants = listValues(record.participants, ['displayName', 'name', 'label']);
+        if (participants.length) card.append(make('div', 'small text-muted mt-2', `Participants: ${participants.join(', ')}`));
+      }
+      section.append(card);
+    });
+    container.append(section);
+  }
+
+  function renderPublishPreview(preview, payload) {
+    memoryPreviewContent.replaceChildren();
+    const session = (preview?.session && typeof preview.session === 'object' ? preview.session : null)
+      || (payload?.session && typeof payload.session === 'object' ? payload.session : {});
+    const memory = previewMemoryData(preview, payload);
+    const events = Array.isArray(memory.events) ? memory.events : [];
+    const highlights = Array.isArray(memory.highlights) ? memory.highlights : [];
+    const header = make('header', 'memory-preview-header');
+    header.append(make('div', 'soft-label', 'Session snapshot'));
+    header.append(make('h3', 'h4 mb-1', String(session.title || preview?.title || 'Session Memory')));
+    const date = String(session.date || session.eventDate || preview?.date || '').trim();
+    const revision = Number(memory.revision || preview?.revision || 0);
+    header.append(make('div', 'small text-muted', `${date ? `${date} · ` : ''}Revision ${revision || '—'} · ${events.length} Events · ${highlights.length} Highlights`));
+    memoryPreviewContent.append(header);
+    renderPreviewList(memoryPreviewContent, 'Highlights', highlights, 'highlight');
+    renderPreviewList(memoryPreviewContent, 'Events', events, 'event');
+  }
+
+  async function openPublishPreview() {
+    if (memoryPublishPending) return;
+    const state = copyValue(window.tableSessionMemory?.get?.() || memoryUiState) || emptyMemoryState();
+    const sessionId = String(state.sessionId || window.tableSessionMemory?.identity?.() || '').trim();
+    const campaignSlug = String(memoryCampaignSelect.value || '').trim();
+    const conflicts = Array.isArray(state.memory?.conflicts) ? state.memory.conflicts : [];
+    if (!sessionId || !campaignSlug || !Number(state.memory?.revision || 0) || conflicts.length) {
+      renderMemoryConflicts(state.memory || {});
+      return;
+    }
+    memoryPublishOpener = document.activeElement;
+    memoryPreviewSnapshot = null;
+    memoryPreviewContent.replaceChildren(make('p', 'memory-empty', 'Preparing the deterministic DungeonShare preview…'));
+    memoryPublishDialogStatus.textContent = '';
+    memoryPublishConfirm.disabled = true;
+    memoryPublishDialog.showModal();
+    const requestId = ++memoryPreviewRequest;
+    try {
+      const json = await requestJson(
+        `/api/session/dungeonshare/preview?sessionId=${encodeURIComponent(sessionId)}&campaignSlug=${encodeURIComponent(campaignSlug)}`,
+        { cache: 'no-store' }
+      );
+      if (requestId !== memoryPreviewRequest || !memoryPublishDialog.open) return;
+      const preview = json.preview && typeof json.preview === 'object' ? json.preview : {};
+      const payload = json.payload && typeof json.payload === 'object' ? json.payload : {};
+      const memory = previewMemoryData(preview, payload);
+      memoryPreviewSnapshot = {
+        sessionId,
+        campaignSlug,
+        expectedRevision: Number(memory.revision || state.memory.revision || 0),
+        expectedDigest: String(
+          preview.canonicalDigest || memory.canonicalDigest || json.canonicalDigest || json.memoryDigest || state.memory.canonicalDigest || ''
+        ),
+      };
+      renderPublishPreview(preview, payload);
+      memoryPublishDialogStatus.textContent = 'Review the complete snapshot below. Nothing is published until you confirm.';
+      memoryPublishConfirm.disabled = false;
+      memoryPublishConfirm.focus();
+    } catch (error) {
+      if (requestId !== memoryPreviewRequest || !memoryPublishDialog.open) return;
+      memoryPreviewContent.replaceChildren(make('p', 'memory-empty', 'The preview could not be prepared.'));
+      memoryPublishDialogStatus.textContent = `DUNGEONSHARE PUBLISH NEEDS ATTENTION — ${error.message}`;
+    }
+  }
+
+  function closePublishPreview() {
+    if (memoryPublishPending) return;
+    memoryPreviewRequest += 1;
+    if (memoryPublishDialog.open) memoryPublishDialog.close();
+  }
+
+  async function publishMemoryPreview() {
+    if (!memoryPreviewSnapshot || memoryPublishPending) return;
+    const snapshot = copyValue(memoryPreviewSnapshot);
+    memoryPublishPending = true;
+    memoryPublishConfirm.disabled = true;
+    memoryPublishCancel.disabled = true;
+    memoryPublishClose.disabled = true;
+    memoryPublishDialogStatus.textContent = 'Publishing this canonical revision to DungeonShare…';
+    syncMemoryControls(memoryUiState);
+    try {
+      await requestJson('/api/session/dungeonshare/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: snapshot.sessionId,
+          campaignSlug: snapshot.campaignSlug,
+          expectedRevision: snapshot.expectedRevision,
+          expectedDigest: snapshot.expectedDigest,
+          confirm: true,
+        }),
+      });
+      memoryPublishPending = false;
+      memoryPublishCancel.disabled = false;
+      memoryPublishClose.disabled = false;
+      memoryPublishDialog.close();
+      try {
+        await window.tableSessionMemory?.reload?.(snapshot.sessionId);
+      } catch (error) {
+        $('sessions-memory-status').textContent = `PUBLISHED — Refresh needed: ${error.message}`;
+      }
+    } catch (error) {
+      memoryPublishPending = false;
+      memoryPublishConfirm.disabled = false;
+      memoryPublishCancel.disabled = false;
+      memoryPublishClose.disabled = false;
+      memoryPublishDialogStatus.textContent = `DUNGEONSHARE PUBLISH NEEDS ATTENTION — ${error.message}`;
+      syncMemoryControls(memoryUiState);
+    }
+  }
+
+  memoryPreviewTrigger.addEventListener('click', openPublishPreview);
+  memoryPublishConfirm.addEventListener('click', publishMemoryPreview);
+  memoryPublishCancel.addEventListener('click', closePublishPreview);
+  memoryPublishClose.addEventListener('click', closePublishPreview);
+  memoryPublishDialog.addEventListener('cancel', event => {
+    if (memoryPublishPending) event.preventDefault();
+    else memoryPreviewRequest += 1;
+  });
+  memoryPublishDialog.addEventListener('close', () => {
+    memoryPreviewSnapshot = null;
+    memoryPreviewContent.replaceChildren();
+    memoryPublishDialogStatus.textContent = '';
+    memoryPublishConfirm.disabled = true;
+    memoryPublishCancel.disabled = false;
+    memoryPublishClose.disabled = false;
+    memoryPublishOpener?.focus?.();
+  });
+  window.addEventListener('table-session-memory-updated', event => syncMemoryControls(event.detail));
+  window.addEventListener('table-session-memory-busy', event => {
+    if (!event.detail?.sessionId || event.detail.sessionId === memoryUiState.sessionId) {
+      memoryBuildPending = Boolean(event.detail?.busy);
+      syncMemoryControls(memoryUiState);
+    }
+  });
+  window.addEventListener('table-dungeonshare-campaigns-updated', () => syncMemoryControls(memoryUiState));
+  syncMemoryControls();
+
   const canonNames = $('campaignCanonNamesTable').closest('.border');
   if (canonNames) {
     const holder = fold('Advanced: saved campaign names & historical figures');

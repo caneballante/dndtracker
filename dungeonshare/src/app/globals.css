@@ -1931,3 +1931,117 @@ h3 {
     margin-left: 0;
   }
 }
+
+.session-memory {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.session-memory-meta,
+.session-memory-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.session-memory-meta span,
+.session-memory-tags span {
+  background: var(--paper-deep);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-family: var(--font-cinzel), Georgia, serif;
+  font-size: 0.67rem;
+  letter-spacing: 0.05em;
+  padding: 0.3rem 0.55rem;
+  text-transform: capitalize;
+}
+
+.session-memory-section {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.session-memory-heading {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 0.45rem;
+}
+
+.session-memory-heading .eyebrow,
+.session-memory-highlight p,
+.session-memory-event p {
+  margin: 0;
+}
+
+.session-memory-heading > span {
+  color: var(--muted);
+  font-family: var(--font-cinzel), Georgia, serif;
+  font-size: 0.8rem;
+}
+
+.session-memory-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.session-memory-highlight,
+.session-memory-event {
+  background: rgba(255, 250, 241, 0.62);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.9rem 1rem;
+}
+
+.session-memory-highlight {
+  border-left: 4px solid var(--brass);
+}
+
+.session-memory-event {
+  border-left: 4px solid var(--forest);
+}
+
+.session-memory-event ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.session-memory-event li + li {
+  margin-top: 0.3rem;
+}
+
+.session-memory-highlight small,
+.session-memory-event small,
+.session-memory-empty {
+  color: var(--muted);
+}
+
+.tracker-memory-readonly {
+  gap: 1.25rem;
+}
+
+.tracker-memory-notice {
+  background: rgba(49, 87, 71, 0.08);
+  border: 1px solid rgba(49, 87, 71, 0.35);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+}
+
+.tracker-memory-notice strong {
+  color: var(--forest);
+  font-family: var(--font-cinzel), Georgia, serif;
+}
+
+.tracker-memory-notice p,
+.tracker-memory-owner-note {
+  color: var(--ink-soft);
+  margin: 0.35rem 0 0;
+}
+
+.tracker-memory-owner-note {
+  margin: 0;
+}

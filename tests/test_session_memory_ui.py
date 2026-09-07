@@ -5,6 +5,8 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(__file__))
 HTML_PATH = os.path.join(ROOT, "dnd-audio.html")
+TABLE_READY_PATH = os.path.join(ROOT, "table-ready.js")
+SERVER_PATH = os.path.join(ROOT, "server.py")
 
 
 class SessionMemoryUiContractTests(unittest.TestCase):
@@ -12,6 +14,10 @@ class SessionMemoryUiContractTests(unittest.TestCase):
     def setUpClass(cls):
         with open(HTML_PATH, encoding="utf-8") as handle:
             cls.html = handle.read()
+        with open(TABLE_READY_PATH, encoding="utf-8") as handle:
+            cls.table_ready = handle.read()
+        with open(SERVER_PATH, encoding="utf-8") as handle:
+            cls.server = handle.read()
 
     def _function(self, name, next_marker):
         start = self.html.index(f"function {name}")
@@ -22,6 +28,9 @@ class SessionMemoryUiContractTests(unittest.TestCase):
         self.assertIn('id="session-memory-section"', self.html)
         self.assertIn('id="sessions-memory-events"', self.html)
         self.assertIn('id="sessions-memory-highlights"', self.html)
+        self.assertIn('id="sessions-edit-memory"', self.html)
+        self.assertIn('id="sessions-memory-publication"', self.html)
+        self.assertIn('id="sessions-memory-conflicts"', self.html)
         self.assertIn("No Session Memory has been generated for this session.", self.html)
         self.assertIn("Transcript: ${chunkCount} chunk", self.html)
 
@@ -32,6 +41,9 @@ class SessionMemoryUiContractTests(unittest.TestCase):
         self.assertIn("confirm: true", action)
         self.assertIn("window.confirm", action)
         self.assertIn("billable model call", action)
+        self.assertIn("This session contains human edits", action)
+        self.assertIn("confirmHumanEdits: true", action)
+        self.assertIn("expectedMemoryRevision", action)
         self.assertNotIn("/api/session/reprocess/start", action)
 
     def test_legacy_rebuild_remains_separate_and_unmistakably_labeled(self):
@@ -43,11 +55,13 @@ class SessionMemoryUiContractTests(unittest.TestCase):
         self.assertIn("/api/session/reprocess/start", legacy_action)
         self.assertNotIn("confirm: true", legacy_action)
 
-    def test_session_load_fetches_both_durable_stores_and_status_then_refreshes_after_success(self):
+    def test_session_load_fetches_server_canonical_memory_and_status_then_refreshes_after_success(self):
         loader = self._function("loadSessionMemory", "function syncSessionsPartyMeta")
-        self.assertIn("/api/session/events?", loader)
-        self.assertIn("/api/session/highlights?", loader)
+        self.assertIn("/api/session/memory?", loader)
         self.assertIn("/api/session/reconciliation/status?", loader)
+        self.assertNotIn("/api/session/events?", loader)
+        self.assertNotIn("/api/session/highlights?", loader)
+        self.assertIn("currentHistorySessionId() !== sessionId", loader)
         action = self._function("buildSessionMemoryForSession", "window.buildSessionMemoryAfterStop")
         self.assertRegex(action, r"await loadSessionMemory\(sessionId, \{ completed: true, runUsage: json\.usage \}\)")
 
@@ -86,12 +100,44 @@ class SessionMemoryUiContractTests(unittest.TestCase):
         self.assertLess(memory_action.index("ensureSessionReadyForMemory"), memory_action.index("confirm: true"))
         self.assertIn("window.confirm", memory_action)
 
-    def test_ui_does_not_add_event_or_highlight_editing_controls(self):
-        memory_section = self.html[
-            self.html.index('id="session-memory-section"'):
-            self.html.index('id="sessions-reprocess"')
-        ]
-        self.assertNotRegex(memory_section, re.compile(r"Edit Event|Reject Event|Approve Highlight|Promote Highlight", re.I))
+    def test_editing_is_transactional_and_only_submits_human_facing_fields(self):
+        self.assertIn('id="sessions-memory-edit-dialog"', self.html)
+        self.assertIn('id="sessions-memory-edit-cancel"', self.html)
+        self.assertIn('id="sessions-memory-edit-save"', self.html)
+        self.assertIn("'/api/session/memory/edit'", self.table_ready)
+        self.assertIn("baseRevision: memoryDraft.baseRevision", self.table_ready)
+        self.assertIn("baseDigest: memoryDraft.baseDigest", self.table_ready)
+        self.assertIn("changes: result.changes", self.table_ready)
+        editable_start = self.table_ready.index("function editableValues")
+        editable_end = self.table_ready.index("function makeDraftEntries", editable_start)
+        editable = self.table_ready[editable_start:editable_end]
+        for field in ("summary", "facts", "entities", "type", "status", "importance", "confidence", "categories", "participants"):
+            self.assertIn(field, editable)
+        for protected in ("sourceChunks", "firstChunk", "lastChunk", "createdAt", "updatedAt", "eventId", "highlightId"):
+            self.assertNotIn(protected, editable)
+        self.assertIn("action: entry.removed ? 'remove' : 'restore'", self.table_ready)
+
+    def test_publish_has_readable_preview_and_separate_explicit_post(self):
+        self.assertIn('id="sessions-memory-publish-dialog"', self.html)
+        self.assertIn('id="sessions-memory-publish-cancel"', self.html)
+        self.assertIn('id="sessions-memory-publish-confirm"', self.html)
+        self.assertIn("/api/session/dungeonshare/preview?", self.table_ready)
+        self.assertIn("'/api/session/dungeonshare/publish'", self.table_ready)
+        self.assertIn("expectedRevision: snapshot.expectedRevision", self.table_ready)
+        self.assertIn("expectedDigest: snapshot.expectedDigest", self.table_ready)
+        self.assertIn("confirm: true", self.table_ready)
+        self.assertNotRegex(self.table_ready, re.compile(r"preview[^\n]*JSON\.stringify", re.I))
+        self.assertIn("Publishing is disabled until these human-edit conflicts are resolved.", self.table_ready)
+
+    def test_server_publish_route_is_local_guarded_and_requires_confirmation(self):
+        start = self.server.index('if parsed.path == "/api/session/dungeonshare/publish"')
+        end = self.server.index('if parsed.path == "/api/session/memory/edit"', start)
+        route = self.server[start:end]
+        self.assertIn("_local_session_memory_request", route)
+        self.assertIn('data.get("confirm") is not True', route)
+        self.assertIn("publish_session_memory_to_dungeonshare", route)
+        self.assertIn('"expectedRevision"', route)
+        self.assertIn('"expectedDigest"', route)
 
 
 if __name__ == "__main__":

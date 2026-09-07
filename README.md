@@ -46,6 +46,8 @@ Optional:
 - `RECONCILIATION_REFERENCE_RESULTS_PER_SEARCH` (default/maximum `5`)
 - `ARENTORIA_DB_PATH` (optional; otherwise the sibling Arentoria database is discovered)
 - `DND_UPLOAD_TOKEN` (only needed if deploying the legacy PHP uploader)
+- `DUNGEONSHARE_URL` (defaults to the deployed DungeonShare URL; HTTPS or localhost only)
+- `DUNGEONSHARE_TRACKER_TOKEN` (required only when publishing to DungeonShare)
 
 Defaults are in `server.py`.
 
@@ -83,6 +85,8 @@ Per session folder: `uploads/<sessionId>/`
 - `session_events.json` (current structured event state)
 - `session_highlight_operations.jsonl` (append-only session highlight/review history)
 - `session_highlights.json` (current session highlight state)
+- `session_memory_edits.jsonl` (append-only human corrections and rebuild audit)
+- `session_memory_publications.jsonl` (append-only DungeonShare publication attempts)
 - `reconciliation_reference_searches.jsonl` (compact reference-query audit; created only when used)
 - `reconciliation_model_responses.jsonl` (append-only raw response and tool-call disposition audit)
 - `prep_context.json`
@@ -108,8 +112,44 @@ for backward compatibility with existing Notes, recaps, handoff, and DungeonShar
 Session Memory is the separate whole-session `gpt-5.6-sol` reconciliation path. It writes
 durable Events to `session_events.json` and Highlights to `session_highlights.json`, with
 World-aware bounded reference retrieval when enabled. The session History UI loads these
-stores directly and uses an explicitly confirmed **Build/Rebuild Session Memory** action;
+stores through the canonical Session Memory API and uses an explicitly confirmed
+**Build/Rebuild Session Memory** action;
 it does not convert them into legacy Notes or regenerate a published recap.
+
+## Canonical Session Memory and DungeonShare
+
+The completed-session record has four deliberately separate layers:
+
+- **Audio and transcript** are immutable supporting evidence.
+- **Generated Session Memory** is the AI-derived Event/Highlight material in
+  `session_events.json` and `session_highlights.json`.
+- **Canonical Session Memory** is generated material plus append-only, exact-ID human
+  corrections from `session_memory_edits.jsonl`. Editing, removing, and restoring items
+  does not overwrite the generated stores. Each successful save advances one monotonic
+  revision; the local server owns validation, merging, conflict detection, and audit.
+- **DungeonShare publication** is an explicit, read-only snapshot of one canonical
+  revision. Previewing or saving never publishes automatically. A later edit makes the
+  prior snapshot stale until **Republish** is explicitly confirmed.
+
+`GET /api/session/memory` returns the effective record. Bounded edit/history and
+preview/publish endpoints keep merge and publishing rules on the server. A rebuild with
+human edits shows an explicit warning and requires the current memory revision; edits are
+reapplied only by stable ID, and conflicts block publishing rather than guessing.
+
+The producer sends strict `schemaVersion: 1`, `kind: dungeontracker_session_memory` content
+to DungeonShare's authenticated `/api/session-memory` endpoint. It includes only campaign,
+World, session, public Events/Highlights, canonical revision, and publication metadata—no
+audio, transcript, provenance chunks, model audits, hidden canon, edit history, paths, or
+credentials. The shared fixture is `tests/fixtures/session-memory-v1.json` (mirrored in
+`dungeonshare/tests/fixtures/`). Configure the destination in `.dungeonshare.env` or the
+process environment; credentials never enter browser JavaScript.
+
+The existing flat `gameSummary`/`sessionSummaries` handoff and historical recap path remain
+unchanged for backward compatibility. **Build Narrative** is an optional legacy derivative,
+not a prerequisite for Session Memory editing or publishing. A future player-publication
+draft could support DM-only wording changes before publish, but this version intentionally
+publishes the reviewed canonical record exactly as previewed. Human-created Add Event/Add
+Highlight is also deferred so the app never invents transcript provenance.
 
 ## Table console (Phase 4.1)
 

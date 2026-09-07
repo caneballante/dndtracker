@@ -4,6 +4,14 @@ import "server-only";
 
 import { demoCampaigns, demoPosts } from "@/lib/demo-data";
 import { getSql, hasDatabase } from "@/lib/db";
+import {
+  legacySessionSummarySourceRef,
+  selectSessionMemoryUpsertTarget,
+  sessionMemoryPublishSchema,
+  sessionMemorySourceRef,
+} from "@/lib/session-memory";
+import type { SessionMemoryPublishPayload } from "@/lib/session-memory";
+import { materializePublishedSessionMemoryPost } from "@/lib/session-memory-post";
 import type {
   Campaign,
   CampaignDraftInput,
@@ -94,6 +102,9 @@ function mapPost(
   row: Record<string, unknown>,
   media: MediaItem[],
 ): JournalPost {
+  const sessionMemory = sessionMemoryPublishSchema.safeParse(
+    row.session_memory,
+  );
   return {
     id: String(row.id),
     campaignId: String(row.campaign_id),
@@ -108,6 +119,7 @@ function mapPost(
     pinned: Boolean(row.pinned),
     source: row.source as JournalPost["source"],
     sourceRef: String(row.source_ref ?? ""),
+    sessionMemory: sessionMemory.success ? sessionMemory.data : null,
     media,
     publishedAt: nullableIso(row.published_at),
     archivedAt: nullableIso(row.archived_at),
@@ -307,6 +319,7 @@ export async function createPost(input: PostDraftInput): Promise<JournalPost> {
       pinned: false,
       source: input.source ?? "manager",
       sourceRef: input.sourceRef ?? "",
+      sessionMemory: null,
       media: [],
       publishedAt: null,
       archivedAt: null,
@@ -395,6 +408,125 @@ export async function getPostBySourceRef(
   const postRows = rows as unknown as Record<string, unknown>[];
   if (!postRows[0]) return null;
   return (await hydratePosts(postRows))[0];
+}
+
+export async function upsertPublishedSessionMemory(
+  campaignId: string,
+  payload: SessionMemoryPublishPayload,
+): Promise<{ post: JournalPost; action: "created" | "updated" }> {
+  const stableRef = sessionMemorySourceRef(payload);
+  const legacyRef = legacySessionSummarySourceRef(payload.session.id);
+  const [stable, legacy] = await Promise.all([
+    getPostBySourceRef("tracker", stableRef),
+    getPostBySourceRef("tracker", legacyRef),
+  ]);
+  const { existing } = selectSessionMemoryUpsertTarget(stable, legacy);
+  const now = new Date().toISOString();
+
+  if (!hasDatabase()) {
+    const store = demoStore();
+    const campaign = store.campaigns.find((item) => item.id === campaignId);
+    if (!campaign) throw new Error("Campaign not found.");
+
+    if (existing) {
+      const index = store.posts.findIndex((post) => post.id === existing.id);
+      const updated = materializePublishedSessionMemoryPost({
+        campaign,
+        payload: clone(payload),
+        existing,
+        id: existing.id,
+        displayOrder: existing.displayOrder,
+        now,
+      });
+      store.posts[index] = clone(updated);
+      return { post: clone(updated), action: "updated" };
+    }
+
+    const dayOrder =
+      Math.floor(
+        new Date(`${payload.session.date}T00:00:00Z`).getTime() / 86400000,
+      ) * 1024;
+    const sameDayCount = store.posts.filter(
+      (post) =>
+        post.campaignId === campaignId &&
+        post.eventDate === payload.session.date,
+    ).length;
+    const created = materializePublishedSessionMemoryPost({
+      campaign,
+      payload: clone(payload),
+      existing: null,
+      id: randomUUID(),
+      displayOrder: dayOrder + sameDayCount,
+      now,
+    });
+    store.posts.unshift(created);
+    return { post: clone(created), action: "created" };
+  }
+
+  const sql = getSql();
+  if (existing) {
+    await sql.transaction([
+      sql`
+        insert into dungeonshare.post_revisions (post_id, actor, snapshot)
+        values (
+          ${existing.id}::uuid,
+          ${`tracker:${stableRef}`},
+          ${JSON.stringify(existing)}::jsonb
+        )
+      `,
+      sql`
+        update dungeonshare.posts
+           set campaign_id = ${campaignId}::uuid,
+               kind = 'session',
+               status = 'published',
+               title = ${payload.session.title},
+               event_date = ${payload.session.date}::date,
+               source = 'tracker',
+               source_ref = ${stableRef},
+               session_memory = ${JSON.stringify(payload)}::jsonb,
+               published_at = ${payload.publication.publishedAt}::timestamptz,
+               archived_at = null,
+               updated_at = now()
+         where id = ${existing.id}::uuid
+      `,
+    ]);
+    const updated = await getPostById(existing.id);
+    if (!updated) throw new Error("Published Session Memory could not be loaded.");
+    return { post: updated, action: "updated" };
+  }
+
+  const rows = await sql`
+    insert into dungeonshare.posts (
+      campaign_id, kind, status, title, body, event_date,
+      display_order, source, source_ref, session_memory, published_at
+    )
+    values (
+      ${campaignId}::uuid,
+      'session',
+      'published',
+      ${payload.session.title},
+      '',
+      ${payload.session.date}::date,
+      (
+        (${payload.session.date}::date - date '1970-01-01') * 1024 +
+        (
+          select count(*)::int
+            from dungeonshare.posts
+           where campaign_id = ${campaignId}::uuid
+             and event_date = ${payload.session.date}::date
+        )
+      ),
+      'tracker',
+      ${stableRef},
+      ${JSON.stringify(payload)}::jsonb,
+      ${payload.publication.publishedAt}::timestamptz
+    )
+    returning id
+  `;
+  const id = String((rows as unknown as Record<string, unknown>[])[0].id);
+  const created = await getPostById(id);
+  if (!created) throw new Error("Published Session Memory could not be loaded.");
+  return { post: created, action: "created" };
 }
 
 export async function updatePost(

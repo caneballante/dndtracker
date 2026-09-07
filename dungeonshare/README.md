@@ -1,8 +1,9 @@
 # Dungeon Share
 
 A player-facing campaign journal with a protected manager. It keeps separate
-campaign timelines, accepts drafts from Dungeon Maker and DnD Tracker, and
-publishes readable text-and-photo entries.
+campaign timelines, accepts generic drafts from Dungeon Maker and DnD Tracker,
+accepts reviewed Session Memory snapshots from DnD Tracker, and publishes
+readable text-and-photo entries.
 
 ## What is included
 
@@ -13,7 +14,9 @@ publishes readable text-and-photo entries.
 - Reorder and pin journal entries
 - Secure manager account with an email allowlist, rate-limited sign-in, and
   optional passkeys
-- Source-specific bearer tokens that can only create drafts and upload photos
+- Source-specific bearer tokens for generic draft ingest and photo uploads
+- Direct, versioned Session Memory publication from DnD Tracker with stable
+  campaign/session identity and in-place republishing
 - Revision snapshots before every saved edit
 - Demo data whenever a local database is not configured
 
@@ -74,14 +77,17 @@ a stronger, easier sign-in.
 
 ## Source app integration
 
-See [docs/INTEGRATION.md](docs/INTEGRATION.md). Source tokens cannot edit,
-publish, reorder, archive, or delete existing entries. Every source submission
-lands in the manager's draft inbox.
+See [docs/INTEGRATION.md](docs/INTEGRATION.md). Generic source submissions land
+in the manager's draft inbox. The tracker token additionally has one bounded
+capability: publish or update a validated structured Session Memory snapshot.
+That content remains read-only in Dungeon Share because DungeonTracker owns the
+canonical record.
 
 ## Verification
 
 ```powershell
 npm run lint
 npx tsc --noEmit
+npm run test
 npm run build
 ```

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "kind": "dungeontracker_session_memory",
+  "campaign": {
+    "id": "campaign-three-friends",
+    "name": "The Three Friends",
+    "dungeonShareSlug": "three-friends"
+  },
+  "world": {
+    "id": "world-arentor",
+    "name": "Arentor"
+  },
+  "session": {
+    "id": "1788720000000",
+    "title": "The Bell Beneath Briar Hollow",
+    "date": "2026-09-06"
+  },
+  "memory": {
+    "revision": 3,
+    "events": [
+      {
+        "id": "evt_11111111111111111111111111111111",
+        "type": "discovery",
+        "status": "active",
+        "importance": "high",
+        "confidence": "high",
+        "summary": "The party found the bell chamber beneath Briar Hollow.",
+        "facts": [
+          "The bronze bell rang without being touched.",
+          "Marcel recognized the crest carved into its frame."
+        ],
+        "entities": [
+          "Briar Hollow",
+          "Marcel",
+          "The Hollow Bell"
+        ]
+      }
+    ],
+    "highlights": [
+      {
+        "id": "hlt_22222222222222222222222222222222",
+        "categories": [
+          "memorable_action",
+          "character_moment"
+        ],
+        "confidence": "high",
+        "summary": "Marcel identified the forgotten crest just before the bell rang.",
+        "participants": [
+          "Marcel",
+          "Vayne"
+        ],
+        "relatedEventIds": [
+          "evt_11111111111111111111111111111111"
+        ]
+      }
+    ]
+  },
+  "publication": {
+    "publishedAt": "2026-09-06T19:45:00.000Z",
+    "source": "DungeonTracker"
+  }
+}

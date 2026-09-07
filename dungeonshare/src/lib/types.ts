@@ -1,3 +1,5 @@
+import type { SessionMemoryPublishPayload } from "@/lib/session-memory";
+
 export type CampaignAccent = "oxblood" | "forest" | "indigo" | "brass";
 
 export type Campaign = {
@@ -52,6 +54,7 @@ export type JournalPost = {
   pinned: boolean;
   source: "manager" | "tracker" | "maker";
   sourceRef: string;
+  sessionMemory: SessionMemoryPublishPayload | null;
   media: MediaItem[];
   publishedAt: string | null;
   archivedAt: string | null;

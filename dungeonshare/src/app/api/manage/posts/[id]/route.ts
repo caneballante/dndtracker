@@ -2,7 +2,8 @@ import {
   accessErrorResponse,
   requireManager,
 } from "@/lib/auth";
-import { updatePost } from "@/lib/journal";
+import { getPostById, updatePost } from "@/lib/journal";
+import { managerPatchMutatesTrackerMemory } from "@/lib/session-memory";
 import { updatePostSchema } from "@/lib/validation";
 
 export async function PATCH(
@@ -13,6 +14,23 @@ export async function PATCH(
     const access = await requireManager();
     const { id } = await context.params;
     const patch = updatePostSchema.parse(await request.json());
+    const current = await getPostById(id);
+    if (!current) {
+      return Response.json(
+        { ok: false, error: "Post not found." },
+        { status: 404 },
+      );
+    }
+    if (managerPatchMutatesTrackerMemory(current, patch)) {
+      return Response.json(
+        {
+          ok: false,
+          error:
+            "Published Session Memory is owned by DungeonTracker. Correct it there and republish.",
+        },
+        { status: 409 },
+      );
+    }
     const post = await updatePost(id, patch, access.user.email);
     return Response.json({ ok: true, post });
   } catch (error) {

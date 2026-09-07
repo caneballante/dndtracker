@@ -39,6 +39,14 @@ from session_highlights import (
     read_highlight_operations,
     read_highlight_store,
 )
+from session_memory import (
+    apply_edit_transaction as apply_session_memory_edit_transaction,
+    build_publish_payload as build_session_memory_publish_payload,
+    read_canonical_memory,
+    read_edit_operations as read_session_memory_edit_operations,
+    record_publication as record_session_memory_publication,
+    record_rebuild as record_session_memory_rebuild,
+)
 from session_evidence import (
     build_ordered_evidence,
     claim_reconciliation,
@@ -461,6 +469,381 @@ def _publish_session_to_dungeonshare(session_id: str, campaign_slug: str):
         "media": [],
     }
     return _dungeonshare_request("/api/ingest", method="POST", payload=payload)
+
+
+SESSION_MEMORY_HUMAN_EDIT_WARNING = (
+    "This session contains human edits. Rebuilding may replace the generated "
+    "memory those edits were based on."
+)
+
+
+def _session_memory_is_built(status, event_store, highlight_store):
+    finalization = status.get("finalization") if isinstance(status, dict) else {}
+    return bool(
+        (isinstance(finalization, dict) and finalization.get("state") == "finalized")
+        or (event_store.get("events") if isinstance(event_store, dict) else {})
+        or (highlight_store.get("highlights") if isinstance(highlight_store, dict) else {})
+    )
+
+
+def read_session_memory(session_id: str):
+    """Return the effective canonical Session Memory and publication state."""
+    sid = safe_session_id(session_id)
+    session_dir = os.path.join(UPLOADS_DIR, sid)
+    status = _session_status_response(sid)
+    event_store = read_event_store(session_dir, sid)
+    highlight_store = read_highlight_store(session_dir, sid)
+    return read_canonical_memory(
+        session_dir,
+        sid,
+        event_store,
+        highlight_store,
+        built=_session_memory_is_built(status, event_store, highlight_store),
+    )
+
+
+def _session_memory_api_document(memory):
+    memory = copy.deepcopy(memory) if isinstance(memory, dict) else {}
+    publication = memory.pop("publication", {})
+    memory["canonicalDigest"] = str(memory.get("digest") or "")
+    memory["editedAt"] = memory.get("lastEditedAt")
+    for bucket, id_field in (("events", "eventId"), ("highlights", "highlightId")):
+        records = memory.get(bucket) if isinstance(memory.get(bucket), dict) else {}
+        memory[bucket] = sorted(
+            (copy.deepcopy(item) for item in records.values() if isinstance(item, dict)),
+            key=lambda item: (int(item.get("firstChunk") or 0), str(item.get(id_field) or "")),
+        )
+    removed = memory.get("removed") if isinstance(memory.get("removed"), dict) else {}
+    for source_key, target_key in (
+        ("events", "removedEvents"),
+        ("highlights", "removedHighlights"),
+    ):
+        flattened = []
+        for removed_entry in removed.get(source_key) or []:
+            if not isinstance(removed_entry, dict):
+                continue
+            item = removed_entry.get("item")
+            if not isinstance(item, dict):
+                continue
+            visible_item = copy.deepcopy(item)
+            visible_item["removalReason"] = str(removed_entry.get("reason") or "")
+            visible_item["canRestore"] = removed_entry.get("canRestore") is True
+            flattened.append(visible_item)
+        memory[target_key] = flattened
+    return {
+        "memory": memory,
+        "publication": publication,
+    }
+
+
+def _session_memory_operations_from_changes(changes):
+    if not isinstance(changes, list) or not changes:
+        raise ValueError("changes must contain at least one Session Memory edit.")
+    operations = []
+    for index, change in enumerate(changes):
+        if not isinstance(change, dict):
+            raise ValueError(f"changes[{index}] must be an object.")
+        expected = {"kind", "id", "action", "fields"}
+        extra = set(change) - expected
+        if extra:
+            raise ValueError(
+                f"changes[{index}] has unsupported fields: {', '.join(sorted(extra))}."
+            )
+        kind = str(change.get("kind") or "").strip().lower()
+        action = str(change.get("action") or "").strip().lower()
+        if kind not in {"event", "highlight"}:
+            raise ValueError(f"changes[{index}].kind must be event or highlight.")
+        if action == "edit":
+            action = "update"
+        if action not in {"update", "remove", "restore"}:
+            raise ValueError(
+                f"changes[{index}].action must be update, remove, or restore."
+            )
+        if not str(change.get("id") or "").strip():
+            raise ValueError(f"changes[{index}].id is required.")
+        if action == "update" and "fields" not in change:
+            raise ValueError(f"changes[{index}].fields is required for an update.")
+        if action != "update" and change.get("fields") not in (None, {}):
+            raise ValueError(f"changes[{index}].fields is only valid for an update.")
+        noun = kind.upper()
+        id_field = "eventId" if kind == "event" else "highlightId"
+        operation = {
+            "operation": f"{action.upper()}_{noun}",
+            id_field: str(change.get("id") or "").strip(),
+        }
+        if action == "update":
+            operation["changes"] = change.get("fields")
+        operations.append(operation)
+    return operations
+
+
+def edit_session_memory(
+    session_id: str,
+    *,
+    base_revision,
+    base_digest,
+    operations=None,
+    changes=None,
+    reason="",
+):
+    """Apply one server-validated, append-only human edit transaction."""
+    sid = safe_session_id(session_id)
+    session_dir = os.path.join(UPLOADS_DIR, sid)
+    status = _session_status_response(sid)
+    finalization = status.get("finalization") if isinstance(status.get("finalization"), dict) else {}
+    if finalization.get("state") == "reconciliation_in_progress":
+        raise ValueError("Session Memory cannot be edited while reconciliation is running.")
+    event_store = read_event_store(session_dir, sid)
+    highlight_store = read_highlight_store(session_dir, sid)
+    if operations is not None and changes is not None:
+        raise ValueError("Supply changes, not both changes and operations.")
+    requested_operations = (
+        _session_memory_operations_from_changes(changes)
+        if changes is not None
+        else operations
+    )
+    result = apply_session_memory_edit_transaction(
+        session_dir,
+        sid,
+        event_store,
+        highlight_store,
+        base_revision=base_revision,
+        base_digest=base_digest,
+        operations=requested_operations,
+        built=_session_memory_is_built(status, event_store, highlight_store),
+        reason=reason,
+    )
+    document = _session_memory_api_document(result.get("memory") or {})
+    return {
+        "operation": result.get("operation") or {},
+        **document,
+    }
+
+
+def session_memory_edit_history(session_id: str):
+    sid = safe_session_id(session_id)
+    session_dir = os.path.join(UPLOADS_DIR, sid)
+    return read_session_memory_edit_operations(session_dir)
+
+
+def _iso_utc(timestamp):
+    seconds = int(timestamp)
+    return time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(seconds))
+
+
+def _session_memory_publish_metadata(session_id: str, campaign_slug: str):
+    sid = safe_session_id(session_id)
+    status = _read_session_status(sid)
+    campaign_id = str(status.get("campaignId") or "").strip()
+    if not campaign_id:
+        snapshot = status.get("contextSnapshot") if isinstance(status.get("contextSnapshot"), dict) else {}
+        campaign_id = str(snapshot.get("campaignId") or "").strip()
+    if not campaign_id:
+        raise ValueError("Assign this session to a campaign before publishing Session Memory.")
+    campaign = read_campaign(campaign_id)
+    world = None
+    world_id = str(campaign.get("worldId") or "").strip()
+    if world_id:
+        manifest = read_json(_world_manifest_path(world_id), default={})
+        world = {
+            "id": world_id,
+            "name": str(
+                (manifest or {}).get("displayName")
+                or (manifest or {}).get("name")
+                or world_id
+            ).strip(),
+        }
+    session_dir = init_session(sid)
+    created_at = int(status.get("createdAt") or os.path.getmtime(session_dir))
+    event_date = time.strftime("%Y-%m-%d", time.localtime(created_at))
+    session_name = str(status.get("sessionName") or "").strip()
+    return {
+        "campaignId": str(campaign.get("campaignId") or campaign_id),
+        "campaignName": str(campaign.get("name") or campaign_id),
+        "dungeonShareSlug": str(campaign_slug or "").strip().lower(),
+        "world": world,
+        "sessionId": sid,
+        "sessionTitle": session_name or f"Session — {event_date}",
+        "sessionDate": event_date,
+    }
+
+
+def preview_session_memory_publication(
+    session_id: str,
+    campaign_slug: str,
+    *,
+    now=None,
+):
+    """Build a read-only human preview and the sanitized v1 payload."""
+    sid = safe_session_id(session_id)
+    memory = read_session_memory(sid)
+    if memory.get("conflicts"):
+        raise ValueError(
+            "Session Memory contains human-edit conflicts; resolve them before publishing."
+        )
+    metadata = _session_memory_publish_metadata(sid, campaign_slug)
+    timestamp = int(time.time()) if now is None else int(now)
+    payload = build_session_memory_publish_payload(
+        memory,
+        campaign_id=metadata["campaignId"],
+        campaign_name=metadata["campaignName"],
+        dungeon_share_slug=metadata["dungeonShareSlug"],
+        world=metadata["world"],
+        session_id=sid,
+        session_title=metadata["sessionTitle"],
+        session_date=metadata["sessionDate"],
+        published_at=_iso_utc(timestamp),
+    )
+    return {
+        "memoryRevision": memory["revision"],
+        "memoryDigest": memory["digest"],
+        "canonicalDigest": memory["digest"],
+        "payload": payload,
+        "preview": {
+            "campaign": copy.deepcopy(payload["campaign"]),
+            "world": copy.deepcopy(payload["world"]),
+            "session": copy.deepcopy(payload["session"]),
+            "revision": payload["memory"]["revision"],
+            "eventCount": len(payload["memory"]["events"]),
+            "highlightCount": len(payload["memory"]["highlights"]),
+            "events": copy.deepcopy(payload["memory"]["events"]),
+            "highlights": copy.deepcopy(payload["memory"]["highlights"]),
+            "conflicts": copy.deepcopy(memory.get("conflicts") or []),
+        },
+    }
+
+
+def _safe_dungeonshare_publish_error(error):
+    message = re.sub(r"\s+", " ", str(error or "DungeonShare publish failed.")).strip()
+    message = re.sub(
+        r"(?i)\b(authorization|bearer|token|api[_ -]?key)\b\s*[:=]?\s*\S+",
+        r"\1 [redacted]",
+        message,
+    )
+    return message[:500] or "DungeonShare publish failed."
+
+
+def _dungeonshare_session_memory_request(payload):
+    """Send one authenticated request; publication deliberately has no automatic retry."""
+    url = _dungeonshare_base_url() + "/api/session-memory"
+    token = _dungeonshare_tracker_token()
+    request = Request(
+        url,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=30) as response:
+            raw = response.read().decode("utf-8")
+    except HTTPError as exc:
+        raise RuntimeError(f"DungeonShare publish failed with HTTP {exc.code}.") from None
+    except URLError:
+        raise RuntimeError("DungeonShare publish connection failed.") from None
+    try:
+        result = json.loads(raw) if raw else {}
+    except json.JSONDecodeError:
+        raise RuntimeError("DungeonShare returned malformed JSON.") from None
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        error = result.get("error") if isinstance(result, dict) else ""
+        raise RuntimeError(
+            _safe_dungeonshare_publish_error(error or "DungeonShare rejected the Session Memory payload.")
+        )
+    return result
+
+
+def publish_session_memory_to_dungeonshare(
+    session_id: str,
+    campaign_slug: str,
+    *,
+    expected_revision,
+    expected_digest,
+    request_fn=None,
+    now=None,
+):
+    """Publish exactly one reviewed canonical revision and record its outcome."""
+    sid = safe_session_id(session_id)
+    memory = read_session_memory(sid)
+    if memory.get("conflicts"):
+        raise ValueError(
+            "Session Memory contains human-edit conflicts; resolve them before publishing."
+        )
+    if isinstance(expected_revision, bool):
+        raise ValueError("expectedRevision must be an integer.")
+    try:
+        expected_revision = int(expected_revision)
+    except (TypeError, ValueError):
+        raise ValueError("expectedRevision must be an integer.") from None
+    if expected_revision != memory["revision"]:
+        raise ValueError(
+            f"Session Memory revision is stale; expected {memory['revision']}."
+        )
+    if not isinstance(expected_digest, str) or expected_digest != memory["digest"]:
+        raise ValueError("Session Memory digest is stale; preview again before publishing.")
+
+    timestamp = int(time.time()) if now is None else int(now)
+    preview = preview_session_memory_publication(sid, campaign_slug, now=timestamp)
+    # Re-read/compare through preview so a concurrent edit between the first read and
+    # payload construction cannot publish a different canonical revision.
+    if (
+        preview["memoryRevision"] != expected_revision
+        or preview["memoryDigest"] != expected_digest
+    ):
+        raise ValueError("Session Memory changed while preparing publication; preview again.")
+    payload = preview["payload"]
+    session_dir = os.path.join(UPLOADS_DIR, sid)
+    client = request_fn or _dungeonshare_session_memory_request
+    try:
+        result = client(payload)
+        if not isinstance(result, dict) or result.get("ok") is not True:
+            raise RuntimeError("DungeonShare returned an invalid publication response.")
+        details = result.get("publication") if isinstance(result.get("publication"), dict) else {}
+        snapshot = result.get("snapshot") if isinstance(result.get("snapshot"), dict) else {}
+        post = result.get("post") if isinstance(result.get("post"), dict) else {}
+        destination_session_id = str(
+            result.get("sessionId")
+            or details.get("sessionId")
+            or ((snapshot.get("session") or {}).get("id") if isinstance(snapshot.get("session"), dict) else "")
+            or post.get("id")
+            or sid
+        )
+        publication = record_session_memory_publication(
+            session_dir,
+            sid,
+            succeeded=True,
+            memory_revision=expected_revision,
+            memory_digest=expected_digest,
+            dungeon_share_slug=campaign_slug,
+            occurred_at=timestamp,
+            destination_session_id=destination_session_id,
+            action=result.get("action") or details.get("action") or "updated",
+            state=result.get("state") or details.get("state") or "published",
+        )
+    except Exception as exc:
+        safe_error = _safe_dungeonshare_publish_error(exc)
+        record_session_memory_publication(
+            session_dir,
+            sid,
+            succeeded=False,
+            memory_revision=expected_revision,
+            memory_digest=expected_digest,
+            dungeon_share_slug=campaign_slug,
+            occurred_at=timestamp,
+            error=safe_error,
+        )
+        if isinstance(exc, DungeonShareConfigurationError):
+            raise
+        raise RuntimeError(safe_error) from None
+    return {
+        "published": True,
+        "publication": publication,
+        "status": read_session_memory(sid)["publication"],
+        "destination": result,
+    }
 
 def _campaign_dir(campaign_id: str) -> str:
     return os.path.join(CAMPAIGNS_DIR, campaign_id)
@@ -2109,7 +2492,11 @@ def _reconciliation_history_entry(finalization: dict):
     }
 
 
-def _reopen_finalized_session_reconciliation(session_id: str):
+def _reopen_finalized_session_reconciliation(
+    session_id: str,
+    memory_revision=None,
+    generated_digest="",
+):
     """Create a fresh barrier for an explicit rebuild while retaining prior audit metadata."""
     session_id = safe_session_id(session_id)
 
@@ -2138,6 +2525,10 @@ def _reopen_finalized_session_reconciliation(session_id: str):
         reopened["rebuildRequestedAt"] = timestamp
         reopened["rebuildOfFinalizationId"] = str(current.get("finalizationId") or "")
         reopened["reconciliationAttempt"] = int(current.get("reconciliationAttempt") or 0)
+        if memory_revision is not None:
+            reopened["sessionMemoryRevisionAtRebuild"] = int(memory_revision)
+        if generated_digest:
+            reopened["sessionMemoryGeneratedDigestAtRebuild"] = str(generated_digest)
 
         history = status.get("reconciliationHistory")
         history = list(history) if isinstance(history, list) else []
@@ -2762,6 +3153,32 @@ def _run_reconciliation_model_loop(
         request_payload = copy.deepcopy(prepared["request"])
         request_payload["input"] = copy.deepcopy(conversation_input)
 
+def _complete_session_memory_rebuild_revision(session_id, finalization, event_store=None, highlight_store=None):
+    """Write the idempotent canonical-revision marker for a completed rebuild."""
+    finalization = finalization if isinstance(finalization, dict) else {}
+    rebuild_of = str(finalization.get("rebuildOfFinalizationId") or "").strip()
+    if not rebuild_of:
+        return None
+    sid = safe_session_id(session_id)
+    session_dir = os.path.join(UPLOADS_DIR, sid)
+    event_store = event_store or read_event_store(session_dir, sid)
+    highlight_store = highlight_store or read_highlight_store(session_dir, sid)
+    marker = record_session_memory_rebuild(
+        session_dir,
+        sid,
+        event_store,
+        highlight_store,
+        finalization_id=finalization.get("finalizationId"),
+        rebuild_of_finalization_id=rebuild_of,
+        before_generated_digest=finalization.get("sessionMemoryGeneratedDigestAtRebuild") or "",
+        built=True,
+    )
+    return {
+        "operation": marker,
+        "memory": read_session_memory(sid),
+    }
+
+
 def run_structured_reconciliation(
     session_id: str,
     confirm=False,
@@ -2769,6 +3186,8 @@ def run_structured_reconciliation(
     model_client=None,
     benchmark_mode="",
     rebuild=False,
+    confirm_human_edits=False,
+    expected_memory_revision=None,
 ):
     """Run one opt-in, post-session reconciliation. Tests inject model_client."""
     session_id = safe_session_id(session_id)
@@ -2786,6 +3205,29 @@ def run_structured_reconciliation(
         )
     finalization = status.get("finalization") if isinstance(status.get("finalization"), dict) else {}
     state = finalization.get("state")
+    rebuild_memory = read_session_memory(session_id) if rebuild else None
+    historical_rebuild = bool(rebuild and rebuild_memory and rebuild_memory.get("built"))
+    human_edit_protection = {
+        "required": bool(historical_rebuild and rebuild_memory.get("hasHumanEdits")),
+        "hasHumanEdits": bool(rebuild_memory and rebuild_memory.get("hasHumanEdits")),
+        "expectedMemoryRevision": (
+            int(rebuild_memory.get("revision") or 0) if rebuild_memory else None
+        ),
+        "warning": SESSION_MEMORY_HUMAN_EDIT_WARNING,
+    }
+    if human_edit_protection["required"] and not dry_run:
+        if confirm_human_edits is not True:
+            raise ValueError(SESSION_MEMORY_HUMAN_EDIT_WARNING)
+        if isinstance(expected_memory_revision, bool):
+            raise ValueError("expectedMemoryRevision must be an integer.")
+        try:
+            supplied_memory_revision = int(expected_memory_revision)
+        except (TypeError, ValueError):
+            raise ValueError("expectedMemoryRevision is required when rebuilding human-edited memory.") from None
+        if supplied_memory_revision != int(rebuild_memory.get("revision") or 0):
+            raise ValueError(
+                f"Session Memory revision is stale; expected {rebuild_memory.get('revision')}."
+            )
     if state == "finalized" and not rebuild:
         return {
             "ok": True,
@@ -2815,14 +3257,27 @@ def run_structured_reconciliation(
             "benchmark": prepared["benchmark"],
             "diagnostics": diagnostics,
             "finalization": prepared["finalization"],
+            "humanEditProtection": human_edit_protection,
         }
     if state == "finalized" and rebuild:
-        finalization = _reopen_finalized_session_reconciliation(session_id)
+        finalization = _reopen_finalized_session_reconciliation(
+            session_id,
+            memory_revision=(rebuild_memory or {}).get("revision"),
+            generated_digest=(rebuild_memory or {}).get("generatedDigest") or "",
+        )
         status = _session_status_response(session_id)
         state = finalization.get("state")
     if state == "reconciliation_in_progress":
         recovered = _recover_committed_reconciliation(session_id, finalization)
         if recovered:
+            rebuild_revision = _complete_session_memory_rebuild_revision(
+                session_id,
+                recovered.get("finalization") or finalization,
+                recovered.get("eventStore"),
+                recovered.get("highlightStore"),
+            )
+            if rebuild_revision:
+                recovered["sessionMemory"] = rebuild_revision["memory"]
             return recovered
         if finalization.get("reconciliationOwnerStartedAt") == SERVER_STARTED_AT:
             raise ValueError("Session reconciliation is already in progress.")
@@ -2845,6 +3300,7 @@ def run_structured_reconciliation(
             "benchmark": prepared["benchmark"],
             "diagnostics": diagnostics,
             "finalization": prepared["finalization"],
+            "humanEditProtection": human_edit_protection,
         }
 
     reconciliation_id = f"recon_{uuid.uuid4().hex}"
@@ -2933,7 +3389,7 @@ def run_structured_reconciliation(
                 highlight_operation_count=len(highlight_operations),
             ),
         )
-        return {
+        result = {
             "ok": True,
             "sessionId": session_id,
             "modelCalled": True,
@@ -2945,9 +3401,26 @@ def run_structured_reconciliation(
             "usage": usage,
             "diagnostics": diagnostics,
         }
+        rebuild_revision = _complete_session_memory_rebuild_revision(
+            session_id,
+            finalized,
+            batch_result["eventStore"],
+            highlight_batch_result["highlightStore"],
+        )
+        if rebuild_revision:
+            result["sessionMemory"] = rebuild_revision["memory"]
+        return result
     except Exception as exc:
         recovered = _recover_committed_reconciliation(session_id, claimed)
         if recovered:
+            rebuild_revision = _complete_session_memory_rebuild_revision(
+                session_id,
+                recovered.get("finalization") or claimed,
+                recovered.get("eventStore"),
+                recovered.get("highlightStore"),
+            )
+            if rebuild_revision:
+                recovered["sessionMemory"] = rebuild_revision["memory"]
             return recovered
         try:
             _fail_session_reconciliation(session_id, reconciliation_id, str(exc))
@@ -6343,6 +6816,11 @@ class Handler(SimpleHTTPRequestHandler):
         length = int(self.headers.get("Content-Length") or "0")
         return self.rfile.read(length) if length > 0 else b""
 
+    def _local_session_memory_request(self) -> bool:
+        """Keep private Session Memory read/edit APIs on this loopback-only app."""
+        address = str((self.client_address or ("",))[0] or "").strip().lower()
+        return address in {"127.0.0.1", "::1", "localhost"}
+
     def do_GET(self):
         # Root: go to your real file name
         if self.path == "/" or self.path.startswith("/?"):
@@ -6470,6 +6948,56 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
 
+        if parsed.path == "/api/session/memory":
+            if not self._local_session_memory_request():
+                self._send_json(403, {"ok": False, "error": "Session Memory is available only locally."})
+                return
+            try:
+                qs = parse_qs(parsed.query)
+                session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    **_session_memory_api_document(read_session_memory(session_id)),
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/memory/edit-history":
+            if not self._local_session_memory_request():
+                self._send_json(403, {"ok": False, "error": "Session Memory is available only locally."})
+                return
+            try:
+                qs = parse_qs(parsed.query)
+                session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "history": session_memory_edit_history(session_id),
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/dungeonshare/preview":
+            if not self._local_session_memory_request():
+                self._send_json(403, {"ok": False, "error": "Session Memory is available only locally."})
+                return
+            try:
+                qs = parse_qs(parsed.query)
+                session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                campaign_slug = str((qs.get("campaignSlug") or [""])[0]).strip()
+                preview = preview_session_memory_publication(session_id, campaign_slug)
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    **preview,
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
         if parsed.path == "/api/session/events":
             try:
                 qs = parse_qs(parsed.query)
@@ -6578,6 +7106,82 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
 
+        if parsed.path == "/api/session/dungeonshare/publish":
+            if not self._local_session_memory_request():
+                self._send_json(403, {"ok": False, "error": "Session Memory is publishable only locally."})
+                return
+            try:
+                body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
+                data = json.loads(body) if body else {}
+                if not isinstance(data, dict):
+                    raise ValueError("Request must be an object.")
+                allowed = {
+                    "sessionId",
+                    "campaignSlug",
+                    "expectedRevision",
+                    "expectedDigest",
+                    "confirm",
+                }
+                extra = set(data) - allowed
+                if extra:
+                    raise ValueError(
+                        f"Unsupported publish request fields: {', '.join(sorted(extra))}."
+                    )
+                if data.get("confirm") is not True:
+                    raise ValueError("confirm=true is required to publish Session Memory.")
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                campaign_slug = str(data.get("campaignSlug") or "").strip()
+                result = publish_session_memory_to_dungeonshare(
+                    session_id,
+                    campaign_slug,
+                    expected_revision=data.get("expectedRevision"),
+                    expected_digest=data.get("expectedDigest"),
+                )
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    **result,
+                })
+            except DungeonShareConfigurationError as e:
+                self._send_json(503, {"ok": False, "error": str(e)})
+            except ValueError as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            except Exception as e:
+                self._send_json(502, {"ok": False, "error": str(e)})
+            return
+
+        if parsed.path == "/api/session/memory/edit":
+            if not self._local_session_memory_request():
+                self._send_json(403, {"ok": False, "error": "Session Memory is editable only locally."})
+                return
+            try:
+                body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
+                data = json.loads(body) if body else {}
+                if not isinstance(data, dict):
+                    raise ValueError("Request must be an object.")
+                allowed = {"sessionId", "baseRevision", "baseDigest", "changes", "reason"}
+                extra = set(data) - allowed
+                if extra:
+                    raise ValueError(
+                        f"Unsupported edit request fields: {', '.join(sorted(extra))}."
+                    )
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                result = edit_session_memory(
+                    session_id,
+                    base_revision=data.get("baseRevision"),
+                    base_digest=data.get("baseDigest"),
+                    changes=data.get("changes"),
+                    reason=data.get("reason") or "",
+                )
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    **result,
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
         if parsed.path == "/api/session/player/missed":
             try:
                 data = json.loads(self._read_body().decode("utf-8"))
@@ -6615,6 +7219,8 @@ class Handler(SimpleHTTPRequestHandler):
                     dry_run=data.get("dryRun") is True,
                     benchmark_mode=data.get("benchmarkMode") or "",
                     rebuild=data.get("rebuild") is True,
+                    confirm_human_edits=data.get("confirmHumanEdits") is True,
+                    expected_memory_revision=data.get("expectedMemoryRevision"),
                 )
                 self._send_json(200, result)
             except ValueError as e:

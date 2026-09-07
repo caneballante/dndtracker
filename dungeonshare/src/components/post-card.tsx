@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 
 import { MarkdownBody } from "@/components/markdown-body";
+import { SessionMemoryContent } from "@/components/session-memory-content";
 import type { JournalPost, PostKind } from "@/lib/types";
 
 const labels: Record<PostKind, string> = {
@@ -57,7 +58,11 @@ export function PostCard({ post }: { post: JournalPost }) {
         </header>
 
         <div className="entry-prose">
-          <MarkdownBody>{post.body}</MarkdownBody>
+          {post.sessionMemory ? (
+            <SessionMemoryContent payload={post.sessionMemory} />
+          ) : (
+            <MarkdownBody>{post.body}</MarkdownBody>
+          )}
         </div>
 
         {post.media.length > 0 ? (

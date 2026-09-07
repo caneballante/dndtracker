@@ -23,6 +23,7 @@ import { upload } from "@vercel/blob/client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { SessionMemoryContent } from "@/components/session-memory-content";
 import { authClient } from "@/lib/auth-client";
 import type {
   Campaign,
@@ -651,7 +652,11 @@ export function ManagerWorkspace({
             <>
               <header className="editor-heading">
                 <div>
-                  <p className="eyebrow">Edit entry</p>
+                  <p className="eyebrow">
+                    {active.sessionMemory
+                      ? "Published Session Memory"
+                      : "Edit entry"}
+                  </p>
                   <h2>{active.title}</h2>
                 </div>
                 <span className={`status-chip status-${active.status}`}>
@@ -659,6 +664,18 @@ export function ManagerWorkspace({
                 </span>
               </header>
 
+              {active.sessionMemory ? (
+                <div className="editor-fields tracker-memory-readonly">
+                  <div className="tracker-memory-notice">
+                    <strong>Published from DungeonTracker</strong>
+                    <p>
+                      This snapshot is read-only here. Correct the canonical
+                      Session Memory in DungeonTracker, then republish it.
+                    </p>
+                  </div>
+                  <SessionMemoryContent payload={active.sessionMemory} />
+                </div>
+              ) : (
               <div className="editor-fields">
                 <div className="field-grid">
                   <label className="manager-field">
@@ -826,6 +843,7 @@ export function ManagerWorkspace({
                   )}
                 </section>
               </div>
+              )}
 
               {notice ? (
                 <p
@@ -842,6 +860,12 @@ export function ManagerWorkspace({
               ) : null}
 
               <footer className="editor-actions">
+                {active.sessionMemory ? (
+                  <p className="tracker-memory-owner-note">
+                    DungeonTracker owns this record’s content and revision.
+                  </p>
+                ) : (
+                  <>
                 <button
                   className="button button-quiet"
                   disabled={pending}
@@ -890,6 +914,8 @@ export function ManagerWorkspace({
                     <Archive size={16} /> Archive
                   </button>
                 ) : null}
+                  </>
+                )}
               </footer>
             </>
           ) : (
