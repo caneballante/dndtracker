@@ -76,7 +76,8 @@ class LivePlayerAssistantTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"ENABLE_LIVE_PLAYER_ASSISTANT": "0"}):
             self.assertEqual("disabled", self.run_missed()["state"])
         self.client.assert_not_called()
-        self.assertFalse((self.session / live.AUDIT_FILE).exists())
+        rows = [json.loads(line) for line in (self.session / live.AUDIT_FILE).read_text().splitlines()]
+        self.assertEqual(["request_received", "feature_disabled"], [row["state"] for row in rows])
 
     def test_supported_windows_use_timestamps_with_separate_leadin(self):
         for minutes in (2, 5, 10):

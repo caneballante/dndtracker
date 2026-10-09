@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 
   <!-- Bootstrap 5 (CDN) -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/bootstrap.min.css?v=5.3.3" rel="stylesheet">
 
   <style>
     .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
@@ -235,11 +235,51 @@
     .hidden-shell {
       display: none;
     }
+    .capture-global-warning {
+      position: sticky;
+      top: 0;
+      z-index: 2000;
+      padding: 14px 18px;
+      border: 3px solid #7d0000;
+      background: #b00020;
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(70, 0, 0, 0.45);
+      font-weight: 700;
+      letter-spacing: 0.035em;
+    }
+    .capture-interruption {
+      border: 4px solid #8b0000;
+      background: #fff0f0;
+      color: #620000;
+      padding: 16px;
+      border-radius: 12px;
+    }
+    .capture-health-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+    }
+    .capture-health-cell {
+      border: 1px solid #ccd8d0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #f7faf8;
+    }
+    .capture-health-value { font-weight: 700; }
+    .capture-health-danger { color: #a00018 !important; font-weight: 800; }
+    @media (max-width: 700px) { .capture-health-grid { grid-template-columns: 1fr; } }
   </style>
   <link rel="stylesheet" href="/table-ready.css">
 </head>
 
 <body class="bg-light">
+  <div id="captureGlobalWarning" class="capture-global-warning" role="alert" hidden>
+    <div id="captureGlobalWarningText">RECORDING INTERRUPTED — AUDIO CAPTURE STOPPED</div>
+    <div class="mt-2 d-flex flex-wrap gap-2">
+      <button id="captureGlobalViewBtn" type="button" class="btn btn-light btn-sm">VIEW RECORDING STATUS</button>
+      <button id="captureFinishFinalizationBtn" type="button" class="btn btn-warning btn-sm" hidden>FINISH FINALIZATION</button>
+    </div>
+  </div>
   <div class="container-fluid py-3">
     <div class="row justify-content-center">
       <div class="col-12 col-xxl-10">
@@ -361,6 +401,34 @@
                   <div class="small text-muted">Current session campaign: <span id="recording-active-campaign" class="mono">(not started)</span></div>
                 </div>
 
+                <div id="captureHealthPanel" class="mb-3" hidden>
+                  <div class="capture-health-grid">
+                    <div class="capture-health-cell"><div class="soft-label">System Awake</div><div id="captureKeepAwake" class="capture-health-value">—</div></div>
+                    <div class="capture-health-cell"><div class="soft-label">Audio</div><div id="captureAudioHealth" class="capture-health-value">—</div></div>
+                    <div class="capture-health-cell"><div class="soft-label">Last Saved</div><div id="captureLastSaved" class="capture-health-value">—</div></div>
+                    <div class="capture-health-cell"><div class="soft-label">Last browser backup</div><div id="captureLocalSaved" class="capture-health-value">—</div></div>
+                  </div>
+                  <div class="small text-muted mt-2">The sound bar shows microphone input. Browser checkpoints target every 10 seconds; Last Saved confirms a completed file on this PC.</div>
+                  <div id="captureSleepWarning" class="alert alert-warning py-2 px-3 mt-2 mb-0" hidden>SLEEP PROTECTION UNAVAILABLE — recording can continue, but system sleep may interrupt capture.</div>
+                </div>
+
+                <div id="captureSavePanel" class="alert alert-secondary py-2 px-3 mb-3" role="status">
+                  <div id="captureSaveStatus">Checking local audio backup…</div>
+                  <button id="captureRetrySaves" type="button" class="btn btn-outline-secondary btn-sm mt-2" hidden>Retry saving</button>
+                  <button id="captureDownloadPending" type="button" class="btn btn-outline-secondary btn-sm mt-2" hidden>Download pending audio</button>
+                </div>
+
+                <div id="captureInterruptionPanel" class="capture-interruption mb-3" role="alert" hidden>
+                  <div class="h4 mb-1">RECORDING INTERRUPTED</div>
+                  <div class="fw-bold">AUDIO CAPTURE STOPPED</div>
+                  <div id="captureInterruptionDetail" class="mt-2"></div>
+                  <div id="captureGapDetail" class="small mt-1"></div>
+                  <div class="mt-3 d-flex flex-wrap gap-2">
+                    <button id="captureRecoverBtn" type="button" class="btn btn-danger">RECOVER RECORDING</button>
+                    <button id="captureAcknowledgeBtn" type="button" class="btn btn-outline-dark">ACKNOWLEDGE ALARM</button>
+                  </div>
+                </div>
+
               <div class="d-flex flex-wrap gap-2 mb-4">
                 <button id="startBtn" class="btn btn-danger btn-lg big-btn">Start</button>
                 <button id="pauseBtn" class="btn btn-outline-warning btn-lg big-btn" disabled>Pause</button>
@@ -391,6 +459,11 @@
                     <div>
                       <label class="form-label small mb-1">Chunk length (minutes)</label>
                       <input id="chunkMinutes" type="number" class="form-control" value="2" min="1" max="30" style="width:120px;">
+                    </div>
+                    <div class="form-check mt-4">
+                      <input class="form-check-input" type="checkbox" id="recordAudioOnly" checked>
+                      <label class="form-check-label small" for="recordAudioOnly">Offline recording — transcribe later</label>
+                      <div class="small text-muted">Audio stays on this PC. When online, use Backfill Missing Transcripts in Sessions.</div>
                     </div>
                     <div>
                   <label class="form-label small mb-1">Shared secret (optional)</label>
@@ -1207,6 +1280,8 @@
     </div>
   </dialog>
 
+<script src="/recording-storage.js?v=4.5"></script>
+<script src="/capture-reliability.js?v=4.5"></script>
 <script>
 // ================================
 // MAIN APPLICATION MODULE
@@ -1245,6 +1320,25 @@
   const refreshMicsBtn = document.getElementById('refreshMics');
   const resetAudioBtn = document.getElementById('resetAudioBtn');
   const micLevelBarEl = document.getElementById('micLevelBar');
+  const captureGlobalWarningEl = document.getElementById('captureGlobalWarning');
+  const captureGlobalWarningTextEl = document.getElementById('captureGlobalWarningText');
+  const captureGlobalViewBtn = document.getElementById('captureGlobalViewBtn');
+  const captureFinishFinalizationBtn = document.getElementById('captureFinishFinalizationBtn');
+  const captureHealthPanelEl = document.getElementById('captureHealthPanel');
+  const captureKeepAwakeEl = document.getElementById('captureKeepAwake');
+  const captureAudioHealthEl = document.getElementById('captureAudioHealth');
+  const captureLastSavedEl = document.getElementById('captureLastSaved');
+  const captureLocalSavedEl = document.getElementById('captureLocalSaved');
+  const captureSaveStatusEl = document.getElementById('captureSaveStatus');
+  const captureRetrySavesBtn = document.getElementById('captureRetrySaves');
+  const captureDownloadPendingBtn = document.getElementById('captureDownloadPending');
+  const recordAudioOnlyEl = document.getElementById('recordAudioOnly');
+  const captureSleepWarningEl = document.getElementById('captureSleepWarning');
+  const captureInterruptionPanelEl = document.getElementById('captureInterruptionPanel');
+  const captureInterruptionDetailEl = document.getElementById('captureInterruptionDetail');
+  const captureGapDetailEl = document.getElementById('captureGapDetail');
+  const captureRecoverBtn = document.getElementById('captureRecoverBtn');
+  const captureAcknowledgeBtn = document.getElementById('captureAcknowledgeBtn');
 
   let stream = null;
   let recorder = null;
@@ -1260,12 +1354,19 @@
   let chunkTimer = null;
   let stopRequested = false;
   let paused = false;
-  let chunkMs = 0;
+  let chunkMs = 120000;
   let baseMimeType = '';
   let selectedDeviceId = null;
   let meterCtx = null;
   let meterAnalyser = null;
   let meterRaf = null;
+  const recorderStopReasons = new WeakMap();
+  let recorderStarting = false;
+  let recordingSessionMeta = null;
+  let sessionInitPending = false;
+  const initializedQueuedSessions = new Set();
+  let deferTranscription = true;
+  let captureAlertContext = null;
 
   const DEFAULT_MIC_OPTION_VALUE = '__browser_default__';
   let partyRoster = [];
@@ -1323,6 +1424,375 @@
   function normalizeIncludeFlag(value) {
     const s = String(value == null ? 'yes' : value).trim().toLowerCase();
     return !['false', '0', 'no', 'off', 'n', 'exclude', 'excluded'].includes(s);
+  }
+
+  function captureTime(valueMs) {
+    return valueMs != null && Number.isFinite(Number(valueMs)) ? new Date(Number(valueMs)).toLocaleTimeString() : 'none yet';
+  }
+
+  async function localFetch(path, options = {}, timeoutMs = 5000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(path, { ...options, signal: controller.signal });
+      const json = await response.json();
+      return { response, json };
+    } finally { clearTimeout(timer); }
+  }
+
+  async function postCapture(path, body) {
+    const { response, json } = await localFetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok || !json.ok) throw new Error(json?.error || `Capture status request failed (${response.status})`);
+    return json;
+  }
+
+  function captureSignals() {
+    const track = stream?.getAudioTracks?.()[0] || null;
+    return {
+      recorderState: recorderStarting ? 'starting' : (recorder?.state || 'inactive'),
+      streamActive: Boolean(stream?.active),
+      trackState: track?.readyState || 'ended',
+      paused,
+      stopRequested,
+    };
+  }
+
+  function primeCaptureAlert() {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    try {
+      captureAlertContext = captureAlertContext || new AudioCtx();
+      captureAlertContext.resume?.();
+    } catch (_) {}
+  }
+
+  function playCaptureAlert() {
+    primeCaptureAlert();
+    if (!captureAlertContext) return;
+    try {
+      const start = captureAlertContext.currentTime;
+      [0, 0.32, 0.64].forEach((offset, index) => {
+        const oscillator = captureAlertContext.createOscillator();
+        const gain = captureAlertContext.createGain();
+        oscillator.type = 'square';
+        oscillator.frequency.value = index % 2 ? 660 : 880;
+        gain.gain.setValueAtTime(0.16, start + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + offset + 0.22);
+        oscillator.connect(gain).connect(captureAlertContext.destination);
+        oscillator.start(start + offset);
+        oscillator.stop(start + offset + 0.23);
+      });
+    } catch (error) {
+      log(`Capture alert sound unavailable: ${error?.message || error}`);
+    }
+  }
+
+  function renderCaptureHealth(state) {
+    const active = Boolean(state.sessionOpen || state.pendingFinalization || state.partialCapture);
+    if (captureHealthPanelEl) captureHealthPanelEl.hidden = !active;
+    if (captureKeepAwakeEl) captureKeepAwakeEl.textContent = state.keepAwake?.active ? 'ON' : 'OFF';
+    if (captureAudioHealthEl) {
+      captureAudioHealthEl.textContent = state.pendingFinalization?.serverState === 'waiting_for_transcription'
+        ? 'SAVED — TRANSCRIBE LATER' : String(state.state || 'stopped').replaceAll('_', ' ').toUpperCase();
+      captureAudioHealthEl.classList.toggle('capture-health-danger', ['interrupted', 'error'].includes(state.state));
+    }
+    if (captureLastSavedEl) captureLastSavedEl.textContent = captureTime(state.lastChunkAcknowledgedAtMs);
+    if (captureLocalSavedEl) captureLocalSavedEl.textContent = captureTime(state.lastChunkLocallySavedAtMs);
+    if (captureSleepWarningEl) captureSleepWarningEl.hidden = !state.sessionOpen || state.keepAwake?.active;
+
+    const interrupted = state.state === 'interrupted' || state.state === 'recovering';
+    if (captureInterruptionPanelEl) captureInterruptionPanelEl.hidden = !interrupted;
+    if (captureInterruptionDetailEl) {
+      captureInterruptionDetailEl.textContent = `Last confirmed audio: ${captureTime(state.lastChunkAcknowledgedAtMs)}. Reason: ${state.interruptionReason || 'capture health failure'}.`;
+    }
+    const gap = state.openGap || state.gaps?.[state.gaps.length - 1];
+    if (captureGapDetailEl) {
+      const seconds = Number(gap?.durationSeconds);
+      captureGapDetailEl.textContent = gap
+        ? `CAPTURE GAP — ${captureTime(gap.startedAtMs)} → ${gap.endedAtMs ? captureTime(gap.endedAtMs) : 'now'}${Number.isFinite(seconds) ? ` (about ${seconds}s)` : ''}`
+        : 'Possible missing audio begins after the last confirmed upload.';
+    }
+    if (captureAcknowledgeBtn) captureAcknowledgeBtn.disabled = Boolean(state.alertAcknowledged);
+    if (captureRecoverBtn) captureRecoverBtn.disabled = state.state === 'recovering';
+
+    const finalizationProblem = state.state === 'error' && Boolean(state.pendingFinalization);
+    if (captureGlobalWarningEl) captureGlobalWarningEl.hidden = !(interrupted || finalizationProblem);
+    if (captureGlobalWarningTextEl) {
+      captureGlobalWarningTextEl.textContent = finalizationProblem
+        ? 'FINALIZATION NEEDS ATTENTION — THIS SESSION IS SAVED BUT NOT FULLY FINALIZED'
+        : 'RECORDING INTERRUPTED — AUDIO CAPTURE STOPPED';
+    }
+    if (captureFinishFinalizationBtn) captureFinishFinalizationBtn.hidden = !finalizationProblem;
+    if (interrupted || state.state === 'recovered_with_gap' || state.state === 'suspect') setStatus(paused ? 'paused' : 'recording');
+    else if (finalizationProblem) setStatus('stopped');
+  }
+
+  const CaptureController = window.DungeonCaptureReliability?.CaptureReliabilityController;
+  const captureController = CaptureController ? new CaptureController({
+    signalProvider: captureSignals,
+    storage: window.localStorage,
+    document,
+    wakeLockProvider: navigator.wakeLock,
+    sendHeartbeat: (body) => postCapture('/api/session/capture/heartbeat', body),
+    sendDiagnostic: (event, details) => postCapture('/api/session/capture/event', {
+      sessionId: captureController.snapshot().sessionId,
+      event,
+      details: { ...details, clientTimestampMs: Date.now(), clientBuild: '4.5-checkpoints' }
+    }),
+    onState: renderCaptureHealth,
+    onAlert: playCaptureAlert,
+  }) : null;
+
+  const Storage = window.DungeonRecordingStorage;
+  const recordingQueue = Storage ? new Storage.DurableChunkQueue({
+    store: new Storage.IndexedDBChunkStore(window.indexedDB),
+    prepare: async item => {
+      if (/webm|ogg/i.test(item.mimeType)) {
+        try { return { blob: await blobToWav(item.blob), mimeType: 'audio/wav' }; }
+        catch (_) { log(`Chunk ${item.index}: preserving the original recording format.`); }
+      }
+      return { blob: item.blob, mimeType: item.mimeType };
+    },
+    upload: async (item) => {
+      const health = await localFetch('/api/recording/health');
+      if (!health.response.ok || health.json.serverBuild !== '4.5-checkpoints') {
+        throw new Error('The local server needs the recording update. Audio remains backed up; restart the server when safe.');
+      }
+      if (item.sessionMeta && !initializedQueuedSessions.has(item.sessionId)) {
+        await postCapture('/api/session/start', item.sessionMeta);
+        initializedQueuedSessions.add(item.sessionId);
+        if (String(sessionId) === item.sessionId) sessionInitPending = false;
+      }
+      if (String(sessionId) === item.sessionId) captureController?.chunkUploadStarted(item.index);
+      return uploadChunk(item);
+    },
+    onState: (state) => {
+      captureController?.updateSaveQueue(state);
+      captureSaveStatusEl.textContent = state.storageError
+        ? `BROWSER BACKUP FAILED: ${state.storageError}. Keep this page open and download pending audio.`
+        : !state.ready ? 'Local backup unavailable. Recording cannot start until backup is ready.'
+        : state.blocked ? `${state.pending} chunk(s) retained; ${state.blocked} need attention: ${state.lastError}`
+        : state.pending ? `${state.pending} chunk(s) backed up in this browser, waiting to save on this PC. ${state.lastError || 'Saves retry automatically.'}`
+        : 'Local audio backup ready. Completed chunks save on this PC; recording does not need internet.';
+      captureRetrySavesBtn.hidden = !state.pending;
+      captureDownloadPendingBtn.hidden = !state.pending;
+    },
+    onSaved: (item, result) => {
+      setTimeout(() => settlePendingFinalizations(), 0);
+      if (String(sessionId) !== item.sessionId) return;
+      captureController?.chunkAcknowledged(item.index);
+      log(`Chunk ${item.index} saved on this PC${item.deferTranscription ? '; transcription deferred' : ''}.`);
+      if (showPlaybackEl?.checked && result.url) {
+        latestChunkLinkEl.href = result.url;
+        latestChunkLinkEl.style.display = 'inline';
+      }
+    },
+  }) : null;
+  let recordingOwnedElsewhere = false;
+  const recordingQueueReady = recordingQueue ? (async () => {
+    const lease = await Storage.acquireRecordingLease(navigator.locks);
+    if (!lease) throw Object.assign(new Error('Another tracker tab owns recording and pending saves. Use that tab, or close it and reload this one.'), { otherOwner: true });
+    await recordingQueue.init();
+    navigator.storage?.persist?.().catch(() => {});
+  })().catch(error => {
+    recordingQueue.storageError = error.message;
+    recordingQueue.emit();
+    startBtn.disabled = true;
+    captureRecoverBtn.disabled = true;
+    if (error.otherOwner) {
+      recordingOwnedElsewhere = true;
+      captureGlobalWarningEl.hidden = false;
+      captureGlobalWarningTextEl.textContent = 'RECORDING IS MANAGED IN ANOTHER TAB';
+      captureInterruptionPanelEl.hidden = true;
+      captureHealthPanelEl.hidden = true;
+      captureSaveStatusEl.textContent = error.message;
+      setStatus('another tab');
+    }
+    log(`LOCAL BACKUP ERROR: ${error.message}`);
+  }) : Promise.resolve();
+  captureRetrySavesBtn?.addEventListener('click', () => recordingQueue?.retry());
+  captureDownloadPendingBtn?.addEventListener('click', async () => {
+    for (const item of recordingQueue?.items.values() || []) {
+      const extension = /wav/i.test(item.mimeType) ? 'wav' : /ogg/i.test(item.mimeType) ? 'ogg' : /mp4/i.test(item.mimeType) ? 'mp4' : 'webm';
+      const blob = item.blob || (await recordingQueue.store.get(item.id))?.blob;
+      if (!blob) { log(`Could not read pending chunk ${item.index}.`); continue; }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = `session_${item.sessionId}_chunk_${String(item.index).padStart(4, '0')}.${extension}`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+  });
+  window.addEventListener('online', () => recordingQueue?.retry());
+
+  function attachCaptureStreamHandlers(activeStream) {
+    if (!activeStream) return;
+    activeStream.addEventListener?.('inactive', () => {
+      if (stream === activeStream && !stopRequested && captureController?.snapshot().state !== 'recovering') captureController?.streamInactive();
+    }, { once: true });
+    activeStream.getAudioTracks?.().forEach((track) => {
+      track.addEventListener?.('ended', () => {
+        if (stream === activeStream && !stopRequested && captureController?.snapshot().state !== 'recovering') captureController?.trackEnded();
+      }, { once: true });
+    });
+  }
+
+  async function recoverCapture() {
+    if (!captureController?.beginRecovery()) return;
+    startBtn.disabled = true;
+    try {
+      await recordingQueueReady;
+      if (!recordingQueue?.ready) throw new Error('Local audio backup is not ready.');
+      chunkMs = Math.max(60000, Number(captureController.snapshot().chunkIntervalMs) || 120000);
+      let statusJson = {};
+      try {
+        const result = await localFetch(`/api/session/status?sessionId=${encodeURIComponent(sessionId)}&_t=${Date.now()}`, { cache: 'no-store' });
+        if (result.response.ok && result.json.ok) statusJson = result.json;
+      } catch (_) { log('Recovering from browser checkpoints; the local server will reconnect automatically.'); }
+      const serverIndexes = Array.isArray(statusJson?.status?.chunks)
+        ? statusJson.status.chunks.map((item) => Number(item?.chunkIndex)).filter(Number.isInteger)
+        : [];
+      const highestServerChunk = serverIndexes.length ? Math.max(...serverIndexes) : -1;
+      highestEmittedChunkIndex = Math.max(highestEmittedChunkIndex, highestServerChunk, recordingQueue.highestIndex(sessionId));
+      chunkIndex = Math.max(chunkIndex, highestEmittedChunkIndex + 1, Number(localStorage.getItem(`dungeontracker.next.${sessionId}`)) || 0);
+      chunkCounterEl.textContent = String(chunkIndex);
+      stopChunkTimer();
+      if (recorder) {
+        recorderStopReasons.set(recorder, 'recovery');
+        if (recorder.state !== 'inactive') recorder.stop();
+      }
+      const oldStream = stream;
+      stream = null;
+      oldStream?.getTracks().forEach((track) => track.stop());
+      const audioConstraints = selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true;
+      stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      attachCaptureStreamHandlers(stream);
+      startMeter(stream);
+      stopRequested = false;
+      paused = false;
+      deferTranscription = recordAudioOnlyEl.checked;
+      localStorage.setItem('dungeontracker.recording.session', JSON.stringify({ sessionId, sessionMeta: recordingSessionMeta, deferTranscription, sessionInitPending }));
+      recordAudioOnlyEl.disabled = true;
+      baseMimeType = pickMimeType();
+      startRecorderCycle();
+      pauseBtn.disabled = false;
+      resumeBtn.disabled = true;
+      stopBtn.disabled = false;
+    } catch (error) {
+      startBtn.disabled = false;
+      captureController.recoveryFailed(error);
+      log(`CAPTURE RECOVERY FAILED: ${error?.message || error}`);
+    }
+  }
+
+  async function finishPendingFinalization() {
+    const pending = captureController?.snapshot().pendingFinalization;
+    if (!pending?.sessionId || !Number.isInteger(Number(pending.finalExpectedChunkIndex))) return;
+    sessionId = String(pending.sessionId);
+    sessionIdEl.textContent = sessionId;
+    try {
+      await recordingQueueReady;
+      recordingQueue.retry();
+      if (!pendingFinalizations[sessionId]) {
+        pendingFinalizations[sessionId] = { sessionId, finalExpectedChunkIndex: Number(pending.finalExpectedChunkIndex), deferTranscription };
+        persistFinalizations();
+      }
+      await settlePendingFinalizations();
+    } catch (error) {
+      captureController.finalizeFailed(error);
+      log(`FINALIZATION ERROR: ${error.message}`);
+    }
+  }
+
+  const finalizationStorageKey = 'dungeontracker.finalizations.v1';
+  let pendingFinalizations = {};
+  try { pendingFinalizations = JSON.parse(localStorage.getItem(finalizationStorageKey) || '{}'); } catch (_) {}
+  if (!pendingFinalizations || typeof pendingFinalizations !== 'object' || Array.isArray(pendingFinalizations)) pendingFinalizations = {};
+  let settlingFinalizations = false;
+  function persistFinalizations() {
+    localStorage.setItem(finalizationStorageKey, JSON.stringify(pendingFinalizations));
+  }
+  async function settlePendingFinalizations() {
+    if (settlingFinalizations || !recordingQueue?.ready) return;
+    settlingFinalizations = true;
+    try {
+      for (const [id, job] of Object.entries(pendingFinalizations)) {
+        if ([...recordingQueue.items.values()].some(item => item.sessionId === id)) continue;
+        try {
+          const json = await postCapture('/api/session/finalize', job);
+          delete pendingFinalizations[id];
+          persistFinalizations();
+          if (String(sessionId) === id && !captureController?.snapshot().sessionOpen) {
+            captureController?.finalizationPending(job.deferTranscription ? 'waiting_for_transcription' : json.finalization?.state);
+            if (!job.deferTranscription && typeof window.buildSessionMemoryAfterStop === 'function') {
+              try { await window.buildSessionMemoryAfterStop(id); }
+              catch (error) { log(`Audio is saved; Session Memory needs a retry: ${error.message}`); }
+            }
+          }
+          log(`Session ${id}: all audio saved; finalization accepted.`);
+        } catch (_) {
+          if (String(sessionId) === id) captureController?.finalizationPending('waiting_for_server');
+        }
+      }
+    } finally { settlingFinalizations = false; }
+  }
+  setInterval(settlePendingFinalizations, 10000);
+
+  captureRecoverBtn?.addEventListener('click', recoverCapture);
+  captureAcknowledgeBtn?.addEventListener('click', () => captureController?.acknowledgeAlert());
+  captureGlobalViewBtn?.addEventListener('click', () => captureInterruptionPanelEl?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  captureFinishFinalizationBtn?.addEventListener('click', finishPendingFinalization);
+  navigator.mediaDevices?.addEventListener?.('devicechange', () => {
+    const current = captureController?.snapshot();
+    if (current?.sessionOpen) captureController.sendDiagnostic('device_change', {}).catch(() => {});
+  });
+  window.addEventListener('beforeunload', (event) => {
+    if (!captureController?.requiresUnloadWarning() && !recordingQueue?.snapshot().pending) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+  window.tableCaptureReliability = {
+    get: () => captureController?.snapshot() || null,
+    recover: recoverCapture,
+    finishFinalization: finishPendingFinalization,
+    finalizationReady: () => captureController?.finalizeCompleted(),
+  };
+
+  const restoredCapture = captureController?.restorePending();
+  if (!captureController) {
+    startBtn.disabled = true;
+    captureGlobalWarningEl.hidden = false;
+    captureGlobalWarningTextEl.textContent = 'CAPTURE SAFETY UNAVAILABLE — RECORDING IS DISABLED';
+    log('CAPTURE SAFETY ERROR: reliability controller did not load. Recording is disabled.');
+  }
+  if (restoredCapture?.sessionId) {
+    sessionId = String(restoredCapture.sessionId);
+    sessionIdEl.textContent = sessionId;
+    chunkMs = Math.max(60000, Number(restoredCapture.chunkIntervalMs) || 120000);
+    chunkMinutesEl.value = String(chunkMs / 60000);
+    try {
+      const saved = JSON.parse(localStorage.getItem('dungeontracker.recording.session') || 'null');
+      if (saved?.sessionId === sessionId) {
+        recordingSessionMeta = saved.sessionMeta;
+        sessionInitPending = Boolean(saved.sessionInitPending);
+        deferTranscription = saved.deferTranscription !== false;
+        recordAudioOnlyEl.checked = deferTranscription;
+      }
+    } catch (_) {}
+    if (restoredCapture.lastAcknowledgedChunkIndex != null && Number.isInteger(Number(restoredCapture.lastAcknowledgedChunkIndex))) {
+      highestEmittedChunkIndex = Number(restoredCapture.lastAcknowledgedChunkIndex);
+      chunkIndex = highestEmittedChunkIndex + 1;
+      chunkCounterEl.textContent = String(chunkIndex);
+    }
+    if (restoredCapture.pendingFinalization) {
+      log(`Session ${sessionId} was stopped but finalization is incomplete. Use FINISH FINALIZATION.`);
+    } else {
+      log(`Session ${sessionId} was open when this page closed. Recording is interrupted; recover it explicitly.`);
+    }
   }
 
   function escapeHtml(value) {
@@ -1614,8 +2084,39 @@
   }
 
   function setStatus(state) {
+    const capture = captureController?.snapshot();
     statusDot.classList.remove('dot-idle', 'dot-rec', 'dot-stop', 'dot-warn', 'dot-pause');
-    statusText.classList.remove('text-warning');
+    statusText.classList.remove('text-warning', 'capture-health-danger');
+
+    if (recordingOwnedElsewhere || state === 'another tab') {
+      statusDot.classList.add('dot-idle');
+      statusText.textContent = 'Recording managed in another tab';
+      return;
+    }
+    if (capture?.state === 'interrupted' || capture?.state === 'recovering') {
+      statusDot.classList.add('dot-warn');
+      statusText.textContent = capture.state === 'recovering' ? 'Recording recovery in progress' : 'RECORDING INTERRUPTED';
+      statusText.classList.add('capture-health-danger');
+      return;
+    }
+    if (capture?.state === 'suspect' && state !== 'paused') {
+      statusDot.classList.add('dot-warn');
+      statusText.textContent = 'Recording — audio health suspect';
+      statusText.classList.add('text-warning');
+      return;
+    }
+    if (capture?.state === 'recovered_with_gap' && state === 'recording') {
+      statusDot.classList.add('dot-warn');
+      statusText.textContent = 'Recording — recovered with capture gap';
+      statusText.classList.add('text-warning');
+      return;
+    }
+    if (capture?.state === 'error' && capture?.pendingFinalization) {
+      statusDot.classList.add('dot-warn');
+      statusText.textContent = 'FINALIZATION NEEDS ATTENTION';
+      statusText.classList.add('capture-health-danger');
+      return;
+    }
 
     if (state === 'recording') {
       statusDot.classList.add('dot-rec');
@@ -1800,10 +2301,10 @@
     if (!AudioCtx) throw new Error('AudioContext not supported in this browser.');
 
     const audioCtx = new AudioCtx();
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-    const wavBuffer = encodeWav(audioBuffer);
-    await audioCtx.close();
-    return new Blob([wavBuffer], { type: 'audio/wav' });
+    try {
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      return new Blob([encodeWav(audioBuffer)], { type: 'audio/wav' });
+    } finally { await audioCtx.close(); }
   }
 
   function encodeWav(audioBuffer) {
@@ -1887,18 +2388,23 @@ async function postMetaOnce() {
   log('Saved party metadata (party.txt).');
 }
 
-  async function uploadChunk(blob, mimeType, index) {
-    const url = `/api/upload?sessionId=${encodeURIComponent(sessionId)}&chunkIndex=${encodeURIComponent(String(index))}`;
+  async function uploadChunk(item) {
+    const { blob, mimeType, index } = item;
+    const url = `/api/upload?sessionId=${encodeURIComponent(item.sessionId)}&chunkIndex=${encodeURIComponent(String(index))}&deferTranscription=${item.deferTranscription ? '1' : '0'}&sourceSha256=${item.sourceSha256 || ''}`;
 
-    const res = await fetch(url, {
+    const { response: res, json } = await localFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': blob.type || mimeType || 'application/octet-stream' },
       body: blob
-    });
-
-    const json = await res.json().catch(() => ({}));
+    }, 30000);
     if (!res.ok || !json.ok) {
-      throw new Error(json?.error || `${res.status} Upload failed`);
+      const error = new Error(json?.error || `${res.status} Save failed`);
+      error.permanent = [400, 401, 403, 409, 413, 415].includes(res.status);
+      throw error;
+    }
+    const sameSource = item.sourceSha256 && json.sourceSha256 === item.sourceSha256;
+    if ((!sameSource && Number(json.bytes) !== blob.size) || String(json.sessionId) !== item.sessionId || Number(json.chunkIndex) !== index) {
+      throw new Error('Save receipt did not confirm this complete audio chunk. Retrying retained audio.');
     }
     return json;
   }
@@ -1917,28 +2423,21 @@ async function postMetaOnce() {
   }
 
   function finalizeStoppedSession() {
+    recordAudioOnlyEl.disabled = false;
     if (stopFinalizationPromise) return stopFinalizationPromise;
     const stoppedSessionId = sessionId;
     const finalExpectedChunkIndex = highestEmittedChunkIndex;
+    captureController?.beginFinalization(finalExpectedChunkIndex);
     stopFinalizationPromise = (async () => {
       await waitForPendingChunkUploads();
-      const res = await fetch('/api/session/finalize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: stoppedSessionId, finalExpectedChunkIndex })
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.ok) {
-        throw new Error(json?.error || `Session finalization failed (${res.status})`);
-      }
-      const state = json?.finalization?.state || 'recording_stopped';
-      log(`Server finalization state: ${state}.`);
-      if (typeof window.buildSessionMemoryAfterStop === 'function') {
-        await window.buildSessionMemoryAfterStop(stoppedSessionId);
-      }
-      return json;
+      pendingFinalizations[String(stoppedSessionId)] = { sessionId: stoppedSessionId, finalExpectedChunkIndex, deferTranscription };
+      persistFinalizations();
+      captureController?.finalizationPending('waiting_for_saves');
+      await settlePendingFinalizations();
+      return { ok: true, pending: Boolean(pendingFinalizations[String(stoppedSessionId)]) };
     })().catch((err) => {
       log(`FINALIZATION ERROR: ${err.message}`);
+      captureController?.finalizeFailed(err);
       return null;
     }).finally(() => {
       startBtn.disabled = false;
@@ -1955,83 +2454,91 @@ async function postMetaOnce() {
   function startRecorderCycle() {
     if (!stream) return;
     if (paused) return;
+    if (recorder && recorder.state !== 'inactive') return;
+    chunkMs = Math.max(60000, Number(chunkMs) || 120000);
 
     const mimeType = baseMimeType || pickMimeType();
-    recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-    const effectiveMimeType = recorder.mimeType || mimeType || 'audio/webm';
+    const activeRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    recorder = activeRecorder;
+    const cycleSessionId = String(sessionId);
+    const cycleDeferTranscription = deferTranscription;
+    const cycleSessionMeta = sessionInitPending ? recordingSessionMeta : null;
+    const effectiveMimeType = activeRecorder.mimeType || mimeType || 'audio/webm';
+    const index = Math.max(chunkIndex, Number(localStorage.getItem(`dungeontracker.next.${cycleSessionId}`)) || 0);
+    // The tab lease makes this monotonic allocation exclusive, including offline recovery.
+    localStorage.setItem(`dungeontracker.next.${cycleSessionId}`, String(index + 1));
+    chunkIndex = index + 1;
+    const pieces = [];
+    const journalIds = [];
+    let checkpointTail = Promise.resolve();
+    recorderStarting = true;
 
-    recorder.onstart = () => {
-      if (!tokenEl.value.trim()) setStatus('recording-unsecured');
-      else setStatus('recording');
+    activeRecorder.onstart = () => {
+      if (recorder !== activeRecorder) return;
+      recorderStarting = false;
+      setStatus('recording');
       log(`Recording started. mimeType=${effectiveMimeType}`);
       startCountdown(chunkMs);
+      captureController?.recorderStarted();
+      if (captureController?.snapshot().state === 'recovering') captureController.recovered();
     };
 
-    recorder.ondataavailable = async (evt) => {
+    activeRecorder.ondataavailable = async (evt) => {
       if (!evt.data || evt.data.size === 0) return;
+      const part = pieces.length;
+      pieces.push(evt.data);
+      journalIds.push(`${cycleSessionId}:checkpoint:${index}:${part}`);
+      checkpointTail = checkpointTail.then(async () => {
+        const saved = await recordingQueue.checkpoint({ sessionId: cycleSessionId, index, part,
+          blob: evt.data, mimeType: effectiveMimeType, deferTranscription: cycleDeferTranscription,
+          sessionMeta: cycleSessionMeta });
+        if (saved) captureController?.chunkLocallySaved();
+      }).catch(error => log(`CHECKPOINT WARNING: ${error.message}. Keep the page open.`));
+      return checkpointTail;
+    };
 
-      const index = chunkIndex;
-      chunkIndex += 1;
+    async function finishCycleAudio() {
+      if (!pieces.length) return;
       highestEmittedChunkIndex = Math.max(highestEmittedChunkIndex, index);
       pendingChunkUploads += 1;
+      captureController?.chunkEmitted(index);
       chunkCounterEl.textContent = String(chunkIndex);
-      const originalBlob = evt.data;
+      const originalBlob = new Blob(pieces, { type: effectiveMimeType });
 
-      log(`Chunk ${index} ready (${Math.round(originalBlob.size/1024)} KB). Converting to WAV…`);
+      log(`Chunk ${index} ready (${Math.round(originalBlob.size/1024)} KB). Backing up locally…`);
 
       try {
-        await postMetaOnce();
-
-        let uploadBlob = originalBlob;
-        let uploadType = originalBlob.type || effectiveMimeType || 'application/octet-stream';
-
-        const typeHint = uploadType.toLowerCase();
-        const canConvertToWav = typeHint.includes('webm') || typeHint.includes('ogg');
-
-        if (canConvertToWav) {
-          try {
-            const wavBlob = await blobToWav(originalBlob);
-            uploadBlob = wavBlob;
-            uploadType = 'audio/wav';
-            log(`Chunk ${index} converted (${Math.round(wavBlob.size/1024)} KB). Uploading…`);
-          } catch (convErr) {
-            log(`WAV conversion failed for chunk ${index} (${convErr?.message || convErr}). Uploading original…`);
-          }
-        } else {
-          log(`Skipping WAV conversion for chunk ${index} (${uploadType}). Uploading original…`);
-        }
-
-        const result = await uploadChunk(uploadBlob, uploadType, index);
-        log(`Chunk ${index} uploaded OK.`);
-
-          const showPlayback = showPlaybackEl ? showPlaybackEl.checked : true;
-          if (showPlayback) {
-            if (result?.url) {
-              latestChunkLinkEl.href = result.url;
-              latestChunkLinkEl.style.display = 'inline';
-            } else if (result?.filename) {
-              const params = new URLSearchParams({ sessionId, filename: result.filename });
-              latestChunkLinkEl.href = `/api/session/audio?${params.toString()}`;
-              latestChunkLinkEl.style.display = 'inline';
-            }
-          } else {
-            latestChunkLinkEl.style.display = 'none';
-          }
-
+        await checkpointTail;
+        const backedUp = await recordingQueue.enqueue({ sessionId: cycleSessionId, index,
+          blob: originalBlob, mimeType: originalBlob.type || effectiveMimeType,
+          deferTranscription: cycleDeferTranscription, sessionMeta: cycleSessionMeta, journalIds });
+        if (backedUp) captureController?.chunkLocallySaved();
       } catch (e) {
-        log(`UPLOAD ERROR on chunk ${index}: ${e.message}`);
+        log(`LOCAL BACKUP ERROR on chunk ${index}: ${e.message}. Keep this page open.`);
       } finally {
         finishPendingChunkUpload();
       }
+    }
+
+    activeRecorder.onerror = (e) => {
+      if (recorder !== activeRecorder || recorderStopReasons.get(activeRecorder) === 'recovery') return;
+      const error = e?.error || e;
+      log(`Recorder error: ${error?.message || error}`);
+      captureController?.recorderError(error);
     };
 
-    recorder.onerror = (e) => log(`Recorder error: ${e?.error?.message || e.message || e}`);
-
-    recorder.onstop = () => {
+    activeRecorder.onstop = () => {
+      // Final dataavailable precedes stop. Queue it even for a replaced recorder.
+      finishCycleAudio();
+      const expectedStop = recorderStopReasons.get(activeRecorder);
+      recorderStopReasons.delete(activeRecorder);
+      if (recorder !== activeRecorder || expectedStop === 'recovery') return;
+      recorderStarting = false;
       stopChunkTimer();
       stopCountdown();
 
       if (stopRequested) {
+        recordAudioOnlyEl.disabled = false;
         if (stream) stream.getTracks().forEach((t) => t.stop());
         stream = null;
         recorder = null;
@@ -2046,17 +2553,22 @@ async function postMetaOnce() {
         return;
       }
 
-      // Start next chunk after a short delay
-      setTimeout(() => {
-        if (!stopRequested && !paused) startRecorderCycle();
-      }, 150);
+      if (!expectedStop && !paused) {
+        captureController?.unexpectedRecorderStop();
+        return;
+      }
+
+      // Restart immediately; never add a deliberate silent gap between chunks.
+      recorderStarting = !paused;
+      if (recorder === activeRecorder && !stopRequested && !paused) startRecorderCycle();
     };
 
-    recorder.start();
+    activeRecorder.start(10000);
     stopChunkTimer();
     chunkTimer = setTimeout(() => {
-      if (recorder && recorder.state !== 'inactive') {
-        recorder.stop();
+      if (recorder === activeRecorder && activeRecorder.state !== 'inactive') {
+        recorderStopReasons.set(activeRecorder, 'chunk_rollover');
+        activeRecorder.stop();
       }
     }, chunkMs);
   }
@@ -2064,9 +2576,14 @@ async function postMetaOnce() {
   // START BUTTON HANDLER
   // ================================
   startBtn.addEventListener('click', async () => {
+    if (stream?.active) return;
     try {
+      startBtn.disabled = true;
+      await recordingQueueReady;
+      if (!recordingQueue?.ready) throw new Error('Local audio backup is unavailable. Reopen the tracker in a browser with local storage enabled.');
+      primeCaptureAlert();
       const mins = Number(chunkMinutesEl.value);
-      if (!Number.isFinite(mins) || mins < 1) throw new Error('Chunk length must be 1+ minutes.');
+      if (!Number.isFinite(mins) || mins < 1 || mins > 30) throw new Error('Chunk length must be between 1 and 30 minutes.');
       chunkMs = mins * 60 * 1000;
 
       sessionId = String(Date.now());
@@ -2084,16 +2601,20 @@ async function postMetaOnce() {
       const requestedSessionName = (sessionNameInputEl?.value || '').trim();
       const selectedCampaignId = String(campaignSelectEl?.value || 'default').trim() || 'default';
       const requestedParty = (partyMetaEl?.value || '').trim();
-      const startRes = await fetch('/api/session/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, sessionName: requestedSessionName, campaignId: selectedCampaignId, party: requestedParty })
-      });
-      const startJson = await startRes.json().catch(() => ({}));
-      if (!startRes.ok || !startJson.ok) {
-        throw new Error(startJson?.error || `Session start failed (HTTP ${startRes.status})`);
-      }
-      log('Session initialized.');
+      recordingSessionMeta = { sessionId, sessionName: requestedSessionName, campaignId: selectedCampaignId, party: requestedParty };
+      deferTranscription = recordAudioOnlyEl.checked;
+      recordAudioOnlyEl.disabled = true;
+      sessionInitPending = true;
+      localStorage.setItem('dungeontracker.recording.session', JSON.stringify({ sessionId, sessionMeta: recordingSessionMeta, deferTranscription, sessionInitPending }));
+      const initializingId = sessionId;
+      const startJson = {};
+      postCapture('/api/session/start', recordingSessionMeta).then(() => {
+        if (sessionId !== initializingId) return;
+        sessionInitPending = false;
+        localStorage.setItem('dungeontracker.recording.session', JSON.stringify({ sessionId, sessionMeta: recordingSessionMeta, deferTranscription, sessionInitPending }));
+        log('Session initialized on this PC.');
+      }).catch(error => log(`Local server unavailable: ${error.message}. Audio will stay in browser storage until saving resumes.`));
+      log('Session initialized in browser storage.');
 
       sessionIdEl.textContent = sessionId;
       if (sessionNameInputEl && startJson?.sessionName) {
@@ -2120,12 +2641,31 @@ async function postMetaOnce() {
         ? { deviceId: { exact: selectedDeviceId } }
         : true;
       stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      attachCaptureStreamHandlers(stream);
       const activeTrack = stream.getAudioTracks ? stream.getAudioTracks()[0] : null;
       if (activeTrack) {
         log(`Using mic input: ${activeTrack.label || '(unknown device)'}`);
       }
       startMeter(stream);
       baseMimeType = pickMimeType();
+      if (captureController) {
+        await captureController.start({ sessionId, chunkIntervalMs: chunkMs });
+        startRecorderCycle();
+        try {
+          const captureStart = await postCapture('/api/session/capture/start', {
+            sessionId,
+            clientTimestampMs: Date.now(),
+            chunkIntervalSeconds: Math.round(chunkMs / 1000),
+            watchdogGraceSeconds: 30,
+            ...captureSignals(),
+            screenWakeLock: captureController.snapshot().screenWakeLock,
+          });
+          captureController.setKeepAwake(captureStart.capture?.keepAwake || {});
+        } catch (captureError) {
+          captureController.setKeepAwake({ supported: true, active: false, error: captureError.message });
+          log(`SLEEP PROTECTION UNAVAILABLE: ${captureError.message}`);
+        }
+      }
       startRecorderCycle();
 
       startBtn.disabled = true;
@@ -2138,11 +2678,13 @@ async function postMetaOnce() {
       setStatus('idle');
       stopCountdown();
       stopChunkTimer();
+      recorderStarting = false;
       if (stream) stream.getTracks().forEach(t => t.stop());
       stream = null;
       recorder = null;
       stopMeter();
-      startBtn.disabled = false;
+      recordAudioOnlyEl.disabled = false;
+      startBtn.disabled = !recordingQueue?.ready;
       pauseBtn.disabled = true;
       resumeBtn.disabled = true;
       stopBtn.disabled = true;
@@ -2176,6 +2718,7 @@ async function postMetaOnce() {
     setStatus('paused');
 
     if (recorder && recorder.state !== 'inactive') {
+      recorderStopReasons.set(recorder, 'pause');
       recorder.stop();
     } else {
       log('Paused.');
@@ -2205,6 +2748,7 @@ async function postMetaOnce() {
     paused = false;
 
     if (recorder && recorder.state !== 'inactive') {
+      recorderStopReasons.set(recorder, 'stop_requested');
       recorder.stop();
     } else {
       stopChunkTimer();
@@ -4691,7 +5235,13 @@ async function postMetaOnce() {
         opt.value = s.sessionId;
         const ts = new Date((s.updatedAt || 0) * 1000).toLocaleString();
         const label = (s.sessionName && String(s.sessionName).trim()) ? String(s.sessionName).trim() : s.sessionId;
-        opt.textContent = `${label} • ${ts} • chunks=${s.chunkCount}`;
+        const captureTags = [];
+        if (s.captureStatus === 'interrupted') captureTags.push('INTERRUPTED');
+        if (s.captureStatus === 'recovered_with_gap' || s.recoveredWithGap) captureTags.push('RECOVERED WITH GAP');
+        if (s.partialCapture) captureTags.push('PARTIAL CAPTURE');
+        if (['waiting_for_uploads', 'waiting_for_transcription', 'recording_stopped'].includes(s.finalizationStatus)
+            || s.captureStatus === 'finalizing' || s.captureStatus === 'error') captureTags.push('FINALIZATION INCOMPLETE');
+        opt.textContent = `${captureTags.length ? `[${captureTags.join(' · ')}] ` : ''}${label} • ${ts} • chunks=${s.chunkCount}`;
         sessionsSelectEl.appendChild(opt);
       });
       if (sessionsSelectEl.options.length > 0) {
@@ -4715,7 +5265,16 @@ async function postMetaOnce() {
       if (currentHistorySessionId() !== sessionId) return;
       window.tableHistoryCampaignId = json.campaignId || '';
 
-      if (sessionsInfoEl) sessionsInfoEl.textContent = 'Session ' + sessionId + (json.campaignName ? ` | Campaign: ${json.campaignName}` : '');
+      if (sessionsInfoEl) {
+        const capture = json.capture || {};
+        const labels = [];
+        if (capture.state === 'interrupted') labels.push('INTERRUPTED');
+        if (capture.state === 'recovered_with_gap' || capture.recoveredWithGap) labels.push('RECOVERED WITH GAP');
+        if (capture.partialCapture) labels.push('PARTIAL CAPTURE');
+        if (capture.pendingFinalization?.state === 'pending' || capture.pendingFinalization?.state === 'failed') labels.push('FINALIZATION INCOMPLETE');
+        sessionsInfoEl.textContent = 'Session ' + sessionId + (json.campaignName ? ` | Campaign: ${json.campaignName}` : '')
+          + (labels.length ? ` | ${labels.join(' · ')}` : '');
+      }
       if (sessionsNameInputEl) sessionsNameInputEl.value = json.sessionName || '';
       setSessionsRosterFromText(json.party || '', json.party ? 'Loaded saved session roster.' : 'No saved roster found for this session.');
       await loadSessionCampaignOptions(json.campaignId || 'default');
@@ -4963,6 +5522,7 @@ async function postMetaOnce() {
       currentSessionMemoryStatus = status;
       const state = String(status?.finalization?.state || 'not_finalized');
       if (['ready_for_reconciliation', 'reconciliation_error', 'finalized'].includes(state)) {
+        window.tableCaptureReliability?.finalizationReady?.();
         return status;
       }
       if (state === 'waiting_for_uploads') {
@@ -4985,6 +5545,7 @@ async function postMetaOnce() {
       if (state !== 'reconciliation_in_progress' && Number(status?.evidence?.availableChunkCount || 0) < 1) {
         throw new Error('No saved transcript chunks are available for Session Memory.');
       }
+      if (state !== 'reconciliation_in_progress') window.tableCaptureReliability?.finalizationReady?.();
       return status;
     }
     if (state === 'not_finalized') {
@@ -5057,6 +5618,26 @@ async function postMetaOnce() {
         return null;
       }
       if (status.enabled === false) throw new Error('Session Memory is disabled in server configuration.');
+      const partialCapture = Boolean(status?.capture?.partialCapture);
+      if (partialCapture) {
+        const gaps = Array.isArray(status?.capture?.gaps) ? status.capture.gaps : [];
+        const gapText = gaps.length
+          ? gaps.map((gap) => {
+              const start = gap?.startedAt ? new Date(Number(gap.startedAt) * 1000).toLocaleTimeString() : 'unknown';
+              const end = gap?.endedAt ? new Date(Number(gap.endedAt) * 1000).toLocaleTimeString() : 'unknown';
+              return `${start} → ${end}${Number.isFinite(Number(gap?.durationSeconds)) ? ` (about ${Number(gap.durationSeconds)}s)` : ''}`;
+            }).join('\n')
+          : 'The missing interval could not be timed precisely.';
+        const continuePartial = window.confirm(
+          'THIS SESSION CONTAINS A RECORDING GAP\n\n' +
+          `${gapText}\n\n` +
+          'Session Memory will be based only on captured transcript evidence. Missing audio will not be invented or filled from campaign context.\n\nCONTINUE?'
+        );
+        if (!continuePartial) {
+          setSessionMemoryOperationMessage(sessionId, 'SESSION MEMORY BUILD CANCELED — partial capture not acknowledged.', source);
+          return null;
+        }
+      }
       const rebuild = Boolean(status?.memory?.built || status?.finalization?.state === 'finalized');
       const previewResponse = await fetch('/api/session/reconcile', {
         method: 'POST',
@@ -5109,6 +5690,7 @@ async function postMetaOnce() {
           rebuild,
           expectedMemoryRevision,
           ...(hasHumanEdits ? { confirmHumanEdits: true } : {}),
+          ...(partialCapture ? { confirmPartialCapture: true } : {}),
         })
       });
       const json = await response.json().catch(() => ({}));
@@ -5915,6 +6497,17 @@ async function postMetaOnce() {
       if (json.state === 'complete') {
         renderAnswer(panel, json, sessionId);
         panel.status.textContent = json.cached ? 'No new transcript since this answer. $0 new spend.' : 'Caught up with the completed transcript.';
+      } else if (json.state === 'capture_interrupted') {
+        panel.answer.replaceChildren();
+        line(panel.answer, 'h3', 'WHAT DID I MISS? CANNOT USE CURRENT AUDIO', 'h6 mt-3 text-danger');
+        line(panel.answer, 'p', 'Recording was interrupted. Recent speech may not have been captured. No model request was made.', 'fw-bold');
+        if (json.evidence?.throughTimestamp) {
+          line(panel.answer, 'div', `Last valid transcript evidence ends at ${new Date(json.evidence.throughTimestamp * 1000).toLocaleTimeString()}.`, 'small');
+        }
+        const view = line(panel.answer, 'button', 'VIEW RECORDING STATUS', 'btn btn-danger btn-sm mt-2');
+        view.type = 'button';
+        view.addEventListener('click', () => document.getElementById('captureInterruptionPanel')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+        panel.status.textContent = `Session ${sessionId}: recording interrupted; $0 new spend.`;
       } else {
         panel.status.textContent = `Session ${sessionId}: ${json.message || json.state}`;
         if (json.budget) panel.status.textContent += ` Spent ${money(json.budget.spent)} / ${money(json.budget.limit)}.`;
@@ -5969,9 +6562,9 @@ async function postMetaOnce() {
 })();
 </script>
 
-<script src="/table-ready.js"></script>
+<script src="/table-ready.js?v=4.5"></script>
 <!-- Bootstrap JS (required for tabs) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/bootstrap.bundle.min.js?v=5.3.3"></script>
 
 </body>
 </html>

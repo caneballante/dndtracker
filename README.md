@@ -51,6 +51,16 @@ Optional:
 
 Defaults are in `server.py`.
 
+## Offline recording
+
+Keep the local server running and open `http://127.0.0.1:8000/`. Recording defaults to **Offline recording — transcribe later**. Audio and page assets stay on this PC; an internet connection is not needed for recording. When online again, select the session and use **Backfill Missing Transcripts**, then build Session Memory.
+
+Audio checkpoints target every 10 seconds in browser IndexedDB, and completed chunks are saved by the local server. A failed save is retained and retried automatically, including after reopening the same browser at the same URL. **Last Saved** confirms server audio; **Last browser backup** confirms a browser checkpoint. The sound bar only indicates microphone activity. Pending audio can also be downloaded from the recording panel.
+
+Keep the page open while recording. Refreshing stops microphone capture; reopening recovers the continuous saved checkpoint prefix, then **Recover Recording** resumes capture in the same session. Audio since the last checkpoint and while the page is closed cannot be recovered. Browser timers may be delayed, so ten seconds is a target, not a guaranteed maximum loss. Use one recording tab and the same browser and URL throughout. Browser storage is subject to available disk space and must not be cleared while audio is pending. If storage fills, keep the page open so pending audio can reach the server. Stop waits for pending saves and retries finalization when the server returns. Transcription, AI notes, and summaries still require internet. Uncheck the offline option before Start to request live transcription.
+
+Apply updates between sessions: stop recording, wait for pending saves, stop and restart the server, then reload the page. The start script leaves an existing server running to protect active recordings. New recorder pages retain pending audio if the server is still an older build.
+
 ## Common Problems
 
 1. `501 Unsupported method ('POST')`

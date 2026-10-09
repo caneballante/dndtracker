@@ -3,7 +3,7 @@ $appDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $appDir
 
 function Get-Port8000Pids {
-  $lines = netstat -ano | Select-String ":8000"
+  $lines = netstat -ano | Select-String ':8000\s'
   if (-not $lines) { return @() }
 
   $pids = @()
@@ -32,10 +32,9 @@ if (Test-Path $localPython) {
 
 $existingPids = Get-Port8000Pids
 if ($existingPids.Count -gt 0) {
-  foreach ($existingPid in $existingPids) {
-    Stop-Process -Id $existingPid -Force -ErrorAction SilentlyContinue
-  }
-  Start-Sleep -Milliseconds 500
+  Write-Output 'Port 8000 is already in use. No process was stopped and no extra recording tab was opened.'
+  Write-Output 'If this is the tracker, keep using its existing tab. To apply an update, stop recording and save all pending audio before explicitly stopping and restarting the server.'
+  exit 0
 }
 
 $stillListening = Get-Port8000Pids
@@ -44,8 +43,10 @@ if ($stillListening.Count -gt 0) {
   exit 1
 }
 
-$cmdArgs = '/c start "dndtracker-server" /b """' + $pythonExe + '""" server.py'
-$launcher = Start-Process -FilePath 'cmd.exe' -ArgumentList $cmdArgs -WorkingDirectory $appDir -WindowStyle Hidden -PassThru
+$logDir = Join-Path $appDir '.pycache_tmp\server-logs'
+New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+$runStamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
+$launcher = Start-Process -FilePath $pythonExe -ArgumentList @('-u', 'server.py') -WorkingDirectory $appDir -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $logDir "$runStamp.out.log") -RedirectStandardError (Join-Path $logDir "$runStamp.err.log")
 
 $ok = $false
 for ($i = 0; $i -lt 30; $i++) {

@@ -34,6 +34,9 @@ DnD Tracker is a local web app for recording DnD sessions in audio chunks, trans
 
 ## Verification
 
+- During an active recording, verify changes with isolated synthetic data; do not restart port 8000 or reload the live page. `python tests/offline_recording_preview.py` starts a separate browser fixture with a synthetic tone, no microphone, and no external API calls. Fixture data stays under ignored `.pycache_tmp/`; sandbox temporary folders can fail with Windows access errors.
+- If that fixture prints a listening URL but local requests time out, run the same fixture with approved local-network access outside the sandbox; do not change ports or firewall settings. This resolved the observed sandbox loopback isolation.
+
 - New browser CSS/JS must be listed explicitly in `server.py`'s `PUBLIC_STATIC_FILES`. Run `test_static_ui_assets.py`; DOM-only tests do not verify HTTP asset delivery. Never allow the whole repository to be served.
 - For backend or route changes, start the server and verify `http://127.0.0.1:8000/`.
 - If port `8000` is busy, use the stop script before trying unrelated ports.

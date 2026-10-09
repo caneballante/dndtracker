@@ -79,6 +79,8 @@
   const legacyReview = advanced.querySelector('.row');
   const companion = $('live-player-companion');
   const memoryProgress = $('recording-memory-status');
+  const captureHealth = $('captureHealthPanel');
+  const captureInterruption = $('captureInterruptionPanel');
   // Old correction/steering controls stay available only in their legacy context.
   const legacyReviewFold = fold('Legacy note review & guidance', legacyReview);
   advanced.replaceChildren(make('h2', 'panel-header', 'Advanced / Legacy'),
@@ -101,7 +103,8 @@
   const transport = make('div', 'recorder-transport');
   ['startBtn', 'pauseBtn', 'resumeBtn', 'stopBtn'].forEach(id => transport.append($(id)));
   recorderDisplay.append(transport);
-  recorder.append(recorderDisplay, fold('Microphone & recording settings', settings));
+  recorder.append(captureInterruption, recorderDisplay, captureHealth, $('captureSavePanel'),
+    fold('Microphone & recording settings', settings));
   const playback = $('latestChunkLink');
   recorder.append(playback);
   // Keep hidden campaign guards updated by the existing recorder code.
@@ -793,7 +796,7 @@
     const holder = fold('Advanced: saved campaign names & historical figures');
     canonNames.before(holder); holder.append(canonNames);
   }
-  const footer = make('footer', 'appliance-footer', 'DUNGEONTRACKER 4.1 · Local session console');
+  const footer = make('footer', 'appliance-footer', 'DUNGEONTRACKER 4.5 · Local session console');
   footer.append(make('span', '', 'Capture. Remember. Play on.'));
   document.body.append(footer);
 

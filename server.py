@@ -11,6 +11,7 @@ import hashlib
 import math
 import wave
 import http.client
+from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, urlencode
@@ -25,6 +26,17 @@ if APP_DIR not in sys.path:
 
 from ai_usage import estimate_cost, load_pricing_config, record_response_usage, summarize_usage
 import live_player_assistant
+from recording_storage import identical_audio, upload_lock, validate_audio, write_audio_atomic
+from capture_reliability import (
+    CAPTURE_AUDIT_FILENAME,
+    CAPTURE_EVENT_NAMES,
+    CAPTURE_HEALTH_STATES,
+    HEARTBEAT_INTERVAL_SECONDS,
+    LEASE_TIMEOUT_SECONDS,
+    CaptureLeaseManager,
+    append_capture_event,
+    normalize_capture_status,
+)
 from session_events import (
     apply_event_operation,
     apply_event_operations_batch,
@@ -120,7 +132,17 @@ TRANSCRIPTION_MODEL_DEFAULT = "gpt-4o-transcribe-diarize"
 DEEPGRAM_MODEL_DEFAULT = "nova-3"
 SERVER_STARTED_AT = int(time.time())
 CHUNK_AUDIO_RE = re.compile(r"^chunk_(\d+)\.(wav|webm|ogg|mp4|m4a|mp3)$", re.IGNORECASE)
-PUBLIC_STATIC_FILES = {"dnd-audio.html", "favicon.svg", "table-ready.css", "table-ready.js"}
+PUBLIC_STATIC_FILES = {
+    "dnd-audio.html",
+    "favicon.svg",
+    "table-ready.css",
+    "table-ready.js",
+    "capture-reliability.js",
+    "recording-storage.js",
+    "bootstrap.min.css",
+    "bootstrap.bundle.min.js",
+}
+CAPTURE_LEASES = CaptureLeaseManager()
 
 SESSION_ID_RE = re.compile(r"^[0-9]{8,20}$")  # timestamp-ish
 SESSION_NAME_MAX_LEN = 120
@@ -1121,6 +1143,373 @@ def _set_session_status_fields(session_id: str, patch: dict):
         return dict(status)
     return _update_session_status(session_id, mutate, default={})
 
+
+def _capture_session_dir(session_id: str) -> str:
+    session_id = safe_session_id(session_id)
+    session_dir = os.path.join(UPLOADS_DIR, session_id)
+    if not os.path.isdir(session_dir):
+        raise ValueError("Session does not exist.")
+    return session_dir
+
+
+def _capture_event_details(data) -> dict:
+    details = data if isinstance(data, dict) else {}
+    allowed = {
+        "reason", "error", "chunkIndex", "gapId", "gapStartedAt", "gapEndedAt",
+        "durationSeconds", "recovered", "recorderState", "trackState", "streamActive",
+        "serverState", "finalExpectedChunkIndex", "screenWakeLockSupported",
+        "screenWakeLockActive", "clientTimestampMs", "lastAcknowledgedAt",
+        "clientBuild",
+    }
+    return {key: details.get(key) for key in allowed if key in details}
+
+
+def _capture_materialize_event(session_id: str, event: str, details=None, now=None):
+    session_dir = _capture_session_dir(session_id)
+    name = str(event or "").strip().lower()
+    if name not in CAPTURE_EVENT_NAMES:
+        raise ValueError("Unsupported capture diagnostic event.")
+    clean = _capture_event_details(details)
+    timestamp = int(time.time() if now is None else now)
+
+    def mutate(status):
+        capture = normalize_capture_status(status.get("capture"))
+        event_time = clean.get("clientTimestampMs")
+        previous_time = capture.get("lastEventTimestampMs")
+        if (isinstance(event_time, (int, float)) and isinstance(previous_time, (int, float))
+                and event_time < previous_time):
+            return copy.deepcopy(capture)
+        if capture.get("stoppedAt") and not capture.get("sessionOpen") and name not in {
+            "chunk_acknowledged", "chunk_upload_started", "chunk_emitted", "screen_wake_lock_lost"
+        }:
+            return copy.deepcopy(capture)
+        if isinstance(event_time, (int, float)):
+            capture["lastEventTimestampMs"] = event_time
+        if clean.get("clientBuild"):
+            capture["clientBuild"] = str(clean["clientBuild"])[:80]
+        capture["updatedAt"] = timestamp
+        capture["lastClientTimestampMs"] = clean.get("clientTimestampMs", capture.get("lastClientTimestampMs"))
+        gaps = capture.get("gaps") or []
+        gap_id = str(clean.get("gapId") or "")[:120]
+        interrupt_events = {
+            "track_ended", "stream_inactive", "recorder_error", "unexpected_recorder_stop",
+            "chunk_upload_failed", "capture_interrupted", "heartbeat_expired",
+        }
+        if name in interrupt_events:
+            capture.update({
+                "state": "interrupted",
+                "sessionOpen": True,
+                "interrupted": True,
+                "hadInterruption": True,
+                "partialCapture": True,
+                "recoveryRequired": True,
+                "alertAcknowledged": False,
+                "lastError": str(clean.get("reason") or clean.get("error") or name)[:500],
+            })
+            if gap_id and not any(str(g.get("gapId") or "") == gap_id for g in gaps if isinstance(g, dict)):
+                gaps.append({
+                    "gapId": gap_id,
+                    "startedAt": clean.get("gapStartedAt") or timestamp,
+                    "endedAt": None,
+                    "durationSeconds": None,
+                    "reason": str(clean.get("reason") or name),
+                    "recovered": False,
+                })
+        elif name in {"sleep_gap", "capture_gap"}:
+            capture.update({"state": "interrupted", "sessionOpen": True, "interrupted": True,
+                            "hadInterruption": True,
+                            "partialCapture": True, "recoveryRequired": True})
+            if gap_id and not any(str(g.get("gapId") or "") == gap_id for g in gaps if isinstance(g, dict)):
+                gaps.append({
+                    "gapId": gap_id,
+                    "startedAt": clean.get("gapStartedAt") or timestamp,
+                    "endedAt": clean.get("gapEndedAt"),
+                    "durationSeconds": clean.get("durationSeconds"),
+                    "reason": str(clean.get("reason") or name),
+                    "recovered": False,
+                })
+        elif name == "capture_recovery_started":
+            capture.update({"state": "recovering", "recoveryRequired": True})
+        elif name == "capture_recovered":
+            capture.update({"state": "recovered_with_gap", "sessionOpen": True,
+                            "interrupted": False, "hadInterruption": True, "recoveredWithGap": True,
+                            "partialCapture": True, "recoveryRequired": False})
+            found = False
+            for gap in gaps:
+                if isinstance(gap, dict) and gap_id and str(gap.get("gapId") or "") == gap_id:
+                    gap.update({"endedAt": clean.get("gapEndedAt") or timestamp,
+                                "durationSeconds": clean.get("durationSeconds"), "recovered": True})
+                    found = True
+                    break
+            if gap_id and not found:
+                gaps.append({"gapId": gap_id, "startedAt": clean.get("gapStartedAt") or timestamp,
+                             "endedAt": clean.get("gapEndedAt") or timestamp,
+                             "durationSeconds": clean.get("durationSeconds"),
+                             "reason": str(clean.get("reason") or "capture_interruption"), "recovered": True})
+        elif name == "capture_recovery_failed":
+            capture.update({"state": "interrupted", "sessionOpen": True, "interrupted": True,
+                            "partialCapture": True, "recoveryRequired": True,
+                            "lastError": str(clean.get("error") or "Capture recovery failed.")[:500]})
+        elif name == "alert_acknowledged":
+            capture["alertAcknowledged"] = True
+        elif name == "chunk_emitted":
+            capture["lastChunkEmittedAt"] = timestamp
+        elif name == "chunk_upload_started":
+            capture["lastChunkUploadStartedAt"] = timestamp
+        elif name == "chunk_acknowledged":
+            capture["lastChunkAcknowledgedAt"] = timestamp
+            capture["lastAcknowledgedChunkIndex"] = clean.get("chunkIndex")
+        elif name == "screen_wake_lock_acquired":
+            capture["screenWakeLock"] = {"supported": True, "active": True, "error": ""}
+        elif name in {"screen_wake_lock_lost", "screen_wake_lock_failed"}:
+            capture["screenWakeLock"] = {"supported": name != "screen_wake_lock_failed" or clean.get("reason") != "unsupported",
+                                         "active": False, "error": str(clean.get("error") or clean.get("reason") or name)}
+        elif name == "stop_requested":
+            capture.update({"state": "finalizing", "sessionOpen": False, "stoppedAt": timestamp})
+        capture["gaps"] = gaps[-100:]
+        status["capture"] = capture
+        status["updatedAt"] = timestamp
+        return copy.deepcopy(capture)
+
+    capture = _update_session_status(session_id, mutate, default={})
+    append_capture_event(session_dir, session_id, name, details=clean, now=timestamp)
+    return capture
+
+
+def _capture_start(session_id: str, data=None):
+    session_dir = _capture_session_dir(session_id)
+    timestamp = int(time.time())
+    payload = data if isinstance(data, dict) else {}
+    lease = CAPTURE_LEASES.acquire_or_renew(session_id, now=timestamp)
+
+    def mutate(status):
+        existing = normalize_capture_status(status.get("capture"))
+        capture = normalize_capture_status({
+            "state": "healthy",
+            "sessionOpen": True,
+            "startedAt": existing.get("startedAt") or timestamp,
+            "lastHeartbeatAt": timestamp,
+            "lastClientTimestampMs": payload.get("clientTimestampMs"),
+            "recorderState": payload.get("recorderState") or "starting",
+            "streamActive": payload.get("streamActive", True),
+            "trackState": payload.get("trackState") or "live",
+            "chunkIntervalSeconds": payload.get("chunkIntervalSeconds") or 120,
+            "watchdogGraceSeconds": payload.get("watchdogGraceSeconds") or 30,
+            "keepAwake": lease,
+            "screenWakeLock": payload.get("screenWakeLock") or {},
+            "gaps": existing.get("gaps") or [],
+            "partialCapture": bool(existing.get("partialCapture")),
+            "updatedAt": timestamp,
+        })
+        status["capture"] = capture
+        status["updatedAt"] = timestamp
+        return copy.deepcopy(capture)
+
+    capture = _update_session_status(session_id, mutate, default={})
+    keep_event = "keep_awake_acquired" if lease.get("active") else "keep_awake_failed"
+    append_capture_event(session_dir, session_id, keep_event,
+                         details={"reason": lease.get("error") or "active_recording_lease"}, now=timestamp)
+    return capture
+
+
+def _capture_heartbeat(session_id: str, data=None):
+    _capture_session_dir(session_id)
+    existing = normalize_capture_status(_read_session_status(session_id).get("capture"))
+    if existing.get("stoppedAt") and not existing.get("sessionOpen"):
+        return existing
+    payload = data if isinstance(data, dict) else {}
+    client_state = str(payload.get("clientState") or "").strip().lower()
+    if client_state not in CAPTURE_HEALTH_STATES:
+        raise ValueError("Invalid capture clientState.")
+    timestamp = int(time.time())
+    lease = CAPTURE_LEASES.acquire_or_renew(session_id, now=timestamp)
+    recorder_state = str(payload.get("recorderState") or "unknown")[:40]
+    track_state = str(payload.get("trackState") or "unknown")[:40]
+    stream_active = payload.get("streamActive") is not False
+    paused = payload.get("paused") is True
+    stopped = payload.get("stopRequested") is True
+    forced_interruption = (not paused and not stopped and (
+        recorder_state not in {"recording", "starting"} or track_state == "ended" or not stream_active
+    ))
+
+    def mutate(status):
+        capture = normalize_capture_status(status.get("capture"))
+        if forced_interruption:
+            capture.update({"state": "interrupted", "interrupted": True, "partialCapture": True,
+                            "recoveryRequired": True, "lastError": "heartbeat_reported_inactive_capture"})
+        elif capture.get("connectionLost") and client_state in {"healthy", "suspect", "recovered_with_gap"} and not capture.get("recoveryRequired"):
+            capture.update({"state": client_state, "connectionLost": False, "lastError": ""})
+        elif capture.get("state") not in {"interrupted", "recovering", "error", "finalizing", "stopped"}:
+            capture["state"] = client_state
+        capture.update({
+            "sessionOpen": not stopped,
+            "lastHeartbeatAt": timestamp,
+            "lastClientTimestampMs": payload.get("clientTimestampMs"),
+            "recorderState": recorder_state,
+            "streamActive": stream_active,
+            "trackState": track_state,
+            "chunkIntervalSeconds": payload.get("chunkIntervalSeconds") or capture.get("chunkIntervalSeconds"),
+            "watchdogGraceSeconds": payload.get("watchdogGraceSeconds") or capture.get("watchdogGraceSeconds"),
+            "keepAwake": lease,
+            "updatedAt": timestamp,
+        })
+        for source, target in (
+            ("lastChunkEmittedAtMs", "lastChunkEmittedAt"),
+            ("lastChunkUploadStartedAtMs", "lastChunkUploadStartedAt"),
+            ("lastChunkAcknowledgedAtMs", "lastChunkAcknowledgedAt"),
+        ):
+            value = payload.get(source)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                capture[target] = float(value) / 1000.0
+        index = payload.get("lastAcknowledgedChunkIndex")
+        if isinstance(index, int) and not isinstance(index, bool):
+            capture["lastAcknowledgedChunkIndex"] = index
+        status["capture"] = capture
+        status["updatedAt"] = timestamp
+        return copy.deepcopy(capture)
+
+    capture = _update_session_status(session_id, mutate, default={})
+    if forced_interruption:
+        append_capture_event(os.path.join(UPLOADS_DIR, session_id), session_id, "capture_interrupted",
+                             details={"reason": "heartbeat_reported_inactive_capture", "recorderState": recorder_state,
+                                      "trackState": track_state, "streamActive": stream_active}, now=timestamp)
+    return capture
+
+
+def _capture_begin_finalization(session_id: str, final_expected_chunk_index):
+    timestamp = int(time.time())
+    boundary = int(final_expected_chunk_index)
+    current_status = _read_session_status(session_id)
+    existing = normalize_capture_status(current_status.get("capture"))
+    existing_pending = existing.get("pendingFinalization") or {}
+    server_finalization = current_status.get("finalization") if isinstance(current_status.get("finalization"), dict) else {}
+    if (
+        existing_pending.get("state") == "completed"
+        or server_finalization.get("state") in {"ready_for_reconciliation", "reconciliation_error", "finalized"}
+    ):
+        CAPTURE_LEASES.release(session_id, reason="stop_requested")
+        return existing
+    if (
+        existing.get("state") == "finalizing"
+        and existing_pending.get("state") == "pending"
+        and int(existing_pending.get("finalExpectedChunkIndex", -2)) == boundary
+    ):
+        CAPTURE_LEASES.release(session_id, reason="stop_requested")
+        return existing
+    lease = CAPTURE_LEASES.release(session_id, reason="stop_requested")
+    capture = _capture_materialize_event(session_id, "stop_requested",
+        {"finalExpectedChunkIndex": boundary}, now=timestamp)
+
+    def mutate(status):
+        current = normalize_capture_status(status.get("capture"))
+        current["keepAwake"] = lease
+        current["pendingFinalization"] = {
+            "state": "pending",
+            "finalExpectedChunkIndex": boundary,
+            "startedAt": timestamp,
+            "updatedAt": timestamp,
+            "recoverable": True,
+            "error": "",
+        }
+        status["capture"] = current
+        status["updatedAt"] = timestamp
+        return copy.deepcopy(current)
+    result = _update_session_status(session_id, mutate, default={})
+    append_capture_event(os.path.join(UPLOADS_DIR, session_id), session_id, "keep_awake_released",
+                         details={"reason": "stop_requested"}, now=timestamp)
+    append_capture_event(os.path.join(UPLOADS_DIR, session_id), session_id, "finalize_started",
+                         details={"finalExpectedChunkIndex": boundary}, now=timestamp)
+    return result
+
+
+def _capture_finish_finalization(session_id: str, finalization=None, error=None):
+    timestamp = int(time.time())
+    failed = error is not None
+    server_state = (finalization or {}).get("state") if isinstance(finalization, dict) else ""
+    settled = server_state in {"ready_for_reconciliation", "reconciliation_error", "finalized"}
+    def mutate(status):
+        capture = normalize_capture_status(status.get("capture"))
+        pending = capture.get("pendingFinalization") or {}
+        pending.update({
+            "state": "failed" if failed else ("completed" if settled else "pending"),
+            "updatedAt": timestamp,
+            "recoverable": bool(failed or not settled),
+            "error": str(error or "")[:500],
+        })
+        if isinstance(finalization, dict):
+            pending["serverFinalizationState"] = finalization.get("state")
+            pending["finalExpectedChunkIndex"] = finalization.get("finalExpectedChunkIndex")
+        capture["pendingFinalization"] = pending
+        capture["state"] = "error" if failed else ("stopped" if settled else "finalizing")
+        capture["sessionOpen"] = False
+        capture["lastError"] = str(error or "")[:500]
+        capture["updatedAt"] = timestamp
+        status["capture"] = capture
+        status["updatedAt"] = timestamp
+        return copy.deepcopy(capture)
+    capture = _update_session_status(session_id, mutate, default={})
+    if failed or settled:
+        append_capture_event(os.path.join(UPLOADS_DIR, session_id), session_id,
+                             "finalize_failed" if failed else "finalize_completed",
+                             details={"error": str(error or ""), "serverState": server_state},
+                             now=timestamp)
+    return capture
+
+
+def _capture_status_response(session_id: str, status=None):
+    session_id = safe_session_id(session_id)
+    lease = CAPTURE_LEASES.status(session_id)
+    # status() may expire a stale lease and durably update capture state.
+    source = _read_session_status(session_id)
+    capture = normalize_capture_status(source.get("capture"))
+    persisted_heartbeat = capture.get("lastHeartbeatAt")
+    if (
+        capture.get("sessionOpen")
+        and lease.get("lastHeartbeatAt") is None
+        and isinstance(persisted_heartbeat, (int, float))
+        and time.time() - float(persisted_heartbeat) > LEASE_TIMEOUT_SECONDS
+    ):
+        _capture_lease_expired(session_id, float(persisted_heartbeat), time.time())
+        capture = normalize_capture_status(_read_session_status(session_id).get("capture"))
+    if capture.get("sessionOpen"):
+        capture["keepAwake"] = lease
+    return capture
+
+
+def _capture_lease_expired(session_id, last_heartbeat, expired_at):
+    try:
+        session_dir = _capture_session_dir(session_id)
+        existing = normalize_capture_status(_read_session_status(session_id).get("capture"))
+        if not existing.get("sessionOpen") or existing.get("state") in {"stopped", "finalizing", "error"}:
+            return
+        def mutate(status):
+            capture = normalize_capture_status(status.get("capture"))
+            if capture.get("expiredHeartbeatAt") == last_heartbeat:
+                return False
+            if not capture.get("sessionOpen") or (capture.get("lastHeartbeatAt") or 0) > last_heartbeat:
+                return False
+            if capture["state"] in {"healthy", "recovered_with_gap"}:
+                capture["state"] = "suspect"
+            capture.update({"connectionLost": True, "expiredHeartbeatAt": last_heartbeat,
+                            "lastError": "connection_lost_capture_unverified",
+                            "keepAwake": {"supported": CAPTURE_LEASES.backend.status().get("supported", False),
+                                          "active": False, "error": "heartbeat_expired"},
+                            "updatedAt": int(expired_at)})
+            status["capture"] = capture
+            status["updatedAt"] = int(expired_at)
+            return True
+        if not _update_session_status(session_id, mutate, default={}):
+            return
+        append_capture_event(session_dir, session_id, "heartbeat_expired",
+                             details={"lastAcknowledgedAt": last_heartbeat, "reason": "lease_timeout"}, now=expired_at)
+        append_capture_event(session_dir, session_id, "keep_awake_released",
+                             details={"reason": "heartbeat_expired"}, now=expired_at)
+    except Exception:
+        pass
+
+
+CAPTURE_LEASES.on_expire = _capture_lease_expired
+
 def _session_context_snapshot(session_id: str):
     status = _read_session_status(session_id)
     snap = status.get("contextSnapshot")
@@ -1310,6 +1699,8 @@ def list_sessions(limit: int = 50, campaign_id: str = ""):
             continue
         status_path = os.path.join(session_dir, "status.json")
         status = read_json(status_path, default={})
+        capture = normalize_capture_status(status.get("capture"))
+        finalization = status.get("finalization") if isinstance(status.get("finalization"), dict) else {}
         session_campaign_id = str(status.get("campaignId") or "").strip()
         if wanted_campaign and session_campaign_id != wanted_campaign:
             continue
@@ -1323,6 +1714,12 @@ def list_sessions(limit: int = 50, campaign_id: str = ""):
             "updatedAt": status.get("updatedAt") or mtime,
             "createdAt": status.get("createdAt") or mtime,
             "chunkCount": len(status.get("chunks") or []),
+            "captureStatus": capture.get("state"),
+            "partialCapture": bool(capture.get("partialCapture")),
+            "hadInterruption": bool(capture.get("hadInterruption")),
+            "recoveredWithGap": bool(capture.get("recoveredWithGap")),
+            "captureGapCount": len(capture.get("gaps") or []),
+            "finalizationStatus": str(finalization.get("state") or "not_finalized"),
             "statusUrl": _session_status_url(name),
         })
     sessions.sort(key=lambda s: s.get("updatedAt", 0), reverse=True)
@@ -1581,6 +1978,8 @@ def read_session_text(session_id: str):
         "transcriptBackfillStatus": status.get("transcriptBackfillStatus") or {},
         "fullDiarizedStatus": status.get("fullDiarizedStatus") or {},
         "finalization": status.get("finalization") or {},
+        "capture": _capture_status_response(session_id, status),
+        "captureGaps": copy.deepcopy((status.get("capture") or {}).get("gaps") or []),
         "missingTranscriptChunks": [int(item.get("chunkIndex") or -1) for item in missing_chunks if int(item.get("chunkIndex") or -1) >= 0],
         "notesState": structured.get("state") or {},
         "notesTimeline": structured.get("timelineItems") or [],
@@ -1594,7 +1993,7 @@ def read_session_text(session_id: str):
         "aiUsage": _session_ai_usage(session_id),
     }
 
-def update_status_for_chunk(session_id: str, chunk_index: int, filename: str, nbytes: int):
+def update_status_for_chunk(session_id: str, chunk_index: int, filename: str, nbytes: int, transcription_status="pending", source_sha256=""):
     def mutate(status):
         now = int(time.time())
         if not status:
@@ -1613,7 +2012,9 @@ def update_status_for_chunk(session_id: str, chunk_index: int, filename: str, nb
             "filename": filename,
             "bytes": nbytes,
             "uploadedAt": now,
-            "transcriptionStatus": "pending",
+            "transcriptionStatus": transcription_status,
+            "sourceSha256": source_sha256,
+            "durableTranscriptionJob": transcription_status == "pending",
         })
         failures = status.get("transcriptionFailures") or {}
         if isinstance(failures, dict):
@@ -1653,10 +2054,12 @@ def _audio_chunk_response_path(session_id: str, filename: str) -> str:
 def _session_status_response(session_id: str) -> dict:
     current = _read_session_status(session_id)
     if isinstance(current.get("finalization"), dict) and current["finalization"].get("finalExpectedChunkIndex") is not None:
-        return _refresh_session_finalization(session_id)
-    status = read_json(_session_status_path(session_id), default={})
+        status = _refresh_session_finalization(session_id)
+    else:
+        status = read_json(_session_status_path(session_id), default={})
     if not isinstance(status, dict):
         status = {}
+    status["capture"] = _capture_status_response(session_id, status)
     return status
 
 def _advance_finalization_in_status(session_id: str, status: dict, now=None):
@@ -1677,12 +2080,31 @@ def _refresh_session_finalization(session_id: str):
     current = copy.deepcopy(status.get("finalization"))
     _advance_finalization_in_status(session_id, status)
     if status.get("finalization") == current:
+        capture = normalize_capture_status(status.get("capture"))
+        pending = capture.get("pendingFinalization") or {}
+        if (
+            isinstance(current, dict)
+            and current.get("state") in {"ready_for_reconciliation", "reconciliation_error", "finalized"}
+            and pending.get("state") != "completed"
+        ):
+            _capture_finish_finalization(session_id, current)
+            return _read_session_status(session_id)
         return status
 
     def mutate(status):
         _advance_finalization_in_status(session_id, status)
         return dict(status)
-    return _update_session_status(session_id, mutate, default={})
+    refreshed = _update_session_status(session_id, mutate, default={})
+    finalization = refreshed.get("finalization") if isinstance(refreshed, dict) else {}
+    capture = normalize_capture_status(refreshed.get("capture") if isinstance(refreshed, dict) else None)
+    pending = capture.get("pendingFinalization") or {}
+    if (
+        finalization.get("state") in {"ready_for_reconciliation", "reconciliation_error", "finalized"}
+        and pending.get("state") != "completed"
+    ):
+        _capture_finish_finalization(session_id, finalization)
+        return _read_session_status(session_id)
+    return refreshed
 
 def _request_session_finalization(session_id: str, final_expected_chunk_index):
     def mutate(status):
@@ -2024,6 +2446,7 @@ def player_missed(session_id, window_minutes=5, model_client=None):
         enabled=settings["enabled"], budget=settings["budget"], pricing_path=AI_PRICING_PATH,
         model_client=model_client or _request_live_player_model,
         reference_factory=lambda: _live_player_reference_context(session_id),
+        capture_status=_capture_status_response(session_id),
     )
 
 
@@ -2215,6 +2638,24 @@ def _prepare_structured_reconciliation(
         prior_session_summary=str(context_snapshot.get("recentSessionSummariesText") or ""),
         transcript_phase_override=status.get("transcriptPhaseOverride"),
     )
+    capture = _capture_status_response(session_id, status=status)
+    session_evidence["captureCompleteness"] = {
+        "state": capture.get("state"),
+        "partialCapture": bool(capture.get("partialCapture")),
+        "gapCount": len(capture.get("gaps") or []),
+        "gaps": [
+            {
+                "startedAt": gap.get("startedAt"),
+                "endedAt": gap.get("endedAt"),
+                "durationSeconds": gap.get("durationSeconds"),
+                "reason": str(gap.get("reason") or "capture_interruption"),
+                "recovered": bool(gap.get("recovered")),
+            }
+            for gap in capture.get("gaps") or []
+            if isinstance(gap, dict)
+        ],
+        "authority": "completeness_metadata_only_not_occurrence_evidence",
+    }
     if session_evidence.get("orderedTranscriptEvidence") and not session_evidence.get(
         "currentSessionOccurrenceChunkIndexes"
     ):
@@ -2565,6 +3006,7 @@ def structured_reconciliation_status(session_id: str):
             "arentoriaAvailable": bool(_arentoria_database_path()),
         },
         "benchmark": _structured_reconciliation_benchmark_policy(session_id),
+        "capture": _capture_status_response(session_id, status=status),
         "finalization": finalization,
         "operation": {
             "state": finalization_state,
@@ -3187,6 +3629,7 @@ def run_structured_reconciliation(
     benchmark_mode="",
     rebuild=False,
     confirm_human_edits=False,
+    confirm_partial_capture=False,
     expected_memory_revision=None,
 ):
     """Run one opt-in, post-session reconciliation. Tests inject model_client."""
@@ -3197,6 +3640,19 @@ def run_structured_reconciliation(
         raise ValueError("confirm=true is required to authorize the billable reconciliation request.")
 
     status = _session_status_response(session_id)
+    capture = _capture_status_response(session_id, status=status)
+    partial_capture_protection = {
+        "required": bool(capture.get("partialCapture")),
+        "confirmed": confirm_partial_capture is True,
+        "state": capture.get("state"),
+        "gaps": copy.deepcopy(capture.get("gaps") or []),
+        "warning": (
+            "This session contains a recording gap. Session Memory will use captured "
+            "transcript evidence only and cannot recover the missing interval."
+        ),
+    }
+    if partial_capture_protection["required"] and not dry_run and confirm_partial_capture is not True:
+        raise ValueError(partial_capture_protection["warning"])
     legacy_reprocess = _normalize_reprocess_status(session_id, status, persist=True)
     if legacy_reprocess.get("running"):
         raise ValueError(
@@ -3258,6 +3714,7 @@ def run_structured_reconciliation(
             "diagnostics": diagnostics,
             "finalization": prepared["finalization"],
             "humanEditProtection": human_edit_protection,
+            "partialCaptureProtection": partial_capture_protection,
         }
     if state == "finalized" and rebuild:
         finalization = _reopen_finalized_session_reconciliation(
@@ -3301,6 +3758,7 @@ def run_structured_reconciliation(
             "diagnostics": diagnostics,
             "finalization": prepared["finalization"],
             "humanEditProtection": human_edit_protection,
+            "partialCaptureProtection": partial_capture_protection,
         }
 
     reconciliation_id = f"recon_{uuid.uuid4().hex}"
@@ -6177,17 +6635,25 @@ def backfill_missing_transcripts_for_session(session_id: str):
         }
 
     recovered_indexes = []
+    failed_indexes = []
     try:
         for item in missing:
             chunk_index = int(item.get("chunkIndex", -1))
             path = str(item.get("path") or "")
             if chunk_index < 0 or not path:
                 continue
-            transcript_result = transcribe_with_openai(
-                path,
-                session_id=session_id,
-                usage_metadata={"operation": "backfill", "chunkIndex": chunk_index},
-            )
+            try:
+                with open(path, 'rb') as audio:
+                    validate_audio(audio.read(), os.path.splitext(path)[1])
+                transcript_result = transcribe_with_openai(
+                    path,
+                    session_id=session_id,
+                    usage_metadata={"operation": "backfill", "chunkIndex": chunk_index},
+                )
+            except Exception as error:
+                failed_indexes.append(chunk_index)
+                _set_transcript_error(session_id, chunk_index, str(error))
+                continue
             _append_transcript(
                 session_id,
                 chunk_index,
@@ -6224,10 +6690,10 @@ def backfill_missing_transcripts_for_session(session_id: str):
 
         _set_transcript_backfill_status(session_id, {
             "running": False,
-            "phase": "done",
+            "phase": "done" if not failed_indexes else "error",
             "processed": len(recovered_indexes),
             "total": total,
-            "error": "",
+            "error": f"{len(failed_indexes)} audio chunk(s) could not be transcribed; other valid chunks were processed." if failed_indexes else "",
             "updatedAt": now,
             "finishedAt": now,
         })
@@ -6360,6 +6826,8 @@ def retranscribe_transcript_range_for_session(session_id: str, chunk_from, chunk
 
 def generate_full_diarized_transcript_for_session(session_id: str):
     session_dir = init_session(session_id)
+    if any(not item['filename'].lower().endswith('.wav') for item in _saved_audio_chunks(session_id)):
+        raise RuntimeError('This session contains compressed audio recovered from browser storage. Use Backfill Missing Transcripts to include all chunks; full WAV diarization would omit some audio.')
     wav_chunks = _saved_wav_chunks(session_id)
     if not wav_chunks:
         raise RuntimeError("No saved WAV chunks found for this session.")
@@ -6776,8 +7244,55 @@ def _run_clean_transcript_job(session_id: str, party_override: str, job_id: str 
     finally:
         _unregister_clean_transcript_job(session_id, job_id=job_id)
 
+_TRANSCRIPTION_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="audio-transcription")
+_TRANSCRIPTION_JOBS = set()
+_TRANSCRIPTION_JOBS_LOCK = threading.Lock()
+
+
+def enqueue_transcription(session_id, chunk_index, path):
+    """Persist intent before dispatch; bounded workers cannot starve audio saves."""
+    key = (str(session_id), int(chunk_index))
+    with _TRANSCRIPTION_JOBS_LOCK:
+        if key in _TRANSCRIPTION_JOBS:
+            return
+        def mark(status):
+            for chunk in status.get("chunks", []):
+                if chunk.get("chunkIndex") == chunk_index:
+                    chunk["durableTranscriptionJob"] = True
+        _update_session_status(session_id, mark, default={})
+        _TRANSCRIPTION_JOBS.add(key)
+    def run():
+        try:
+            transcribe_async(session_id, chunk_index, path)
+        finally:
+            with _TRANSCRIPTION_JOBS_LOCK:
+                _TRANSCRIPTION_JOBS.discard(key)
+    try:
+        _TRANSCRIPTION_POOL.submit(run)
+    except Exception:
+        with _TRANSCRIPTION_JOBS_LOCK:
+            _TRANSCRIPTION_JOBS.discard(key)
+        raise
+
+
+def resume_transcription_jobs():
+    # Only resume explicitly requested jobs created by this durable implementation.
+    # Legacy pending files and offline recordings never trigger automatic spending.
+    for session_id in os.listdir(UPLOADS_DIR):
+        if not re.fullmatch(r"\d{8,20}", session_id):
+            continue
+        status = _read_session_status(session_id)
+        for chunk in status.get("chunks", []):
+            if chunk.get("durableTranscriptionJob") and chunk.get("transcriptionStatus") == "pending":
+                filename = str(chunk.get("filename") or "")
+                if CHUNK_AUDIO_RE.fullmatch(filename):
+                    enqueue_transcription(session_id, int(chunk["chunkIndex"]), os.path.join(UPLOADS_DIR, session_id, filename))
+
+
 def transcribe_async(session_id: str, chunk_index: int, path: str):
     try:
+        with open(path, 'rb') as audio:
+            validate_audio(audio.read(), os.path.splitext(path)[1])
         transcript_result = transcribe_with_openai(
             path,
             session_id=session_id,
@@ -6837,6 +7352,9 @@ class Handler(SimpleHTTPRequestHandler):
             return
 
         parsed = urlparse(self.path)
+        if parsed.path == "/api/recording/health":
+            self._send_json(200, {"ok": True, "serverBuild": "4.5-checkpoints", "durableRecording": True})
+            return
         if parsed.path == "/api/session/player/status":
             try:
                 settings = _live_player_settings()
@@ -6913,6 +7431,19 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
 
+        if parsed.path == "/api/session/capture/status":
+            try:
+                qs = parse_qs(parsed.query)
+                session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                self._send_json(200, {
+                    "ok": True,
+                    "sessionId": session_id,
+                    "capture": _capture_status_response(session_id),
+                })
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
         if parsed.path == "/api/session/evidence":
             try:
                 qs = parse_qs(parsed.query)
@@ -6929,6 +7460,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "ok": True,
                     "sessionId": session_id,
                     "finalization": finalization,
+                    "capture": _capture_status_response(session_id, status=status),
                     "evidence": evidence,
                 })
             except Exception as e:
@@ -6955,10 +7487,13 @@ class Handler(SimpleHTTPRequestHandler):
             try:
                 qs = parse_qs(parsed.query)
                 session_id = safe_session_id((qs.get("sessionId") or [""])[0])
+                capture = _capture_status_response(session_id)
                 self._send_json(200, {
                     "ok": True,
                     "sessionId": session_id,
                     **_session_memory_api_document(read_session_memory(session_id)),
+                    "capture": capture,
+                    "captureCompleteness": "partial_capture" if capture.get("partialCapture") else "complete_capture",
                 })
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
@@ -7106,6 +7641,36 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
 
+        if parsed.path in {
+            "/api/session/capture/start",
+            "/api/session/capture/heartbeat",
+            "/api/session/capture/event",
+        }:
+            try:
+                body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
+                data = json.loads(body) if body else {}
+                if not isinstance(data, dict):
+                    raise ValueError("Request must be an object.")
+                session_id = safe_session_id(str(data.get("sessionId") or ""))
+                if parsed.path.endswith("/start"):
+                    capture = _capture_start(session_id, data)
+                elif parsed.path.endswith("/heartbeat"):
+                    capture = _capture_heartbeat(session_id, data)
+                else:
+                    if data.get("event") == "stop_requested":
+                        details = data.get("details") if isinstance(data.get("details"), dict) else {}
+                        capture = _capture_begin_finalization(
+                            session_id, details.get("finalExpectedChunkIndex")
+                        )
+                    else:
+                        capture = _capture_materialize_event(
+                            session_id, data.get("event"), data.get("details")
+                        )
+                self._send_json(200, {"ok": True, "sessionId": session_id, "capture": capture})
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": str(e)})
+            return
+
         if parsed.path == "/api/session/dungeonshare/publish":
             if not self._local_session_memory_request():
                 self._send_json(403, {"ok": False, "error": "Session Memory is publishable only locally."})
@@ -7196,15 +7761,23 @@ class Handler(SimpleHTTPRequestHandler):
             return
 
         if parsed.path == "/api/session/finalize":
+            session_id = ""
             try:
                 body = self._read_body().decode("utf-8") if self.headers.get("Content-Length") else ""
                 data = json.loads(body) if body else {}
                 session_id = safe_session_id(str(data.get("sessionId") or ""))
                 if "finalExpectedChunkIndex" not in data:
                     raise ValueError("finalExpectedChunkIndex is required.")
+                _capture_begin_finalization(session_id, data.get("finalExpectedChunkIndex"))
                 result = _request_session_finalization(session_id, data.get("finalExpectedChunkIndex"))
-                self._send_json(200, {"ok": True, "sessionId": session_id, **result})
+                capture = _capture_finish_finalization(session_id, result.get("finalization"))
+                self._send_json(200, {"ok": True, "sessionId": session_id, **result, "capture": capture})
             except Exception as e:
+                if session_id:
+                    try:
+                        _capture_finish_finalization(session_id, error=e)
+                    except Exception:
+                        pass
                 self._send_json(400, {"ok": False, "error": str(e)})
             return
 
@@ -7220,6 +7793,7 @@ class Handler(SimpleHTTPRequestHandler):
                     benchmark_mode=data.get("benchmarkMode") or "",
                     rebuild=data.get("rebuild") is True,
                     confirm_human_edits=data.get("confirmHumanEdits") is True,
+                    confirm_partial_capture=data.get("confirmPartialCapture") is True,
                     expected_memory_revision=data.get("expectedMemoryRevision"),
                 )
                 self._send_json(200, result)
@@ -7410,16 +7984,18 @@ class Handler(SimpleHTTPRequestHandler):
                 campaign = read_campaign(campaign_id)
                 session_dir = init_session(session_id, campaign_id=campaign_id)
                 status_path = os.path.join(session_dir, "status.json")
-                status = read_json(status_path, default={})
-                if session_name:
-                    status["sessionName"] = session_name
-                status["campaignId"] = campaign_id
-                status["contextSnapshot"] = _build_context_snapshot(campaign)
                 if party:
                     write_text(os.path.join(session_dir, "party.txt"), party + "\n")
-                    status["party"] = party
-                status["updatedAt"] = int(time.time())
-                write_json_atomic(status_path, status)
+                context_snapshot = _build_context_snapshot(campaign)
+                def initialize_metadata(status):
+                    if session_name:
+                        status["sessionName"] = session_name
+                    status["campaignId"] = campaign_id
+                    status["contextSnapshot"] = context_snapshot
+                    if party:
+                        status["party"] = party
+                    status["updatedAt"] = int(time.time())
+                status = _update_session_status(session_id, initialize_metadata, default={})
                 self._send_json(200, {
                     "ok": True,
                     "sessionId": session_id,
@@ -7440,29 +8016,54 @@ class Handler(SimpleHTTPRequestHandler):
                 session_id = safe_session_id((qs.get("sessionId") or [""])[0])
                 chunk_index_str = (qs.get("chunkIndex") or [""])[0]
                 chunk_index = int(chunk_index_str)
+                if chunk_index < 0 or chunk_index > 1_000_000:
+                    raise ValueError("Invalid audio chunk index.")
+                defer_transcription = (qs.get("deferTranscription") or ["1"])[0] != "0"
+                source_sha256 = (qs.get("sourceSha256") or [""])[0]
+                if source_sha256 and not re.fullmatch(r"[a-f0-9]{64}", source_sha256):
+                    raise ValueError("Invalid recording source digest.")
 
                 session_dir = init_session(session_id)
 
                 blob = self._read_body()
                 if not blob:
                     raise ValueError("Empty body; expected audio bytes in POST body.")
+                if len(blob) != int(self.headers.get("Content-Length") or "0"):
+                    raise ValueError("Incomplete audio upload; the chunk must be retried.")
 
                 content_type = self.headers.get("Content-Type") or ""
                 ext = _ext_from_content_type(content_type)
+                if ext == 'bin':
+                    raise ValueError('Unsupported audio format.')
+                validate_audio(blob, ext)
                 filename = f"chunk_{chunk_index:04d}.{ext}"
                 out_path = os.path.join(session_dir, filename)
-                with open(out_path, "wb") as f:
-                    f.write(blob)
-
-                update_status_for_chunk(session_id, chunk_index, filename, len(blob))
-
-                # Kick off transcription in the background (non-blocking)
-                t = threading.Thread(
-                    target=transcribe_async,
-                    args=(session_id, chunk_index, out_path),
-                    daemon=True,
-                )
-                t.start()
+                with upload_lock(session_dir):
+                    status = read_json(os.path.join(session_dir, "status.json"), default={})
+                    existing = next((item for item in status.get("chunks", [])
+                                     if item.get("chunkIndex") == chunk_index), None)
+                    duplicate = existing is not None
+                    if existing:
+                        filename = existing["filename"]
+                        if os.path.basename(filename) != filename or not CHUNK_AUDIO_RE.fullmatch(filename):
+                            raise ValueError('Invalid saved audio filename.')
+                        out_path = os.path.join(session_dir, filename)
+                        same_source = bool(source_sha256 and existing.get("sourceSha256") == source_sha256 and os.path.isfile(out_path))
+                        if not same_source and not identical_audio(out_path, blob):
+                            self._send_json(409, {"ok": False, "error": "This chunk index already contains different audio. The saved audio was preserved."})
+                            return
+                    else:
+                        if os.path.exists(out_path) and not identical_audio(out_path, blob):
+                            self._send_json(409, {"ok": False, "error": "Different audio already exists at this chunk index. The existing file was preserved."})
+                            return
+                        if not os.path.exists(out_path):
+                            write_audio_atomic(out_path, blob)
+                        update_status_for_chunk(session_id, chunk_index, filename, len(blob),
+                                                "queued" if defer_transcription else "pending", source_sha256)
+                        # Offline recording never calls a transcription provider. Existing
+                        # transcript backfill can process these files later, in chunk order.
+                        if not defer_transcription:
+                            enqueue_transcription(session_id, chunk_index, out_path)
 
                 self._send_json(200, {
                     "ok": True,
@@ -7470,11 +8071,20 @@ class Handler(SimpleHTTPRequestHandler):
                     "chunkIndex": chunk_index,
                     "filename": filename,
                     "url": _audio_chunk_url(session_id, filename),
-                    "bytes": len(blob),
+                    "bytes": os.path.getsize(out_path),
+                    "sourceSha256": source_sha256,
+                    "serverBuild": "4.5-checkpoints",
+                    "duplicate": duplicate,
+                    "transcriptionDeferred": defer_transcription,
                     "statusUrl": _session_status_url(session_id),
                 })
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
+            except Exception as e:
+                # Local disk/Windows sharing failures are retryable. The browser
+                # retains the chunk, including when bytes were written before a
+                # status update or receipt failed.
+                self._send_json(503, {"ok": False, "error": str(e)})
             return
         if parsed.path == "/api/meta":
             try:
@@ -8259,7 +8869,11 @@ def main():
     # This is the key improvement: handler serves files relative to BASE_DIR no matter where you run from.
     handler_cls = partial(Handler, directory=BASE_DIR)
 
-    httpd = ThreadingHTTPServer((host, port), handler_cls)
+    class TrackerHTTPServer(ThreadingHTTPServer):
+        request_queue_size = 64
+
+    httpd = TrackerHTTPServer((host, port), handler_cls)
+    resume_transcription_jobs()
     print(f"Serving on http://{host}:{port}")
     print(f"Base dir: {BASE_DIR}")
     print(f"Uploads : {UPLOADS_DIR}")

@@ -61,6 +61,7 @@ Authority boundary:
 - Never infer that players know a secret merely because it appears in canon. visibility=dm_only must not become player knowledge; visibility=unknown is also not proof of player knowledge.
 - Example: if reference canon says Rathgar secretly works for the Dawnfire cult but session evidence only shows the party meeting Rathgar, do not claim that the party discovered his affiliation.
 - Every created or updated event must cite supplied transcript source chunk indexes.
+- captureCompleteness reports evidence gaps only: never invent, infer, or fill events inside a missing capture interval, including from orientation or reference canon.
 - The current roster in orientationContext is authoritative for participant identity, not for proving actions.
 - Reviewer-confirmed corrections, when supplied, and DM evidence markers are high-authority session evidence. Tracker data is separately labelled supporting session evidence.
 - Spoken recollection of earlier sessions is historical orientation, not proof that the recalled event occurred tonight. prior_session_recap chunks may explain goals, unresolved situations, or starting state, but must not independently create or update a current-session event.

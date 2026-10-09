@@ -15,6 +15,8 @@ from session_reconciliation import campaign_reference_tool_schema, extract_struc
 MODEL = "gpt-5.6-sol"
 STAGE = "live_player_assistant"
 AUDIT_FILE = "live_player_assistant.jsonl"
+# Pre-dispatch diagnostics share the existing append-only Player Companion audit.
+REQUEST_AUDIT_FILE = AUDIT_FILE
 WINDOWS = (2, 5, 10)
 MAX_REQUESTS = 2
 MAX_SEARCHES = 2
@@ -24,6 +26,7 @@ MAX_EVIDENCE_BYTES = 14000
 VERSION = "player-missed-p0-1"
 _LOCKS = {}
 _LOCKS_LOCK = threading.Lock()
+_REQUEST_AUDIT_LOCK = threading.Lock()
 
 INSTRUCTIONS = """You are the attentive player sitting next to someone rejoining a D&D game.
 Give a concise 2–4 sentence orientation and at most five meaningful developments.
@@ -116,6 +119,25 @@ def _append_audit(session_dir, record):
         os.fsync(handle.fileno())
 
 
+def _append_request_diagnostic(session_dir, request_id, state, **metadata):
+    """Persist bounded, non-billable lifecycle metadata before/around dispatch."""
+    record = {
+        "createdAt": int(time.time()),
+        "requestId": str(request_id),
+        "state": str(state),
+    }
+    for key, value in list(metadata.items())[:12]:
+        if value is None or isinstance(value, (bool, int, float)):
+            record[str(key)[:80]] = value
+        else:
+            record[str(key)[:80]] = str(value)[:500]
+    with _REQUEST_AUDIT_LOCK:
+        with open(os.path.join(session_dir, REQUEST_AUDIT_FILE), "a", encoding="utf-8") as handle:
+            handle.write(_json(record) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+
+
 def select_window(session_dir, minutes):
     """Anchor to latest completed transcript, not wall time or N chunks.
 
@@ -165,28 +187,77 @@ def spending(session_dir, budget):
 
 
 def missed(session_id, session_dir, minutes, *, enabled, budget, pricing_path,
-           model_client, reference_factory):
+           model_client, reference_factory, capture_status=None):
     """All callbacks are injected. Only this explicit operation can bill."""
-    if not enabled:
-        return {"ok": True, "state": "disabled", "message": "Player Companion is not enabled.", "newSpend": 0}
     if not os.path.isdir(session_dir):
         raise ValueError("Session does not exist.")
+    request_id = hashlib.sha256(
+        f"{session_id}:{minutes}:{time.time_ns()}".encode("utf-8")
+    ).hexdigest()[:20]
+    _append_request_diagnostic(session_dir, request_id, "request_received",
+                               sessionId=session_id, windowMinutes=minutes)
     if type(minutes) is not int or minutes not in WINDOWS:
+        _append_request_diagnostic(session_dir, request_id, "preflight_failed", reason="invalid_window")
         raise ValueError("windowMinutes must be 2, 5, or 10.")
+    if not enabled:
+        _append_request_diagnostic(session_dir, request_id, "feature_disabled")
+        return {"ok": True, "state": "disabled", "message": "Player Companion is not enabled.", "newSpend": 0}
+    capture = capture_status if isinstance(capture_status, dict) else {}
+    if capture.get("sessionOpen") and (
+        capture.get("state") in {"interrupted", "recovering", "error"}
+        or capture.get("recoveryRequired")
+    ):
+        try:
+            selected = select_window(session_dir, minutes)
+        except Exception:
+            selected = None
+        evidence = (selected or {}).get("evidence") or {}
+        _append_request_diagnostic(
+            session_dir, request_id, "capture_interrupted",
+            captureState=capture.get("state"),
+            throughTimestamp=evidence.get("throughTimestamp"),
+        )
+        return {
+            "ok": True,
+            "state": "capture_interrupted",
+            "message": "WHAT DID I MISS? CANNOT USE CURRENT AUDIO. Recording is interrupted; recent speech may not have been captured.",
+            "capture": {"state": capture.get("state"), "partialCapture": bool(capture.get("partialCapture"))},
+            "evidence": evidence,
+            "newSpend": 0,
+        }
     if not math.isfinite(budget) or budget < 0:
+        _append_request_diagnostic(session_dir, request_id, "preflight_failed", reason="invalid_budget")
         raise ValueError("Live assistant budget must be a finite nonnegative dollar amount.")
     with _LOCKS_LOCK:
         lock = _LOCKS.setdefault(os.path.abspath(session_dir), threading.Lock())
     if not lock.acquire(blocking=False):
+        _append_request_diagnostic(session_dir, request_id, "preflight_failed", reason="busy")
         return {"ok": True, "state": "busy", "message": "A Player Companion request is already running.", "newSpend": 0}
+    lifecycle = {"dispatched": False}
     try:
-        return _missed_locked(session_id, session_dir, minutes, budget, pricing_path,
-                              model_client, reference_factory)
+        result = _missed_locked(session_id, session_dir, minutes, budget, pricing_path,
+                                model_client, reference_factory, request_id, lifecycle)
+        result_state = str(result.get("state") or "")
+        diagnostic_state = {
+            "complete": "cache_hit" if result.get("cached") else "completed",
+            "insufficient": "insufficient_evidence",
+        }.get(result_state, "preflight_failed")
+        _append_request_diagnostic(session_dir, request_id, diagnostic_state,
+                                   outcome=result_state, cached=bool(result.get("cached")))
+        return result
+    except Exception as exc:
+        _append_request_diagnostic(
+            session_dir, request_id,
+            "failed" if lifecycle["dispatched"] else "preflight_failed",
+            reason=type(exc).__name__,
+        )
+        raise
     finally:
         lock.release()
 
 
-def _missed_locked(session_id, session_dir, minutes, budget, pricing_path, client, reference_factory):
+def _missed_locked(session_id, session_dir, minutes, budget, pricing_path, client,
+                   reference_factory, request_id, lifecycle):
     cost = spending(session_dir, budget)
     selected = select_window(session_dir, minutes)
     if selected is None:
@@ -245,6 +316,9 @@ def _missed_locked(session_id, session_dir, minutes, budget, pricing_path, clien
             if len(_json(request).encode("utf-8")) > MAX_INPUT_BYTES:
                 raise ValueError("Player Companion input limit exceeded after references.")
             dispatched += 1
+            lifecycle["dispatched"] = True
+            _append_request_diagnostic(session_dir, request_id, "dispatch_started",
+                                       model=MODEL, ordinal=ordinal + 1)
             response = client(request)
             event = record_response_usage(session_dir, STAGE, MODEL, "openai", response,
                 pricing_path, metadata={"operation": "what_did_i_miss", "fingerprint": fingerprint,

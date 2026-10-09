@@ -51,6 +51,15 @@ class StaticUiAssetTests(unittest.TestCase):
                 handler.send_response.assert_called_once_with(200)
                 self.assertEqual((ROOT / path.lstrip('/')).read_bytes(), handler.wfile.getvalue())
 
+    def test_page_assets_need_no_internet(self):
+        class ExternalAssets(HTMLParser):
+            def handle_starttag(inner, tag, attributes):
+                attrs = dict(attributes)
+                url = attrs.get('src') if tag == 'script' else attrs.get('href') if tag == 'link' else None
+                if url:
+                    self.assertFalse(urlparse(url).netloc, f'External page dependency: {url}')
+        ExternalAssets().feed((ROOT / 'dnd-audio.html').read_text(encoding='utf-8'))
+
     def test_theme_asset_content_types_and_query_strings(self):
         for path, mime in [('/table-ready.css?v=4.1', 'text/css'), ('/table-ready.js?v=4.1', 'javascript')]:
             with self.subTest(path=path):
