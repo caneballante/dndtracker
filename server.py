@@ -362,13 +362,32 @@ def _active_full_diarized_job(session_id: str):
         return dict(current)
 
 def _status_lock(path: str):
-    path = os.path.abspath(path)
+    path = os.path.normcase(os.path.abspath(path))
     with STATUS_LOCKS_LOCK:
         lock = STATUS_LOCKS.get(path)
         if lock is None:
-            lock = threading.Lock()
+            lock = threading.RLock()
             STATUS_LOCKS[path] = lock
         return lock
+
+def _retry_status_io(operation):
+    """Retry transient Windows access/sharing errors; never substitute empty data."""
+    delays = (0.01, 0.025, 0.05, 0.1, 0.2)
+    for attempt in range(len(delays) + 1):
+        try:
+            return operation()
+        except OSError as error:
+            if not (isinstance(error, PermissionError) or getattr(error, 'winerror', None) in (5, 32, 33)):
+                raise
+            if attempt == len(delays):
+                raise
+            time.sleep(delays[attempt])
+
+
+def _read_status_json(path, default):
+    with _status_lock(path):
+        return _retry_status_io(lambda: read_json(path, default))
+
 
 def _session_status_path(session_id: str) -> str:
     return os.path.join(init_session(session_id), "status.json")
@@ -377,16 +396,20 @@ def _update_session_status(session_id: str, mutator, default=None):
     status_path = _session_status_path(session_id)
     lock = _status_lock(status_path)
     with lock:
-        status = read_json(status_path, default={} if default is None else default)
+        status = _read_status_json(status_path, default={} if default is None else default)
         result = mutator(status)
-        write_json_atomic(status_path, status)
+        write_json_atomic(status_path, status, session_status=True)
         return status if result is None else result
 
-def write_json_atomic(path: str, data):
+def write_json_atomic(path: str, data, *, session_status=False):
     tmp = f"{path}.{os.getpid()}.{threading.get_ident()}.{uuid.uuid4().hex}.tmp"
     try:
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
+
+        if session_status:
+            _retry_status_io(lambda: os.replace(tmp, path))
+            return
 
         last_err = None
         for delay_ms in (10, 25, 50, 100, 200):
@@ -476,7 +499,7 @@ def _publish_session_to_dungeonshare(session_id: str, campaign_slug: str):
     if not summary:
         raise ValueError("Generate a game summary before sending this session.")
 
-    status = read_json(_session_status_path(sid), default={})
+    status = _read_status_json(_session_status_path(sid), default={})
     created_at = int(status.get("createdAt") or os.path.getmtime(init_session(sid)))
     event_date = time.strftime("%Y-%m-%d", time.localtime(created_at))
     session_name = str(session.get("sessionName") or "").strip()
@@ -1135,7 +1158,7 @@ def _build_context_snapshot(campaign: dict):
 
 def _read_session_status(session_id: str):
     session_dir = os.path.join(UPLOADS_DIR, session_id)
-    return read_json(os.path.join(session_dir, "status.json"), default={})
+    return _read_status_json(os.path.join(session_dir, "status.json"), default={})
 
 def _set_session_status_fields(session_id: str, patch: dict):
     def mutate(status):
@@ -1650,13 +1673,10 @@ def _session_prompt_context_text(session_id: str) -> str:
 def _assign_session_campaign(session_id: str, campaign_id: str):
     cid = _safe_campaign_id(campaign_id)
     campaign = read_campaign(cid)
-    session_dir = init_session(session_id)
-    status_path = os.path.join(session_dir, "status.json")
-    status = read_json(status_path, default={})
-    status["campaignId"] = cid
-    status["contextSnapshot"] = _build_context_snapshot(campaign)
-    status["updatedAt"] = int(time.time())
-    write_json_atomic(status_path, status)
+    snapshot = _build_context_snapshot(campaign)
+    status = _set_session_status_fields(session_id, {
+        "campaignId": cid, "contextSnapshot": snapshot, "updatedAt": int(time.time()),
+    })
     return status, campaign
 
 def init_session(session_id: str, campaign_id: str = "") -> str:
@@ -1665,25 +1685,26 @@ def init_session(session_id: str, campaign_id: str = "") -> str:
     ensure_dir(session_dir)
 
     status_path = os.path.join(session_dir, "status.json")
-    status = read_json(status_path, default=None)
-    if status is None:
-        status = {
-            "sessionId": session_id,
-            "sessionName": "",
-            "campaignId": campaign_id,
-            "createdAt": int(time.time()),
-            "updatedAt": int(time.time()),
-            "chunks": [],
-            "latestChunkIndex": -1,
-            "notes": "",
-            "contextSnapshot": {},
-        }
-        write_json_atomic(status_path, status)
+    with _status_lock(status_path):
+        status = _read_status_json(status_path, default=None)
+        if status is None:
+            status = {
+                "sessionId": session_id,
+                "sessionName": "",
+                "campaignId": campaign_id,
+                "createdAt": int(time.time()),
+                "updatedAt": int(time.time()),
+                "chunks": [],
+                "latestChunkIndex": -1,
+                "notes": "",
+                "contextSnapshot": {},
+            }
+            write_json_atomic(status_path, status, session_status=True)
 
-    if campaign_id and not status.get("campaignId"):
-        status["campaignId"] = campaign_id
-        status["updatedAt"] = int(time.time())
-        write_json_atomic(status_path, status)
+        if campaign_id and not status.get("campaignId"):
+            status["campaignId"] = campaign_id
+            status["updatedAt"] = int(time.time())
+            write_json_atomic(status_path, status, session_status=True)
 
     return session_dir
 
@@ -1698,7 +1719,7 @@ def list_sessions(limit: int = 50, campaign_id: str = ""):
         if not SESSION_ID_RE.match(name):
             continue
         status_path = os.path.join(session_dir, "status.json")
-        status = read_json(status_path, default={})
+        status = _read_status_json(status_path, default={})
         capture = normalize_capture_status(status.get("capture"))
         finalization = status.get("finalization") if isinstance(status.get("finalization"), dict) else {}
         session_campaign_id = str(status.get("campaignId") or "").strip()
@@ -2056,7 +2077,7 @@ def _session_status_response(session_id: str) -> dict:
     if isinstance(current.get("finalization"), dict) and current["finalization"].get("finalExpectedChunkIndex") is not None:
         status = _refresh_session_finalization(session_id)
     else:
-        status = read_json(_session_status_path(session_id), default={})
+        status = _read_status_json(_session_status_path(session_id), default={})
     if not isinstance(status, dict):
         status = {}
     status["capture"] = _capture_status_response(session_id, status)
@@ -4961,12 +4982,9 @@ def _derive_tracking_state(session_id: str, events=None):
     }
 
 def _store_tracking_state(session_id: str, tracking_state: dict):
-    session_dir = init_session(session_id)
-    status_path = os.path.join(session_dir, "status.json")
-    status = read_json(status_path, default={})
-    status["trackingState"] = tracking_state
-    status["updatedAt"] = int(time.time())
-    write_json_atomic(status_path, status)
+    _set_session_status_fields(session_id, {
+        "trackingState": tracking_state, "updatedAt": int(time.time()),
+    })
 
 def _get_tracking_state(session_id: str):
     state = _derive_tracking_state(session_id)
@@ -7939,7 +7957,7 @@ class Handler(SimpleHTTPRequestHandler):
                 session_id = safe_session_id(str(data.get("sessionId") or ""))
                 session_dir = init_session(session_id)
                 status_path = os.path.join(session_dir, "status.json")
-                status = read_json(status_path, default={})
+                status = _read_status_json(status_path, default={})
                 campaign_id = str(status.get("campaignId") or data.get("campaignId") or "default")
                 status, campaign = _assign_session_campaign(session_id, campaign_id)
                 self._send_json(200, {
@@ -8011,6 +8029,8 @@ class Handler(SimpleHTTPRequestHandler):
             return
 
         if parsed.path == "/api/upload":
+            # Rejected headers may leave a body unread; never reuse that connection.
+            self.close_connection = True
             try:
                 qs = parse_qs(parsed.query)
                 session_id = safe_session_id((qs.get("sessionId") or [""])[0])
@@ -8023,23 +8043,30 @@ class Handler(SimpleHTTPRequestHandler):
                 if source_sha256 and not re.fullmatch(r"[a-f0-9]{64}", source_sha256):
                     raise ValueError("Invalid recording source digest.")
 
-                session_dir = init_session(session_id)
-
+                # Bound allocation before reading. 512 MiB accommodates a 30-minute
+                # stereo 48 kHz/16-bit WAV (~330 MiB), the UI's largest normal chunk.
+                length = int(self.headers.get("Content-Length") or "0")
+                if self.headers.get("Transfer-Encoding") or length <= 0:
+                    raise ValueError("A positive Content-Length is required for audio uploads.")
+                if length > 512 * 1024 * 1024:
+                    self._send_json(413, {"ok": False, "error": "Audio chunk exceeds the 512 MiB upload limit. Retain/export this chunk and use a shorter recording interval."})
+                    return
                 blob = self._read_body()
-                if not blob:
-                    raise ValueError("Empty body; expected audio bytes in POST body.")
-                if len(blob) != int(self.headers.get("Content-Length") or "0"):
-                    raise ValueError("Incomplete audio upload; the chunk must be retried.")
+                if len(blob) != length:
+                    raise ConnectionError("Incomplete audio upload; the chunk must be retried.")
 
                 content_type = self.headers.get("Content-Type") or ""
                 ext = _ext_from_content_type(content_type)
                 if ext == 'bin':
                     raise ValueError('Unsupported audio format.')
                 validate_audio(blob, ext)
+                # Consume and validate the request before Windows status-file access.
+                # No status lock is held while reading audio from the socket.
+                session_dir = init_session(session_id)
                 filename = f"chunk_{chunk_index:04d}.{ext}"
                 out_path = os.path.join(session_dir, filename)
                 with upload_lock(session_dir):
-                    status = read_json(os.path.join(session_dir, "status.json"), default={})
+                    status = _read_status_json(os.path.join(session_dir, "status.json"), default={})
                     existing = next((item for item in status.get("chunks", [])
                                      if item.get("chunkIndex") == chunk_index), None)
                     duplicate = existing is not None
@@ -8105,11 +8132,7 @@ class Handler(SimpleHTTPRequestHandler):
                     f.write(party + "\n")
 
                 # Also reflect into status.json for live UI
-                status_path = os.path.join(session_dir, "status.json")
-                status = read_json(status_path, default={})
-                status["party"] = party
-                status["updatedAt"] = int(time.time())
-                write_json_atomic(status_path, status)
+                _set_session_status_fields(session_id, {"party": party, "updatedAt": int(time.time())})
 
                 self._send_json(200, {
                     "ok": True,
@@ -8126,12 +8149,7 @@ class Handler(SimpleHTTPRequestHandler):
                 data = json.loads(body) if body else {}
                 session_id = safe_session_id(str(data.get("sessionId", "")))
                 session_name = sanitize_session_name(data.get("sessionName", ""))
-                session_dir = init_session(session_id)
-                status_path = os.path.join(session_dir, "status.json")
-                status = read_json(status_path, default={})
-                status["sessionName"] = session_name
-                status["updatedAt"] = int(time.time())
-                write_json_atomic(status_path, status)
+                _set_session_status_fields(session_id, {"sessionName": session_name, "updatedAt": int(time.time())})
                 self._send_json(200, {"ok": True, "sessionId": session_id, "sessionName": session_name})
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": str(e)})
@@ -8541,7 +8559,7 @@ class Handler(SimpleHTTPRequestHandler):
                 data = json.loads(body) if body else {}
                 session_id = safe_session_id(str(data.get("sessionId", "")))
                 status_path = os.path.join(UPLOADS_DIR, session_id, "status.json")
-                status = read_json(status_path, default={})
+                status = _read_status_json(status_path, default={})
                 rep = _normalize_reprocess_status(session_id, status, persist=True)
 
                 if rep.get("running"):
@@ -8594,7 +8612,7 @@ class Handler(SimpleHTTPRequestHandler):
                     window_override = max(1, min(20, int(window_override)))
 
                 # Avoid concurrent rebuilds for the same session.
-                status = read_json(os.path.join(UPLOADS_DIR, session_id, "status.json"), default={})
+                status = _read_status_json(os.path.join(UPLOADS_DIR, session_id, "status.json"), default={})
                 rep = _normalize_reprocess_status(session_id, status, persist=True)
                 if rep.get("running"):
                     self._send_json(409, {"ok": False, "error": "Reprocess already running for this session."})
@@ -8643,7 +8661,7 @@ class Handler(SimpleHTTPRequestHandler):
                 data = json.loads(body) if body else {}
                 session_id = safe_session_id(str(data.get("sessionId", "")))
                 party_override = str(data.get("party") or "")
-                status = read_json(_session_status_path(session_id), default={})
+                status = _read_status_json(_session_status_path(session_id), default={})
                 rep = _normalize_reprocess_status(session_id, status, persist=True)
                 if rep.get("running"):
                     self._send_json(409, {"ok": False, "error": "Notes rebuild is already running for this session."})
@@ -8684,7 +8702,7 @@ class Handler(SimpleHTTPRequestHandler):
                 body = self._read_body().decode("utf-8")
                 data = json.loads(body) if body else {}
                 session_id = safe_session_id(str(data.get("sessionId", "")))
-                status = read_json(_session_status_path(session_id), default={})
+                status = _read_status_json(_session_status_path(session_id), default={})
                 rep = _normalize_reprocess_status(session_id, status, persist=True)
                 if rep.get("running"):
                     self._send_json(409, {"ok": False, "error": "Notes rebuild is already running for this session."})
@@ -8738,7 +8756,7 @@ class Handler(SimpleHTTPRequestHandler):
                 session_id = safe_session_id(str(data.get("sessionId", "")))
                 chunk_from = int(data.get("chunkFrom"))
                 chunk_to = int(data.get("chunkTo"))
-                status = read_json(_session_status_path(session_id), default={})
+                status = _read_status_json(_session_status_path(session_id), default={})
                 rep = _normalize_reprocess_status(session_id, status, persist=True)
                 if rep.get("running"):
                     self._send_json(409, {"ok": False, "error": "Notes rebuild is already running for this session."})
@@ -8786,7 +8804,7 @@ class Handler(SimpleHTTPRequestHandler):
                 body = self._read_body().decode("utf-8")
                 data = json.loads(body) if body else {}
                 session_id = safe_session_id(str(data.get("sessionId", "")))
-                status = read_json(_session_status_path(session_id), default={})
+                status = _read_status_json(_session_status_path(session_id), default={})
                 rep = _normalize_reprocess_status(session_id, status, persist=True)
                 if rep.get("running"):
                     self._send_json(409, {"ok": False, "error": "Notes rebuild is already running for this session."})

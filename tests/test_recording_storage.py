@@ -81,7 +81,7 @@ class OfflineRecordingTests(unittest.TestCase):
     def test_incomplete_transfer_is_not_acknowledged_or_written(self):
         blob = wav_bytes()
         code, response = self.upload(blob, content_length=len(blob) + 10)
-        self.assertEqual(400, code, response)
+        self.assertEqual(503, code, response)
         self.assertIn('Incomplete', response['error'])
         self.assertEqual([], list(Path(self.temp.name, self.sid).glob('chunk_*')))
 

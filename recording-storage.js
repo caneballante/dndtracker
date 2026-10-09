@@ -60,6 +60,7 @@
       this.setTimeout = options.setTimeout || globalThis.setTimeout.bind(globalThis);
       this.clearTimeout = options.clearTimeout || globalThis.clearTimeout.bind(globalThis);
       this.items = new Map();
+      this.durableIds = new Set();
       this.busy = false;
       this.timer = null;
       this.ready = false;
@@ -69,6 +70,7 @@
     snapshot() {
       const items = [...this.items.values()];
       return { ready: this.ready, pending: items.length, blocked: items.filter(item => item.blocked).length,
+        memoryOnly: items.filter(item => !this.durableIds.has(item.id)).length,
         storageError: this.storageError, saving: this.busy,
         lastError: items.find(item => item.lastError)?.lastError || '',
         pendingSessions: [...new Set(items.map(item => item.sessionId))] };
@@ -82,7 +84,7 @@
           const key = `${item.sessionId}:${item.index}`;
           if (!journals.has(key)) journals.set(key, []);
           journals.get(key).push(item);
-        } else this.items.set(item.id, item);
+        } else { this.items.set(item.id, item); this.durableIds.add(item.id); }
       }
       for (const [id, parts] of journals) {
         if (this.items.has(id)) continue;
@@ -118,6 +120,7 @@
       let backedUp = false;
       try {
         await this.store.put(item); backedUp = true; this.storageError = '';
+        this.durableIds.add(item.id);
         if (this.store.get) delete item.blob;
       }
       catch (error) { this.storageError = String(error?.message || error); }
@@ -153,7 +156,7 @@
               Object.assign(item, prepared, { prepared: true });
               // Store the exact bytes we retry, so ambiguous responses cannot change the file format.
             }
-            try { await this.store.put(item); this.storageError = ''; }
+            try { await this.store.put(item); this.durableIds.add(item.id); this.storageError = ''; }
             catch (error) {
               this.storageError = String(error?.message || error);
               // A stable source digest identifies either representation after reload.
@@ -164,6 +167,7 @@
             for (const id of item.journalIds || []) await this.store.remove(id);
             await this.store.remove(item.id);
             this.items.delete(item.id);
+            this.durableIds.delete(item.id);
             this.onSaved(item, result);
           } catch (error) {
             item.attempts += 1;
@@ -171,7 +175,7 @@
             item.blocked = Boolean(error?.permanent);
             item.retryAt = this.now() + Math.min(30000, 1000 * 2 ** Math.min(item.attempts - 1, 5));
             if (item.blocked) {
-              try { await this.store.put(item); } catch (_) {}
+              try { await this.store.put(item); this.durableIds.add(item.id); } catch (_) {}
             }
             // Persisted blobs are loaded on demand, not held for the whole outage.
             if (this.store.get) {

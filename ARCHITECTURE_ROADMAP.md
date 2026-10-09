@@ -1,0 +1,27 @@
+# Proposed modularization roadmap
+
+Planning only; no extractions are authorized by this document. Keep a local Python application and browser modules. Preserve filenames, HTTP contracts, model/prompt choices, billing behavior, and the simple game-night flow.
+
+## Boundaries
+
+| Logical module | Existing ownership / proposed extraction | Dependencies and preservation tests |
+|---|---|---|
+| Recording persistence | `recording_storage.py`; status lock/read/mutation helpers, `init_session`, `update_status_for_chunk`, upload transaction in `server.py`; `recording-storage.js` for IndexedDB/checkpoints/retries | Python filesystem only; browser storage and a transport callback. Keep audio/index identity and one writer policy. Test sharing errors, atomic writes, concurrent fields, lost receipts, quotas, reload, cross-format orphan files. |
+| Audio capture | `dnd-audio.html`: `startRecorderCycle`, Start/Pause/Resume/Stop, `recoverCapture`, stream handlers; retain `capture-reliability.js` as the observer/health policy | Browser media APIs and a persistence enqueue/checkpoint interface. No transcription or AI dependency. Preserve event ordering and explicit ownership. Test late callbacks, rapidly interleaved controls, rollover, device loss, clock delay, and full-duration measured audio. |
+| Transcription | `server.py`: `enqueue_transcription`, `resume_transcription_jobs`, `transcribe_async`, backfill and provider adapters | Reads committed audio; writes transcript evidence and job status through the status API. Preserve live/deferred intent, models and pricing. Test bounded dispatch, restart, failures, deduplication and invalid audio with provider doubles. |
+| AI processing | Existing `session_reconciliation.py`, `session_events.py`, `session_highlights.py`, `live_player_assistant.py`; orchestration/summary/notes/recap functions still in `server.py` | Transcript evidence, campaign read interfaces, explicit tracker input, usage accounting. No control over capture or deletion of original evidence. Keep prompts/models/authority semantics unchanged. Golden output-contract and reprocessing tests with recorded synthetic provider responses. |
+| Campaign/session management | Campaign CRUD/context snapshots, session listing/metadata, tracker state/events in `server.py`; existing evidence modules retain authority rules | Uses the status API for session fields; exposes stable context/roster/history interfaces. Test cross-campaign scoping, idempotency, filenames and preservation of concurrent recording status. |
+| UI | `dnd-audio.html`, `table-ready.js`, styles; present controls and health/progress views | Calls capture/session interfaces; renders separate capture, browser durability, server receipt, transcript and AI states. No duplicate recorder/queue owner. Test controls, failure messages, accessibility and actual static HTTP delivery. |
+
+The dependency direction should be UI → capture/session commands; capture → persistence; saved audio → transcription → AI. Campaign context and authoritative tracker inputs feed transcription/AI as appropriate. Health observes capture/storage evidence. Transcription and AI must never call recorder lifecycle controls. Keep HTTP handlers thin only as each boundary becomes safe to extract; do not create six services.
+
+## Sequence and risks
+
+1. **Acceptance gate first:** pass the four-hour reference-based Windows run, including server outage, checkpoint recovery and Stop. Retain timing/failure fixtures as characterization tests. Do not move recorder or finalization code before this gate.
+2. **Extract session-status persistence first:** one small Python module behind existing wrappers. Keep session metadata ownership explicit. Main risks: lock identity/order, initialization recursion, accidentally broadening JSON fallback, and per-process ownership. Port this assignment's concurrency/fault tests unchanged.
+3. **Extract upload transaction next:** maintain route signatures and durable receipt semantics. Resolve cross-format orphan indexing before promising exactly-once logical chunks. Risks: changing error classification, acknowledging before durable writes, and scheduling AI before commit. Test real HTTP and receipt loss.
+4. **Extract browser capture only after event characterization:** one owner for recorder/stream/index and explicit stop/drain milestones; keep persistence and controller modules intact initially. Risks: late callback closure state, rapid controls, session switches, and stopping during recovery. Rerun the full-duration test after extraction.
+5. **Extract transcription scheduling/adapters:** preserve existing provider decisions and costs. Risks: duplicate billing, losing queued intent, and starving local writes. Verify all provider behavior with doubles before an explicitly authorized provider check.
+6. **Extract session/campaign and AI orchestration incrementally; split UI last as useful:** one independently reviewable boundary per change. Preserve current routes and adapters until callers migrate. Risks: changing evidence authority, campaign scoping, output filenames or DM workflow. Run domain tests and HTTP/UI contract tests per slice.
+
+Keep AI quality/prompt/model/pricing changes, evidence formats, historical data migrations, cross-device synchronization, UI redesign and additional live features untouched until recording reliability is established. Each extraction should be separately approved, behavior-preserving, reversible, and validated before the next begins.

@@ -1560,7 +1560,7 @@
     upload: async (item) => {
       const health = await localFetch('/api/recording/health');
       if (!health.response.ok || health.json.serverBuild !== '4.5-checkpoints') {
-        throw new Error('The local server needs the recording update. Audio remains backed up; restart the server when safe.');
+        throw new Error('The local server needs the recording update. Audio remains queued; restart the server when safe.');
       }
       if (item.sessionMeta && !initializedQueuedSessions.has(item.sessionId)) {
         await postCapture('/api/session/start', item.sessionMeta);
@@ -1575,6 +1575,7 @@
       captureSaveStatusEl.textContent = state.storageError
         ? `BROWSER BACKUP FAILED: ${state.storageError}. Keep this page open and download pending audio.`
         : !state.ready ? 'Local backup unavailable. Recording cannot start until backup is ready.'
+        : state.memoryOnly ? `${state.memoryOnly} pending chunk(s) are retained only in memory, not fully backed up. Keep this page open and download pending audio. Saves retry automatically.`
         : state.blocked ? `${state.pending} chunk(s) retained; ${state.blocked} need attention: ${state.lastError}`
         : state.pending ? `${state.pending} chunk(s) backed up in this browser, waiting to save on this PC. ${state.lastError || 'Saves retry automatically.'}`
         : 'Local audio backup ready. Completed chunks save on this PC; recording does not need internet.';

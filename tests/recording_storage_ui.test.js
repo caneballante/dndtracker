@@ -162,3 +162,63 @@ test('normal rollover creates one new recorder while audio is retained locally',
   assert.equal(h.saved[0].deferTranscription, true);
   assert.equal(h.events.includes('unexpected'), false);
 });
+
+test('upload failures and invalid receipts leave the recorder running and backups restorable', async () => {
+  const { CaptureReliabilityController } = require('../capture-reliability.js');
+  const html = fs.readFileSync(require('node:path').join(__dirname, '../dnd-audio.html'), 'utf8');
+  for (const failure of ['unavailable', 'initialization', 'validation', 'receipt']) {
+    const h = recorderHarness(), storage = store();
+    const capture = new CaptureReliabilityController({
+      signalProvider: () => ({ recorderState: h.context.recorder?.state, streamActive: true, trackState: 'live' }),
+      setInterval: () => 1, clearInterval() {},
+    });
+    await capture.start({ sessionId: '1234567890123', chunkIntervalMs: 120000 });
+    h.context.captureController = capture;
+    h.context.localFetch = async () => {
+      if (failure === 'unavailable') throw new Error('Failed to fetch');
+      const status = failure === 'initialization' ? 503 : failure === 'validation' ? 400 : 200;
+      return { response: { ok: status === 200, status }, json: { ok: status === 200,
+        sessionId: 'wrong-session', chunkIndex: 0, bytes: 5 } };
+    };
+    vm.runInContext(html.slice(html.indexOf('  async function uploadChunk(item)'), html.indexOf('  function waitForPendingChunkUploads()')), h.context);
+    const q = queue(storage, item => h.context.uploadChunk(item), { onState: state => capture.updateSaveQueue(state) });
+    let enqueued;
+    const queued = new Promise(resolve => { enqueued = resolve; });
+    const enqueue = q.enqueue.bind(q);
+    q.enqueue = async item => { const result = await enqueue(item); enqueued(); return result; };
+    await q.init(); h.context.recordingQueue = q;
+    h.context.startRecorderCycle();
+    const first = h.context.recorder;
+    // Input not yet delivered by MediaRecorder has no backup.
+    assert.equal(storage.rows.size, 0);
+    await first.ondataavailable({ data: new Blob(['audio']) });
+    h.timers.at(-1).fn(); first.onstop();
+    await queued;
+    await q.pump(); capture.observe();
+    assert.equal(h.context.recorder.state, 'recording', failure);
+    assert.equal(capture.snapshot().openGap, null, failure);
+    assert.notEqual(capture.snapshot().state, 'interrupted', failure);
+    assert.equal(q.snapshot().pending, 1, failure);
+    assert.equal(q.snapshot().memoryOnly, 0, failure);
+    assert.equal(q.snapshot().blocked, failure === 'validation' ? 1 : 0, failure + ': ' + q.snapshot().lastError);
+    const restored = queue(storage, async () => ({})); await restored.init();
+    assert.equal(restored.snapshot().pending, 1, failure);
+    assert.equal(await restored.items.values().next().value.blob.text(), 'audio', failure);
+    q.close(); restored.close();
+  }
+});
+
+test('later successful checkpoints cannot claim an earlier memory-only chunk is backed up', async () => {
+  const storage = store(), put = storage.put;
+  storage.put = async item => { if (item.kind !== 'checkpoint') throw new Error('quota'); return put(item); };
+  const q = queue(storage, async () => { throw new Error('server offline'); });
+  await q.init();
+  assert.equal(await q.enqueue(chunk(0)), false);
+  await q.checkpoint({ ...chunk(1), part: 0 });
+  assert.equal(q.snapshot().storageError, '');
+  assert.equal(q.snapshot().memoryOnly, 1);
+  await q.pump();
+  assert.equal(await q.items.get('1234567890123:0').blob.text(), 'audio');
+  storage.put = put; q.retry(); await q.pump();
+  assert.equal(q.snapshot().memoryOnly, 0);
+});
