@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import unittest
+import wave
 from unittest import mock
 
 import server
@@ -262,6 +263,11 @@ class ReconciliationWorkflowTests(unittest.TestCase):
     def _ready_session(self, transcript="The party learned the gate opens at moonrise."):
         server.init_session(self.session_id)
         for index in (1, 0):
+            with wave.open(os.path.join(self.uploads_dir, self.session_id, f'chunk_{index:04d}.wav'), 'wb') as audio:
+                audio.setnchannels(1)
+                audio.setsampwidth(2)
+                audio.setframerate(8000)
+                audio.writeframes(b'\x00\x00' * 80)
             server.update_status_for_chunk(self.session_id, index, f"chunk_{index:04d}.wav", 100)
             server._append_transcript(self.session_id, index, f"{transcript} Evidence {index}.")
         result = server._request_session_finalization(self.session_id, 1)

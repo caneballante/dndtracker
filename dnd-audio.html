@@ -419,8 +419,9 @@
                 </div>
 
                 <div id="captureInterruptionPanel" class="capture-interruption mb-3" role="alert" hidden>
-                  <div class="h4 mb-1">RECORDING INTERRUPTED</div>
-                  <div class="fw-bold">AUDIO CAPTURE STOPPED</div>
+                  <div id="captureInterruptionTitle" class="h4 mb-1">RECORDING INTERRUPTED</div>
+                  <div id="captureRecoveryProgress" class="fw-bold" aria-live="polite">CAPTURE NEEDS ATTENTION</div>
+                  <div id="captureRecoveryHistory" class="small mt-1" hidden></div>
                   <div id="captureInterruptionDetail" class="mt-2"></div>
                   <div id="captureGapDetail" class="small mt-1"></div>
                   <div class="mt-3 d-flex flex-wrap gap-2">
@@ -1337,6 +1338,9 @@
   const captureInterruptionPanelEl = document.getElementById('captureInterruptionPanel');
   const captureInterruptionDetailEl = document.getElementById('captureInterruptionDetail');
   const captureGapDetailEl = document.getElementById('captureGapDetail');
+  const captureRecoveryProgressEl = document.getElementById('captureRecoveryProgress');
+  const captureRecoveryHistoryEl = document.getElementById('captureRecoveryHistory');
+  const captureInterruptionTitleEl = document.getElementById('captureInterruptionTitle');
   const captureRecoverBtn = document.getElementById('captureRecoverBtn');
   const captureAcknowledgeBtn = document.getElementById('captureAcknowledgeBtn');
 
@@ -1362,6 +1366,9 @@
   let meterRaf = null;
   const recorderStopReasons = new WeakMap();
   let recorderStarting = false;
+  let captureOperationId = 0;
+  let recoveryAttempt = null;
+  let meterGeneration = 0;
   let recordingSessionMeta = null;
   let sessionInitPending = false;
   const initializedQueuedSessions = new Set();
@@ -1505,7 +1512,31 @@
     if (captureSleepWarningEl) captureSleepWarningEl.hidden = !state.sessionOpen || state.keepAwake?.active;
 
     const interrupted = state.state === 'interrupted' || state.state === 'recovering';
-    if (captureInterruptionPanelEl) captureInterruptionPanelEl.hidden = !interrupted;
+    if (captureInterruptionPanelEl) captureInterruptionPanelEl.hidden = !(interrupted || (state.sessionOpen && state.recovery));
+    if (captureInterruptionTitleEl) captureInterruptionTitleEl.textContent = state.state === 'recovering'
+      ? 'RECOVERY IN PROGRESS' : state.recovery?.stage === 'durably_checkpointed' && !state.recovery.error
+      ? 'RECOVERY CHECKPOINT SAVED' : 'RECORDING INTERRUPTED';
+    if (captureRecoveryProgressEl) {
+      const stages = { requested: 'Recovery requested — preparing local saves',
+        microphone_reconnecting: 'Microphone reconnecting…',
+        recorder_starting: 'Starting replacement recorder…',
+        recorder_started: 'Recorder started — waiting for new durable audio checkpoint',
+        durably_checkpointed: 'New audio durably checkpointed — recording recovered',
+        cancelled: 'Recovery cancelled' };
+      const recovery = state.recovery;
+      captureRecoveryProgressEl.textContent = recovery
+        ? recovery.error && recovery.stage !== 'cancelled'
+          ? `Recovery failed at ${stages[recovery.stage] || recovery.stage}: ${recovery.error}`
+          : `${stages[recovery.stage] || recovery.stage}${recovery.error ? ` — ${recovery.error}` : ''}`
+        : 'Capture interruption detected — inspect status and recover';
+    }
+    if (captureRecoveryHistoryEl) {
+      const labels = { requested: 'Requested', microphone_reconnecting: 'Reconnecting microphone',
+        recorder_starting: 'Starting recorder', recorder_started: 'Recorder started', durably_checkpointed: 'Durable audio checkpoint' };
+      const history = state.recovery?.history || [];
+      captureRecoveryHistoryEl.hidden = history.length === 0;
+      captureRecoveryHistoryEl.textContent = history.map(stage => labels[stage] || stage).join(' → ');
+    }
     if (captureInterruptionDetailEl) {
       captureInterruptionDetailEl.textContent = `Last confirmed audio: ${captureTime(state.lastChunkAcknowledgedAtMs)}. Reason: ${state.interruptionReason || 'capture health failure'}.`;
     }
@@ -1513,18 +1544,19 @@
     if (captureGapDetailEl) {
       const seconds = Number(gap?.durationSeconds);
       captureGapDetailEl.textContent = gap
-        ? `CAPTURE GAP — ${captureTime(gap.startedAtMs)} → ${gap.endedAtMs ? captureTime(gap.endedAtMs) : 'now'}${Number.isFinite(seconds) ? ` (about ${seconds}s)` : ''}`
+        ? `POSSIBLE CAPTURE GAP (timing estimate) — ${captureTime(gap.startedAtMs)} → ${gap.endedAtMs ? captureTime(gap.endedAtMs) : 'now'}${Number.isFinite(seconds) ? ` (about ${seconds}s)` : ''}`
         : 'Possible missing audio begins after the last confirmed upload.';
     }
     if (captureAcknowledgeBtn) captureAcknowledgeBtn.disabled = Boolean(state.alertAcknowledged);
-    if (captureRecoverBtn) captureRecoverBtn.disabled = state.state === 'recovering';
+    if (captureRecoverBtn) captureRecoverBtn.disabled = !['interrupted', 'error'].includes(state.state) || Boolean(state.pendingFinalization);
 
     const finalizationProblem = state.state === 'error' && Boolean(state.pendingFinalization);
     if (captureGlobalWarningEl) captureGlobalWarningEl.hidden = !(interrupted || finalizationProblem);
     if (captureGlobalWarningTextEl) {
       captureGlobalWarningTextEl.textContent = finalizationProblem
         ? 'FINALIZATION NEEDS ATTENTION — THIS SESSION IS SAVED BUT NOT FULLY FINALIZED'
-        : 'RECORDING INTERRUPTED — AUDIO CAPTURE STOPPED';
+        : state.state === 'recovering' ? 'RECORDING RECOVERY IN PROGRESS'
+        : 'CAPTURE INTERRUPTION DETECTED — RECOVERY NEEDS ATTENTION';
     }
     if (captureFinishFinalizationBtn) captureFinishFinalizationBtn.hidden = !finalizationProblem;
     if (interrupted || state.state === 'recovered_with_gap' || state.state === 'suspect') setStatus(paused ? 'paused' : 'recording');
@@ -1642,51 +1674,103 @@
     });
   }
 
+  function cancelPendingRecovery(reason) {
+    captureOperationId += 1;
+    if (recoveryAttempt) {
+      recoveryAttempt.cancelled = true;
+      recoveryAttempt = null;
+      captureController?.cancelRecovery(reason);
+    }
+  }
+
   async function recoverCapture() {
-    if (!captureController?.beginRecovery()) return;
+    if (recoveryAttempt && captureController?.snapshot().state !== 'recovering') cancelPendingRecovery('retry_requested');
+    if (recoveryAttempt || !captureController?.beginRecovery()) return;
+    const attempt = { id: ++captureOperationId, sessionId: String(sessionId), cancelled: false };
+    recoveryAttempt = attempt;
+    const ownsAttempt = () => recoveryAttempt === attempt && !attempt.cancelled
+      && captureOperationId === attempt.id && String(sessionId) === attempt.sessionId
+      && !stopRequested && !paused && captureController.snapshot().state === 'recovering';
     startBtn.disabled = true;
+    stopBtn.disabled = false;
+    pauseBtn.disabled = false;
+    let stage = 'requested';
+    let microphoneTimer;
     try {
+      stopRequested = false;
+      paused = false;
+      captureController.recoveryStage(stage, attempt.id);
       await recordingQueueReady;
+      if (!ownsAttempt()) return;
       if (!recordingQueue?.ready) throw new Error('Local audio backup is not ready.');
       chunkMs = Math.max(60000, Number(captureController.snapshot().chunkIntervalMs) || 120000);
       let statusJson = {};
       try {
-        const result = await localFetch(`/api/session/status?sessionId=${encodeURIComponent(sessionId)}&_t=${Date.now()}`, { cache: 'no-store' });
+        const result = await localFetch(`/api/session/status?sessionId=${encodeURIComponent(attempt.sessionId)}&_t=${Date.now()}`, { cache: 'no-store' }, 1000);
         if (result.response.ok && result.json.ok) statusJson = result.json;
       } catch (_) { log('Recovering from browser checkpoints; the local server will reconnect automatically.'); }
+      if (!ownsAttempt()) return;
       const serverIndexes = Array.isArray(statusJson?.status?.chunks)
-        ? statusJson.status.chunks.map((item) => Number(item?.chunkIndex)).filter(Number.isInteger)
-        : [];
-      const highestServerChunk = serverIndexes.length ? Math.max(...serverIndexes) : -1;
-      highestEmittedChunkIndex = Math.max(highestEmittedChunkIndex, highestServerChunk, recordingQueue.highestIndex(sessionId));
-      chunkIndex = Math.max(chunkIndex, highestEmittedChunkIndex + 1, Number(localStorage.getItem(`dungeontracker.next.${sessionId}`)) || 0);
+        ? statusJson.status.chunks.map((item) => Number(item?.chunkIndex)).filter(Number.isInteger) : [];
+      highestEmittedChunkIndex = Math.max(highestEmittedChunkIndex, serverIndexes.length ? Math.max(...serverIndexes) : -1, recordingQueue.highestIndex(attempt.sessionId));
+      chunkIndex = Math.max(chunkIndex, highestEmittedChunkIndex + 1, Number(localStorage.getItem(`dungeontracker.next.${attempt.sessionId}`)) || 0);
       chunkCounterEl.textContent = String(chunkIndex);
       stopChunkTimer();
       if (recorder) {
         recorderStopReasons.set(recorder, 'recovery');
-        if (recorder.state !== 'inactive') recorder.stop();
+        if (recorder.state !== 'inactive' || (recorder.captureStartAccepted && !recorder.captureStopDelivered)) {
+          if (!recorder.recoveryFlushPending) { recorder.recoveryFlushPending = true; pendingChunkUploads += 1; }
+          if (recorder.state !== 'inactive') recorder.stop();
+        }
+        recorder = null;
       }
       const oldStream = stream;
       stream = null;
       oldStream?.getTracks().forEach((track) => track.stop());
+      stage = 'microphone_reconnecting';
+      captureController.recoveryStage(stage, attempt.id);
       const audioConstraints = selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true;
-      stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      const microphone = navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      // A cancelled/timed-out permission/device request may still resolve later.
+      microphone.then(candidate => {
+        if (!ownsAttempt()) candidate.getTracks().forEach(track => track.stop());
+      }, () => {});
+      const candidate = await Promise.race([microphone, new Promise((_, reject) => {
+        microphoneTimer = setTimeout(() => reject(new Error('Microphone reconnect timed out after 15 seconds. Check device permissions and retry.')), 15000);
+      })]);
+      clearTimeout(microphoneTimer);
+      if (!ownsAttempt()) { candidate.getTracks().forEach(track => track.stop()); return; }
+      stream = candidate;
       attachCaptureStreamHandlers(stream);
       startMeter(stream);
-      stopRequested = false;
-      paused = false;
       deferTranscription = recordAudioOnlyEl.checked;
-      localStorage.setItem('dungeontracker.recording.session', JSON.stringify({ sessionId, sessionMeta: recordingSessionMeta, deferTranscription, sessionInitPending }));
+      localStorage.setItem('dungeontracker.recording.session', JSON.stringify({ sessionId: attempt.sessionId, sessionMeta: recordingSessionMeta, deferTranscription, sessionInitPending }));
       recordAudioOnlyEl.disabled = true;
       baseMimeType = pickMimeType();
+      stage = 'recorder_starting';
+      captureController.recoveryStage(stage, attempt.id);
       startRecorderCycle();
+      // onstart/checkpoint callbacks own the remaining recovery stages.
       pauseBtn.disabled = false;
       resumeBtn.disabled = true;
       stopBtn.disabled = false;
     } catch (error) {
-      startBtn.disabled = false;
-      captureController.recoveryFailed(error);
-      log(`CAPTURE RECOVERY FAILED: ${error?.message || error}`);
+      if (!ownsAttempt()) return;
+      attempt.cancelled = true;
+      recoveryAttempt = null;
+      if (recorder) {
+        recorderStopReasons.set(recorder, 'recovery');
+        if (recorder.state !== 'inactive') recorder.stop();
+        recorder = null;
+      }
+      stream?.getTracks().forEach(track => track.stop());
+      stream = null;
+      recorderStarting = false;
+      stopMeter();
+      captureController.recoveryFailed(error, stage);
+      log(`CAPTURE RECOVERY FAILED (${stage}): ${error?.message || error}`);
+    } finally {
+      clearTimeout(microphoneTimer);
     }
   }
 
@@ -2253,46 +2337,64 @@
 
   function startMeter(s) {
     stopMeter();
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!s || !AudioCtx) return;
-    meterCtx = new AudioCtx();
-    const source = meterCtx.createMediaStreamSource(s);
-    meterAnalyser = meterCtx.createAnalyser();
-    meterAnalyser.fftSize = 1024;
-    source.connect(meterAnalyser);
+    const generation = ++meterGeneration;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!s || !AudioCtx) return;
+      meterCtx = new AudioCtx();
+      const source = meterCtx.createMediaStreamSource(s);
+      meterAnalyser = meterCtx.createAnalyser();
+      meterAnalyser.fftSize = 1024;
+      source.connect(meterAnalyser);
 
-    const data = new Uint8Array(meterAnalyser.fftSize);
-    const tick = () => {
-      if (!meterAnalyser) return;
-      meterAnalyser.getByteTimeDomainData(data);
-      let sum = 0;
-      for (let i = 0; i < data.length; i++) {
-        const v = (data[i] - 128) / 128;
-        sum += v * v;
-      }
-      const rms = Math.sqrt(sum / data.length);
-      const pct = Math.min(100, Math.max(0, Math.round(rms * 200)));
-      if (micLevelBarEl) {
-        micLevelBarEl.style.width = `${pct}%`;
-        micLevelBarEl.setAttribute('aria-valuenow', String(pct));
-      }
-      meterRaf = requestAnimationFrame(tick);
-    };
-    tick();
+      const data = new Uint8Array(meterAnalyser.fftSize);
+      const tick = () => {
+        if (!meterAnalyser || generation !== meterGeneration) return;
+        try {
+        meterAnalyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        const pct = Math.min(100, Math.max(0, Math.round(rms * 200)));
+        if (micLevelBarEl) {
+          micLevelBarEl.style.width = `${pct}%`;
+          micLevelBarEl.setAttribute('aria-valuenow', String(pct));
+        }
+        meterRaf = requestAnimationFrame(tick);
+        } catch (_) {
+          stopMeter();
+          captureController?.sendDiagnostic('meter_error', { generation, reason: 'analyser_unavailable' }).catch(() => {});
+        }
+      };
+      captureController?.sendDiagnostic('meter_started', { generation, contextState: meterCtx.state }).catch(() => {});
+      meterCtx.addEventListener?.('statechange', () => {
+        if (generation === meterGeneration) captureController?.sendDiagnostic('meter_context_state', { generation, contextState: meterCtx?.state }).catch(() => {});
+      });
+      tick();
+    } catch (_) {
+      stopMeter();
+      captureController?.sendDiagnostic('meter_error', { generation, reason: 'context_unavailable' }).catch(() => {});
+    }
   }
 
   async function stopMeter() {
+    ++meterGeneration;
+    const oldContext = meterCtx;
     if (meterRaf) cancelAnimationFrame(meterRaf);
     meterRaf = null;
+    meterCtx = null;
+    meterAnalyser = null;
     if (micLevelBarEl) {
       micLevelBarEl.style.width = '0%';
       micLevelBarEl.setAttribute('aria-valuenow', '0');
     }
-    if (meterCtx) {
-      try { await meterCtx.close(); } catch (_) {}
+    if (oldContext) {
+      try { await oldContext.close(); }
+      catch (_) { captureController?.sendDiagnostic('meter_close_failed', { reason: 'context_close_rejected' }).catch(() => {}); }
     }
-    meterCtx = null;
-    meterAnalyser = null;
   }
 
   // Convert recorded chunk to WAV for maximum transcription compatibility
@@ -2423,14 +2525,23 @@ async function postMetaOnce() {
     waiters.forEach((resolve) => resolve());
   }
 
+  function expectedAudioBoundary() {
+    // Accepted recorder starts stay required even without an emitted checkpoint.
+    // Retain durable reservations across page restoration; never skip missing audio.
+    return Math.max(highestEmittedChunkIndex, chunkIndex - 1,
+      (Number(localStorage.getItem(`dungeontracker.next.${sessionId}`)) || 0) - 1);
+  }
+
   function finalizeStoppedSession() {
     recordAudioOnlyEl.disabled = false;
     if (stopFinalizationPromise) return stopFinalizationPromise;
     const stoppedSessionId = sessionId;
-    const finalExpectedChunkIndex = highestEmittedChunkIndex;
+    let finalExpectedChunkIndex = expectedAudioBoundary();
     captureController?.beginFinalization(finalExpectedChunkIndex);
     stopFinalizationPromise = (async () => {
       await waitForPendingChunkUploads();
+      finalExpectedChunkIndex = expectedAudioBoundary();
+      captureController?.beginFinalization(finalExpectedChunkIndex);
       pendingFinalizations[String(stoppedSessionId)] = { sessionId: stoppedSessionId, finalExpectedChunkIndex, deferTranscription };
       persistFinalizations();
       captureController?.finalizationPending('waiting_for_saves');
@@ -2455,20 +2566,35 @@ async function postMetaOnce() {
   function startRecorderCycle() {
     if (!stream) return;
     if (paused) return;
+    if (stopRequested) return;
     if (recorder && recorder.state !== 'inactive') return;
+    const captureState = captureController?.snapshot();
+    const tracks = stream.getAudioTracks?.() || stream.getTracks?.() || [];
+    if (stream.active === false || (tracks.length && tracks.every(track => track.readyState === 'ended'))) {
+      recorderStarting = false;
+      captureController?.trackEnded();
+      return;
+    }
+    if (captureState?.state !== 'recovering' && (captureState?.recoveryRequired || captureState?.interrupted
+      || ['interrupted', 'error', 'finalizing', 'stopped'].includes(captureState?.state))) {
+      recorderStarting = false;
+      return;
+    }
     chunkMs = Math.max(60000, Number(chunkMs) || 120000);
 
     const mimeType = baseMimeType || pickMimeType();
     const activeRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
     recorder = activeRecorder;
     const cycleSessionId = String(sessionId);
+    const cycleRecoveryId = recoveryAttempt?.id;
     const cycleDeferTranscription = deferTranscription;
     const cycleSessionMeta = sessionInitPending ? recordingSessionMeta : null;
     const effectiveMimeType = activeRecorder.mimeType || mimeType || 'audio/webm';
     const index = Math.max(chunkIndex, Number(localStorage.getItem(`dungeontracker.next.${cycleSessionId}`)) || 0);
-    // The tab lease makes this monotonic allocation exclusive, including offline recovery.
-    localStorage.setItem(`dungeontracker.next.${cycleSessionId}`, String(index + 1));
-    chunkIndex = index + 1;
+    // Candidate only. A synchronous rejected start has never captured audio and
+    // must not create a durable reservation. Accepted starts remain required.
+    activeRecorder.captureStartAccepted = false;
+    activeRecorder.captureStopDelivered = false;
     const pieces = [];
     const journalIds = [];
     let checkpointTail = Promise.resolve();
@@ -2476,12 +2602,18 @@ async function postMetaOnce() {
 
     activeRecorder.onstart = () => {
       if (recorder !== activeRecorder) return;
+      if (stopRequested || paused || (cycleRecoveryId != null && (recoveryAttempt?.id !== cycleRecoveryId
+        || captureController?.snapshot().state !== 'recovering'))) {
+        recorderStopReasons.set(activeRecorder, stopRequested ? 'stop_requested' : paused ? 'pause' : 'recovery');
+        if (activeRecorder.state !== 'inactive') activeRecorder.stop();
+        return;
+      }
       recorderStarting = false;
       setStatus('recording');
       log(`Recording started. mimeType=${effectiveMimeType}`);
       startCountdown(chunkMs);
-      captureController?.recorderStarted();
-      if (captureController?.snapshot().state === 'recovering') captureController.recovered();
+      captureController?.recorderStarted(index);
+      if (cycleRecoveryId != null && recoveryAttempt?.id === cycleRecoveryId) captureController?.recoveryStage('recorder_started', cycleRecoveryId);
     };
 
     activeRecorder.ondataavailable = async (evt) => {
@@ -2493,7 +2625,10 @@ async function postMetaOnce() {
         const saved = await recordingQueue.checkpoint({ sessionId: cycleSessionId, index, part,
           blob: evt.data, mimeType: effectiveMimeType, deferTranscription: cycleDeferTranscription,
           sessionMeta: cycleSessionMeta });
-        if (saved) captureController?.chunkLocallySaved();
+        if (saved) {
+          captureController?.chunkLocallySaved(cycleRecoveryId);
+          if (recoveryAttempt?.id === cycleRecoveryId && captureController?.snapshot().recovery?.stage === 'durably_checkpointed') recoveryAttempt = null;
+        }
       }).catch(error => log(`CHECKPOINT WARNING: ${error.message}. Keep the page open.`));
       return checkpointTail;
     };
@@ -2529,8 +2664,13 @@ async function postMetaOnce() {
     };
 
     activeRecorder.onstop = () => {
+      activeRecorder.captureStopDelivered = true;
       // Final dataavailable precedes stop. Queue it even for a replaced recorder.
       finishCycleAudio();
+      if (activeRecorder.recoveryFlushPending) {
+        activeRecorder.recoveryFlushPending = false;
+        finishPendingChunkUpload();
+      }
       const expectedStop = recorderStopReasons.get(activeRecorder);
       recorderStopReasons.delete(activeRecorder);
       if (recorder !== activeRecorder || expectedStop === 'recovery') return;
@@ -2561,14 +2701,31 @@ async function postMetaOnce() {
 
       // Restart immediately; never add a deliberate silent gap between chunks.
       recorderStarting = !paused;
-      if (recorder === activeRecorder && !stopRequested && !paused) startRecorderCycle();
+      if (recorder === activeRecorder && !stopRequested && !paused) {
+        try { startRecorderCycle(); }
+        catch (error) {
+          log(`Replacement recorder failed to start: ${error.message}`);
+          captureController?.recorderError(error);
+        }
+      }
     };
 
-    activeRecorder.start(10000);
+    try { activeRecorder.start(10000); }
+    catch (error) {
+      recorderStarting = false;
+      if (recorder === activeRecorder) recorder = null;
+      throw error;
+    }
+    // start() changes recorder state synchronously; onstart is asynchronous.
+    // No await/callback can allocate a competing index between these operations.
+    activeRecorder.captureStartAccepted = true;
+    chunkIndex = index + 1;
+    localStorage.setItem(`dungeontracker.next.${cycleSessionId}`, String(chunkIndex));
     stopChunkTimer();
     chunkTimer = setTimeout(() => {
       if (recorder === activeRecorder && activeRecorder.state !== 'inactive') {
         recorderStopReasons.set(activeRecorder, 'chunk_rollover');
+        captureController?.beginRecorderTransition?.(index);
         activeRecorder.stop();
       }
     }, chunkMs);
@@ -2577,7 +2734,7 @@ async function postMetaOnce() {
   // START BUTTON HANDLER
   // ================================
   startBtn.addEventListener('click', async () => {
-    if (stream?.active) return;
+    if (recoveryAttempt || stream?.active) return;
     try {
       startBtn.disabled = true;
       await recordingQueueReady;
@@ -2710,6 +2867,7 @@ async function postMetaOnce() {
   // ================================
   pauseBtn.addEventListener('click', () => {
     if (paused) return;
+    cancelPendingRecovery('pause_requested');
     log('Pausing…');
     paused = true;
     pauseBtn.disabled = true;
@@ -2743,6 +2901,7 @@ async function postMetaOnce() {
   // STOP BUTTON HANDLER
   // ================================
   stopBtn.addEventListener('click', () => {
+    cancelPendingRecovery('stop_requested');
     log('Stopping…');
     stopBtn.disabled = true;
     stopRequested = true;

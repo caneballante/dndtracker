@@ -91,9 +91,14 @@ class SessionMemoryUiContractTests(unittest.TestCase):
 
     def test_stop_flow_uses_existing_finalize_barrier_before_explicit_memory_flow(self):
         finalizer = self._function("finalizeStoppedSession", "function stopChunkTimer")
-        finalize_index = finalizer.index("fetch('/api/session/finalize'")
-        memory_index = finalizer.index("await window.buildSessionMemoryAfterStop")
+        # Durable recording delegates finalization after the local save barrier.
+        self.assertLess(finalizer.index("await waitForPendingChunkUploads()"), finalizer.index("await settlePendingFinalizations()"))
+        settler = self._function("settlePendingFinalizations", "setInterval(settlePendingFinalizations")
+        finalize_index = settler.index("postCapture('/api/session/finalize'")
+        memory_index = settler.index("await window.buildSessionMemoryAfterStop")
         self.assertLess(finalize_index, memory_index)
+        self.assertIn("recordingQueue.items.values()", settler)
+        self.assertIn("if (!job.deferTranscription", settler)
         self.assertIn("await waitForPendingChunkUploads()", finalizer)
         self.assertIn("if (stopFinalizationPromise) return stopFinalizationPromise", finalizer)
         memory_action = self._function("buildSessionMemoryForSession", "window.buildSessionMemoryAfterStop")

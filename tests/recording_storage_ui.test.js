@@ -103,10 +103,11 @@ function recorderHarness() {
     stream: { active: true, getTracks: () => [] }, recorder: null, paused: false, stopRequested: false,
     chunkMs: 0, baseMimeType: 'audio/webm', sessionId: '1234567890123', chunkIndex: 0, highestEmittedChunkIndex: -1,
     pendingChunkUploads: 0, sessionInitPending: false, recordingSessionMeta: null, deferTranscription: true,
-    recorderStarting: false, recorderStopReasons: new WeakMap(), chunkTimer: null,
+    recorderStarting: false, recorderStopReasons: new WeakMap(), chunkTimer: null, recoveryAttempt: null,
     chunkCounterEl: {}, startBtn: {}, stopBtn: {}, pauseBtn: {}, resumeBtn: {},
     captureController: { snapshot: () => signals, recorderStarted: () => events.push('started'),
       recovered: () => { signals.state = 'recovered_with_gap'; }, chunkEmitted: () => {}, chunkLocallySaved: () => events.push('backup'),
+      recoveryStage: () => {},
       recorderError: () => events.push('error'), unexpectedRecorderStop: () => events.push('unexpected') },
     recordingQueue: { checkpoint: async () => true, enqueue: async item => { saved.push(item); return true; } },
     pickMimeType: () => 'audio/webm', setStatus: () => {}, log: () => {}, startCountdown: () => {},
@@ -141,7 +142,7 @@ test('late stop and error from the replaced recorder cannot interrupt the recove
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(h.context.recorder, current);
   assert.equal(current.state, 'recording');
-  assert.equal(h.signals.state, 'recovered_with_gap');
+  assert.equal(h.signals.state, 'recovering'); // A recorder start alone is not durable recovery.
   assert.equal(h.events.includes('unexpected'), false);
   assert.equal(h.events.includes('error'), false);
   assert.equal(h.timers.length, timerCount);
@@ -161,6 +162,27 @@ test('normal rollover creates one new recorder while audio is retained locally',
   assert.equal(h.context.recorder.state, 'recording');
   assert.equal(h.saved[0].deferTranscription, true);
   assert.equal(h.events.includes('unexpected'), false);
+});
+
+test('health check between rollover stop and queued onstop preserves capture and saving', async () => {
+  const { CaptureReliabilityController } = require('../capture-reliability.js');
+  const html = fs.readFileSync(require('node:path').join(__dirname, '../dnd-audio.html'), 'utf8');
+  const h = recorderHarness();
+  h.context.stream.getAudioTracks = () => [{ readyState: 'live' }];
+  vm.runInContext(html.slice(html.indexOf('  function captureSignals()'), html.indexOf('  function primeCaptureAlert()')), h.context);
+  const capture = new CaptureReliabilityController({ signalProvider: () => h.context.captureSignals(),
+    setInterval: () => 1, clearInterval() {} });
+  await capture.start({ sessionId: h.context.sessionId, chunkIntervalMs: 120000 });
+  capture.updateSaveQueue({ ready: true }); h.context.captureController = capture;
+  h.context.startRecorderCycle(); const old = h.context.recorder;
+  h.timers.at(-1).fn(); // stop() changes state synchronously; final callbacks are still queued.
+  capture.observe(); await capture.heartbeat();
+  assert.notEqual(capture.snapshot().state, 'interrupted');
+  await old.ondataavailable({ data: new Blob(['synthetic final audio']) }); old.onstop();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.context.recorder.state, 'recording');
+  assert.equal(h.saved.length, 1);
+  assert.equal(await h.saved[0].blob.text(), 'synthetic final audio');
 });
 
 test('upload failures and invalid receipts leave the recorder running and backups restorable', async () => {

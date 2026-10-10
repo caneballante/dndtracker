@@ -1,51 +1,81 @@
-# 20-minute recording reliability test — October 9, 2026
+# 20-minute recording verification — October 9, 2026
 
-**Conclusion: INCONCLUSIVE — preflight stopped; recording was not started.**
+**Overall: INCONCLUSIVE for end-to-end reliability; PASS for saved-file completeness and PCM decoding.**
 
-## Environment and candidate revision
+## Scope and verified identity
 
-- Candidate baseline: `177831f8fb91014d343e157e484475b94a31fed1`, plus the uncommitted October 9 stabilization changes. Testing HEAD alone would not test the current stabilized application.
-- OS reported by Windows: `Microsoft Windows NT 10.0.26200.0`.
-- Available browser automation: Codex In-app Browser (`iab`, ID 2). Browser version was not measured. The other exposed surface is Codex MCP Apps, not a general recording browser.
-- Audio source: none started. Neither synthetic browser capture nor hardware microphone capture was exercised.
-- Actual recording duration: **0 seconds**.
-- Intended mode: Offline recording — transcribe later, two-minute chunks. No application settings were changed.
+This report covers only session **1791576539018**, verified from `status.json` as belonging to **test-campaign**, created October 9 at **13:08:59 America/Los_Angeles (UTC−07:00)**. Identity was checked before audio validation. The user described this recording as an unrelated meeting and prohibited conversational inspection and provider processing. No audio was listened to, transcribed, summarized, or sent externally during verification. No application code or session files were changed, no server was restarted, and no recording test was run. Only this report was updated.
 
-Read the October 8 repair report, October 9 stabilization report, soak-test procedure, and repository guidance before preflight. Existing application changes, campaign changes, and untracked files were preserved.
+Later test-campaign sessions 1791578519151, 1791579400475, and 1791579442243 have transcription-success metadata. They are separate recordings, excluded from the conclusions below. The later live-transcription failure assignment was truncated and needs its remaining observations and exact session identification.
 
-## Blocking condition
+## Duration and saved files
 
-The request explicitly requires an isolated workspace **and a separate browser profile**, and directs stopping if safe isolation cannot be established.
+- Capture status: started 13:08:59; stopped 13:30:49. Integer-second wall duration: **1,310 seconds (21:50)**.
+- First recorder-start diagnostic to final chunk-emitted diagnostic: **1,309.603 seconds**. These are callback timestamps, not sample-clock timestamps.
+- Fully decoded PCM duration: **1,309.500 seconds (21:49.500)**, 62,856,000 mono frames at 48,000 Hz.
+- **11 completed files**, indices 0–10 inclusive: ten approximately two-minute chunks and one 108-second final chunk. All expected files exist, match status byte counts, and contain readable uncompressed 16-bit mono PCM. Total WAV bytes: **125,712,484**.
+- Python standard-library `wave` read every frame; `struct.iter_unpack('<h', ...)` decoded every sample without printing sample values. Frame counts and payload lengths were checked. No playback or speech/content analysis was performed. ffmpeg/ffprobe were unavailable on PATH; no decoder was installed.
+- All 11 whole-file SHA-256 values differ: no exact duplicate files. This does not rule out duplicated passages within different files.
+- Status `sourceSha256` values are not WAV-file checksums: the browser hashes the original MediaRecorder blob before its WAV conversion. Their mismatch with saved WAV hashes is expected from that code path, not proof of corruption; original blobs were unavailable for comparison.
 
-The available browser inventory and documented capabilities expose the existing in-app browser and only visibility/viewport controls. They do not expose profile creation, a fresh browser context, or evidence that this browser is a separate test profile. No connected Chrome/Edge browser was available. Native computer control is disabled. Repository guidance also says the browser CLI runtime is unavailable and must not be installed for verification.
+| Chunk | PCM seconds | File saved, local time | Upload-start to acknowledgment (ms) | Next recorder start minus estimated decoded end (ms) |
+|---|---:|---|---:|---:|
+| 0000 | 119.940 | 13:10:59.893 | 62 | 0 |
+| 0001 | 120.120 | 13:13:00.095 | 51 | +62 |
+| 0002 | 120.960 | 13:15:01.409 | 127 | +26 |
+| 0003 | 120.480 | 13:17:01.567 | 64 | +45 |
+| 0004 | 120.000 | 13:19:01.569 | 77 | −14 |
+| 0005 | 120.000 | 13:21:01.548 | 55 | +9 |
+| 0006 | 120.000 | 13:23:01.563 | 56 | +9 |
+| 0007 | 120.000 | 13:25:01.595 | 73 | +13 |
+| 0008 | 120.000 | 13:27:01.601 | 78 | +6 |
+| 0009 | 120.000 | 13:29:01.555 | 70 | −1 |
+| 0010 | 108.000 | 13:30:49.561 | 59 | N/A |
 
-This does **not** demonstrate a MediaRecorder or application failure. Earlier short synthetic-browser tests indicate that real browser recording can be exercised. The blocker is establishing the requested profile isolation for this run. A fresh localhost port provides origin-specific localStorage/IndexedDB separation, but that is not equivalent to a separate browser profile and was not silently substituted.
+File timestamps are filesystem write times, not physical audio boundaries. The last column is `(next recorder_started client timestamp) − (current recorder_started client timestamp + decoded duration)`. It is a timing proxy, not a measured acoustic gap or overlap.
 
-No server was started/stopped, no recording page was opened or reloaded, no microphone was accessed, and port 8000 was untouched. No credentials were accessed and no transcription/AI requests were made.
+## Boundary continuity: evidence and limitations
 
-## Results
+All expected indices, emission events, upload starts, and acknowledgments occur once and in sequence. No missing whole interval or exact duplicate file was found. Normal chunk durations range from 119.940 to 120.960 seconds; that variability is consistent with scheduling rather than a missing two-minute chunk.
 
-| Measurement | Result |
-|---|---|
-| Completed audio chunks / checkpoints | 0 / 0; test not started |
-| Decoded duration | Not measured; no test audio exists |
-| Reference order, gaps, overlaps, duplicates, analysis resolution | Unverified |
-| Per-chunk index, duration, receipt and continuity | Not applicable; no completed chunks |
-| Upload failures or retries | Not exercised |
-| Queue drain / finalization | Not exercised |
-| Recorder restarts / empty-file loop | Not exercised |
-| Browser JS / Python server / Windows file-access / IndexedDB errors | Runtime behavior unverified; no test runtime started |
-| Memory and disk activity | Runtime behavior unverified |
-| External provider spending from this test | None; no provider requests made |
+Across ten rollover boundaries, the next recorder-start callback follows the previous chunk-emitted callback by **53–79 ms**. Aligning decoded lengths to recorder-start callbacks gives residuals of **−14 to +62 ms**, totaling +155 ms across those boundaries. The complete decoded length is only **103 ms shorter** than the first-start-to-final-emission callback span, and 500 ms shorter than the coarse integer-second status duration. No unusually large gap or overlap is apparent in this timing evidence.
 
-There is no end-to-end pass and no observed application failure to repair. Previous unit tests and backlog simulations are not substitutes for this requested run. Readiness for the longer fault-injection test remains **unverified**.
+These residuals do not measure actual lost or repeated sound. Callback scheduling, codec padding, conversion, and clock granularity can affect them. WAV chunks contain no shared source-time reference. A missing interval could be offset by duplication elsewhere. Without a known reference source, sample-accurate continuity, absence of short dropouts, and absence of partial duplicated passages remain **unverified**.
 
-## Evidence retained
+## Uploads, interruptions, and logs
 
-Preflight evidence is in `.pycache_tmp/recording-20-min-preflight-1a0444ff/`: baseline revision, working-tree listing, scoped stabilization patch, SHA-256 hashes of the main recording code, and browser/OS capability notes. No real recordings or campaign contents were copied there. The only new non-ignored file from this verification attempt is this report. No application fixes, commit, or push were made.
+`capture_events.jsonl` contains 77 events: 11 recorder starts, 11 emissions, 11 upload starts, 11 acknowledgments, 14 screen-wake-lock acquisitions, 14 losses, and one each of keep-awake acquisition/release, Stop request, and finalization start.
 
-## Smallest practical alternative
+No upload-failed, retry, capture-interrupted, or recovery event was recorded. Status has `interrupted=false`, `hadInterruption=false`, `partialCapture=false`, `recoveryRequired=false`, an empty gap list, and no transcription failures. Eleven recorder starts correspond to eleven normal chunk cycles, not eleven unexpected recovery attempts.
 
-Accept **origin isolation in the existing in-app browser** for this synthetic test: copy only application code/assets into a persistent isolated test workspace, use a fresh localhost port and synthetic session data, block provider calls, and retain all evidence. This would exercise the actual MediaRecorder, timed checkpoints, two-minute rollover, uploads, and normal Stop/finalization for at least twenty minutes. It would not claim separate-profile or hardware-microphone coverage.
+Screen wake lock was repeatedly lost/reacquired. These events did not coincide with a recorded capture interruption; their cause is not established. The final release occurred during Stop.
 
-If separate-profile isolation remains mandatory, provide a supported browser connection to a dedicated test profile before starting. No extra runtime installation is proposed. Once either prerequisite is resolved, use a nonrepeating time-coded source and inspect every saved chunk and rollover boundary; a constant tone and total duration alone cannot establish continuity.
+Both launcher logs, `.pycache_tmp/server-logs/20261009-130544-296.out.log` and `.err.log`, are **empty (0 bytes)**. They provide no usable HTTP-access, retry, or exception history. Therefore this review cannot certify that every transient failure or hidden retry was logged. The event stream and saved-file evidence support successful completion, but empty server logs are an observability limitation, not affirmative proof of no exceptions.
+
+## Stop, finalization, and browser queue
+
+All expected audio is server-side: uploaded indices 0–10, `missingChunks=[]`, `unexpectedChunks=[]`, `failedChunks=[]`. Final chunk acknowledgment was at 13:30:49.595.
+
+Full processing finalization **did not complete**: status is `waiting_for_transcription`; `capture.state` remains `finalizing`, while `sessionOpen=false`. All 11 `pendingChunks` are pending **transcription**, not missing uploads. The client intentionally labels this deferred state `SAVED — TRANSCRIBE LATER`. It is compatible with the user's instruction not to transcribe; no processing was initiated to force completion.
+
+Browser queue emptiness is **unverified**. Available browser tooling exposed only the in-app Help tab and no recording tab/profile. No new recorder page was opened, no browser storage was read from disk, and no reload or retry was triggered. Eleven acknowledgments prove receipt of the expected files, but cannot prove deletion of every IndexedDB checkpoint, pending item, or finalization record.
+
+## Transcription / AI audit
+
+All 11 chunks have `transcriptionStatus=queued` and `durableTranscriptionJob=false`; `transcribedChunks=[]`. There are no transcript, summary, notes-output, or model-response files in this session directory. The upload code uses `queued` for deferred transcription, skips provider enqueue in that mode, and startup recovery requires an explicitly pending durable job.
+
+One Player Companion request was logged at **13:16:18**: `request_received`, followed by `insufficient_evidence`, outcome `insufficient`, `cached=false`. Code inspection confirms this branch returns before provider dispatch with zero new spend. Thus an AI-related UI request was attempted, but the records show it was rejected before an AI provider call.
+
+**Local application evidence supports no transcription or AI-provider processing for this session.** No such processing was triggered by this verification. There is no network capture or provider-side billing audit, so this is not an independent network-level guarantee. The absence of transcription here must not be generalized to the separate later live-transcription sessions.
+
+## Verdict and next test
+
+**PASS:** expected saved audio inventory, complete PCM decoding, sequential chunk bookkeeping, and no large timing anomaly observed.
+
+**INCONCLUSIVE overall:** reference-based continuity, browser queue drainage, and complete server exception/retry coverage remain unverified. Full processing is intentionally waiting for transcription; it was not marked successful or forced to finish. This recording alone does not establish game-night dependability or explain the separate live-transcription failure.
+
+Next, after identifying the newer failure precisely, use an isolated session with a nonrepeating time-coded synthetic source for at least 30 minutes in deferred mode, retaining browser console and HTTP logs. Verify reference alignment across every rollover and final Stop, then run a separate controlled local-server outage/recovery case. Only after those pass should a separate live-transcription test with explicitly approved nonprivate audio exercise capture under processing load. None of these tests was started during this review.
+
+## Earlier preflight (retained history)
+
+The earlier automated 20-minute assignment stopped before recording because its requested separate browser profile could not be established. That attempt recorded 0 seconds and was INCONCLUSIVE, not an application failure. Its evidence remains in `.pycache_tmp/recording-20-min-preflight-1a0444ff/`. The real user recording assessed above is a separate run and supersedes that preflight-only result for saved-file verification.

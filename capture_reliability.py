@@ -34,6 +34,13 @@ CAPTURE_HEALTH_STATES = {
 
 CAPTURE_EVENT_NAMES = {
     "recorder_started",
+    "recorder_rollover_started",
+    "capture_recovery_stage",
+    "capture_recovery_cancelled",
+    "meter_started",
+    "meter_context_state",
+    "meter_close_failed",
+    "meter_error",
     "keep_awake_acquired",
     "keep_awake_released",
     "keep_awake_failed",

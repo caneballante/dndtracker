@@ -3,6 +3,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+import wave
 from pathlib import Path
 from unittest import mock
 
@@ -657,6 +658,11 @@ class ReferenceToolLoopTests(unittest.TestCase):
                 "prepContext": {},
             }
         })
+        with wave.open(os.path.join(self.uploads_dir, self.session_id, 'chunk_0000.wav'), 'wb') as audio:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(8000)
+            audio.writeframes(b'\x00\x00' * 80)
         server.update_status_for_chunk(self.session_id, 0, "chunk_0000.wav", 100)
         server._append_transcript(
             self.session_id, 0, "I ask Captin Elowin to open the moon gate."

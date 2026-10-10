@@ -21,6 +21,7 @@
   const WATCHDOG_GRACE_MS = 30000;
   const ALERT_REPEAT_MS = 45000;
   const STORAGE_KEY = 'dungeontracker.capture.pending.v1';
+  const ROLLOVER_TIMEOUT_MS = 10000;
 
   const copy = value => JSON.parse(JSON.stringify(value));
   const finite = value => Number.isFinite(Number(value)) ? Number(value) : null;
@@ -78,6 +79,8 @@
         openGap: null,
         gaps: [],
         pendingFinalization: null,
+        recorderTransition: null,
+        recovery: null,
       };
     }
 
@@ -163,8 +166,11 @@
 
     currentSignals() {
       const value = this.signalProvider() || {};
+      const transition = this.state.recorderTransition;
+      const transitioning = transition && this.now() - transition.startedAtMs < ROLLOVER_TIMEOUT_MS;
       return {
-        recorderState: String(value.recorderState || 'unknown'),
+        recorderState: transitioning && value.recorderState === 'inactive' ? 'starting' : String(value.recorderState || 'unknown'),
+        rawRecorderState: String(value.recorderState || 'unknown'),
         streamActive: value.streamActive !== false,
         trackState: String(value.trackState || 'unknown'),
         paused: Boolean(value.paused),
@@ -216,6 +222,24 @@
     observe() {
       if (!this.state.sessionOpen) return;
       const now = this.now();
+      const signals = this.currentSignals();
+      if (this.state.state === STATES.RECOVERING && this.state.recovery?.stage !== 'recorder_started'
+        && now - (this.state.recovery.stageAtMs || this.state.recovery.startedAtMs) >= 15000) {
+        return this.recoveryFailed(new Error('Recovery stage timed out after 15 seconds. Retry or stop.'), this.state.recovery.stage);
+      }
+      const monitoring = [STATES.HEALTHY, STATES.SUSPECT, STATES.RECOVERED_WITH_GAP].includes(this.state.state)
+        || (this.state.state === STATES.RECOVERING && this.state.recovery?.stage === 'recorder_started');
+      if (!signals.paused && !signals.stopRequested && monitoring) {
+        if (signals.trackState === 'ended') return this.interrupt('track_ended');
+        if (!signals.streamActive) return this.interrupt('stream_inactive');
+        if (this.state.recorderTransition && now - this.state.recorderTransition.startedAtMs >= ROLLOVER_TIMEOUT_MS) {
+          return this.interrupt('recorder_rollover_stalled', { chunkIndex: this.state.recorderTransition.chunkIndex,
+            recorderState: signals.rawRecorderState });
+        }
+        if (this.state.state === STATES.RECOVERING && now - this.state.recovery.recorderStartedAtMs >= 30000) {
+          return this.recoveryFailed(new Error('No new durable audio checkpoint within 30 seconds.'), 'recorder_started');
+        }
+      }
       const prior = this.state.lastObservationAtMs;
       this.state.lastObservationAtMs = now;
       if (prior && now - prior > this.clockGapMs) {
@@ -227,8 +251,7 @@
         }
         return;
       }
-      const signals = this.currentSignals();
-      if (!signals.paused && !signals.stopRequested && [STATES.HEALTHY, STATES.SUSPECT, STATES.RECOVERED_WITH_GAP].includes(this.state.state)) {
+      if (!signals.paused && !signals.stopRequested && monitoring) {
         if (signals.trackState === 'ended') return this.interrupt('track_ended');
         if (!signals.streamActive) return this.interrupt('stream_inactive');
         if (!['recording', 'starting'].includes(signals.recorderState)) return this.interrupt('recorder_not_recording', { recorderState: signals.recorderState });
@@ -260,6 +283,7 @@
     interrupt(reason, details = {}) {
       if (!this.state.sessionOpen || [STATES.FINALIZING, STATES.STOPPED].includes(this.state.state)) return;
       const first = this.state.state !== STATES.INTERRUPTED;
+      if (this.state.state === STATES.RECOVERING && this.state.recovery) this.state.recovery.error = reason;
       const gap = this._startGap(reason, Math.max(this.state.lastChunkLocallySavedAtMs || 0,
         this.state.lastChunkAcknowledgedAtMs || 0) || this.now());
       this.state.state = STATES.INTERRUPTED;
@@ -299,59 +323,100 @@
       if (![STATES.INTERRUPTED, STATES.ERROR].includes(this.state.state) || this.state.pendingFinalization) return false;
       this.state.state = STATES.RECOVERING;
       this.state.recoveryRequired = true;
+      this.state.recorderTransition = null;
+      this.state.recovery = { stage: 'requested', history: ['requested'], startedAtMs: this.now(), error: '' };
       this.sendDiagnostic('capture_recovery_started', { reason: this.state.interruptionReason }).catch(() => {});
       this._persist();
       this._emit();
       return true;
     }
 
+    recoveryStage(stage, attemptId) {
+      if (this.state.state !== STATES.RECOVERING) return;
+      const history = [...(this.state.recovery?.history || [])];
+      if (history[history.length - 1] !== stage) history.push(stage);
+      this.state.recovery = { ...this.state.recovery, stage, history, attemptId, stageAtMs: this.now(), error: '' };
+      if (stage === 'recorder_started') this.state.recovery.recorderStartedAtMs = this.now();
+      this.sendDiagnostic('capture_recovery_stage', { stage, attemptId }).catch(() => {});
+      this._emit();
+    }
+
+    cancelRecovery(reason) {
+      if (this.state.state !== STATES.RECOVERING) return;
+      this.state.recovery = { ...this.state.recovery, stage: 'cancelled', error: reason };
+      this.state.state = STATES.INTERRUPTED;
+      this.sendDiagnostic('capture_recovery_cancelled', { reason }).catch(() => {});
+      this._persist(); this._emit();
+    }
+
     async recovered() {
       if (this.state.state !== STATES.RECOVERING) return;
       const now = this.now();
+      const sessionId = this.state.sessionId;
+      const recoveryId = this.state.recovery?.attemptId;
+      const stillRecovered = () => this.state.sessionOpen && this.state.sessionId === sessionId
+        && this.state.state === STATES.RECOVERED_WITH_GAP && this.state.recovery?.attemptId === recoveryId;
       const gap = this.state.openGap || this._startGap('unknown_interruption', this.state.lastChunkAcknowledgedAtMs || now);
-      gap.endedAtMs = now;
-      gap.durationSeconds = Math.max(0, Math.round((now - gap.startedAtMs) / 1000));
+      gap.endedAtMs = this.state.recovery?.recorderStartedAtMs || now;
+      gap.durationSeconds = Math.max(0, Math.round((gap.endedAtMs - gap.startedAtMs) / 1000));
       gap.recovered = true;
       this.state.gaps.push(copy(gap));
       this.state.openGap = null;
       this.state.state = STATES.RECOVERED_WITH_GAP;
       this.state.recoveryRequired = false;
       this.state.interrupted = false;
+      this.state.recovery = { ...this.state.recovery, stage: 'durably_checkpointed',
+        history: [...(this.state.recovery?.history || []), 'durably_checkpointed'], durableAtMs: now, error: '' };
       this.state.lastObservationAtMs = now;
       this.state.lastRecorderStartedAtMs = now;
       if (this.alertTimer) this.clearInterval(this.alertTimer);
       this.alertTimer = null;
+      this._persist();
+      this._emit();
       await this.sendDiagnostic('capture_recovered', { gapId: gap.gapId,
         gapStartedAt: gap.startedAtMs / 1000, gapEndedAt: gap.endedAtMs / 1000,
+        confirmation: 'durable_checkpoint', attemptId: this.state.recovery?.attemptId,
         durationSeconds: gap.durationSeconds, reason: gap.reason, recovered: true }).catch(() => {});
+      if (!stillRecovered()) return;
       await this.acquireScreenWakeLock();
+      if (!stillRecovered()) return;
       this._startTimers();
       await this.heartbeat();
       this._persist();
       this._emit();
     }
 
-    recoveryFailed(error) {
+    recoveryFailed(error, stage = this.state.recovery?.stage || 'requested') {
+      if (this.state.state !== STATES.RECOVERING) return;
       this.state.state = STATES.INTERRUPTED;
       this.state.recoveryRequired = true;
       this.state.interrupted = true;
       this.state.interruptionReason = 'recovery_failed';
-      this.sendDiagnostic('capture_recovery_failed', { error: String(error?.message || error) }).catch(() => {});
+      this.state.recovery = { ...this.state.recovery, stage, error: String(error?.message || error) };
+      this.sendDiagnostic('capture_recovery_failed', { stage, error: this.state.recovery.error }).catch(() => {});
       this._persist();
       this._emit();
       this._alert();
     }
 
-    recorderStarted() {
+    beginRecorderTransition(chunkIndex) {
+      this.state.recorderTransition = { startedAtMs: this.now(), chunkIndex };
+      this.sendDiagnostic('recorder_rollover_started', { chunkIndex, timeoutMs: ROLLOVER_TIMEOUT_MS }).catch(() => {});
+    }
+
+    recorderStarted(chunkIndex) {
+      this.state.recorderTransition = null;
       this.state.lastRecorderStartedAtMs = this.now();
-      this.sendDiagnostic('recorder_started', {}).catch(() => {});
+      this.sendDiagnostic('recorder_started', { chunkIndex }).catch(() => {});
     }
     updateSaveQueue(status) {
       this.state.saveQueue = { ...status };
       this._emit();
     }
-    chunkLocallySaved() {
+    chunkLocallySaved(recoveryId) {
       this.state.lastChunkLocallySavedAtMs = this.now();
+      if (this.state.state === STATES.RECOVERING && this.state.recovery?.stage === 'recorder_started'
+        && recoveryId != null && recoveryId === this.state.recovery.attemptId) this.recovered();
       if (this.state.state === STATES.SUSPECT && this.state.interruptionReason === 'timer_delayed_capture_unverified') {
         this.state.state = STATES.HEALTHY;
         this.state.interruptionReason = '';
@@ -425,6 +490,7 @@
       if (this.alertTimer) this.clearInterval(this.alertTimer);
       this.alertTimer = null;
       this.state.state = STATES.FINALIZING;
+      this.state.recorderTransition = null;
       this.state.sessionOpen = false;
       this.state.keepAwake.active = false;
       this.state.pendingFinalization = { sessionId: this.state.sessionId,

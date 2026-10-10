@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import unittest
+import wave
 from unittest import mock
 
 import server
@@ -29,8 +30,16 @@ class SessionEvidenceTests(unittest.TestCase):
             for index in indexes:
                 handle.write(json.dumps({"chunkIndex": index, "text": f"chunk {index}"}) + "\n")
 
-    @staticmethod
-    def _status(indexes, state="succeeded"):
+    def _write_audio(self, index, folder=None):
+        with wave.open(os.path.join(folder or self.session_dir, f'chunk_{index:04d}.wav'), 'wb') as audio:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(8000)
+            audio.writeframes(b'\x00\x00' * 80)
+
+    def _status(self, indexes, state="succeeded"):
+        for index in indexes:
+            self._write_audio(index)
         return {
             "chunks": [
                 {"chunkIndex": index, "filename": f"chunk_{index:04d}.wav", "transcriptionStatus": state}
@@ -86,6 +95,19 @@ class SessionEvidenceTests(unittest.TestCase):
         self.assertEqual(first, repeated)
         self.assertEqual(first["finalizationId"], repeated["finalizationId"])
         self.assertEqual(300, repeated["requestedAt"])
+
+    def test_acknowledged_metadata_cannot_hide_a_missing_audio_file(self):
+        # Only chunk 0 exists; metadata claims both were acknowledged.
+        self._write_audio(0)
+        status = {'chunks': [
+            {'chunkIndex': i, 'filename': f'chunk_{i:04d}.wav', 'transcriptionStatus': 'queued'}
+            for i in (0, 1)
+        ]}
+        evidence = build_ordered_evidence(self.session_dir, status, final_expected_chunk_index=1)
+        requested = request_finalization({}, evidence, 1, now=350)
+        self.assertEqual('waiting_for_uploads', requested['state'])
+        self.assertEqual([1], requested['missingChunks'])
+        self.assertEqual(requested, request_finalization(requested, evidence, 1, now=351))
 
     def test_failed_chunk_blocks_readiness_and_successful_retry_clears_it(self):
         self._write_transcripts([0])
@@ -150,11 +172,13 @@ class SessionEvidenceTests(unittest.TestCase):
         uploads_dir = os.path.join(self.session_dir, "uploads")
         with mock.patch.object(server, "UPLOADS_DIR", uploads_dir):
             server.init_session("12345678")
+            self._write_audio(0, os.path.join(uploads_dir, '12345678'))
             server.update_status_for_chunk("12345678", 0, "chunk_0000.wav", 10)
             server._append_transcript("12345678", 0, "First evidence")
             requested = server._request_session_finalization("12345678", 1)
             self.assertEqual("waiting_for_uploads", requested["finalization"]["state"])
 
+            self._write_audio(1, os.path.join(uploads_dir, '12345678'))
             server.update_status_for_chunk("12345678", 1, "chunk_0001.wav", 10)
             pending = server._session_status_response("12345678")["finalization"]
             self.assertEqual("waiting_for_transcription", pending["state"])

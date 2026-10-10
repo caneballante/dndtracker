@@ -48,17 +48,12 @@ def read_ordered_transcript_entries(session_dir):
 
 def _uploaded_chunk_indexes(session_dir, status):
     indexes = set()
-    for item in (status or {}).get("chunks") or []:
-        try:
-            chunk_index = int(item.get("chunkIndex", -1))
-        except (AttributeError, TypeError, ValueError):
-            continue
-        if chunk_index >= 0:
-            indexes.add(chunk_index)
+    # An acknowledgment is metadata, not proof that its audio still exists.
+    # Finalization must retain a missing-file barrier even after an earlier save.
     try:
         for name in os.listdir(session_dir):
             match = _AUDIO_CHUNK_RE.match(name)
-            if match:
+            if match and os.path.isfile(os.path.join(session_dir, name)):
                 indexes.add(int(match.group(1)))
     except FileNotFoundError:
         pass

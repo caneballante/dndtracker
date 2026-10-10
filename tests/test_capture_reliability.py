@@ -111,6 +111,28 @@ class CaptureServerTests(unittest.TestCase):
         path = self.session / reliability.CAPTURE_AUDIT_FILENAME
         return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
 
+    def test_stabilization_diagnostics_keep_only_metadata_and_preserve_capture(self):
+        server._capture_start(self.sid, {"recorderState": "recording", "trackState": "live", "streamActive": True})
+        for event in ("recorder_rollover_started", "capture_recovery_stage", "meter_started",
+                      "meter_context_state", "meter_close_failed", "meter_error"):
+            result = server._capture_materialize_event(self.sid, event, {
+                "stage": "recorder_started", "attemptId": 2, "generation": 3,
+                "contextState": "running", "timeoutMs": 10000, "chunkIndex": 4,
+                "rawAudio": "synthetic private bytes", "transcript": "synthetic private content",
+                "apiKey": "synthetic secret", "campaignContent": "synthetic private context",
+            })
+            self.assertEqual("healthy", result["state"])
+            details = self.audit()[-1]["details"]
+            self.assertEqual(2, details["attemptId"])
+            self.assertNotIn("rawAudio", details)
+            self.assertNotIn("transcript", details)
+            self.assertNotIn("apiKey", details)
+            self.assertNotIn("campaignContent", details)
+        for event in ("capture_recovery_failed", "capture_recovery_cancelled"):
+            result = server._capture_materialize_event(self.sid, event, {"stage": "microphone_reconnecting", "reason": "synthetic cancellation"})
+            self.assertEqual("interrupted", result["state"])
+            self.assertTrue(result["recoveryRequired"])
+
     def test_start_heartbeat_gap_recovery_and_stop_are_durable(self):
         started = server._capture_start(self.sid, {
             "recorderState": "recording", "trackState": "live", "streamActive": True,

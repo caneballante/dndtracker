@@ -111,7 +111,7 @@ test('Stop waits for saves and automatically finalizes after server returns', as
   const local = new Map(), states = [], calls = [];
   let online = false;
   const context = vm.createContext({ recordingQueue: q, sessionId: '1234567890123',
-    highestEmittedChunkIndex: 0, stopFinalizationPromise: null, deferTranscription: true, startBtn: {}, recordAudioOnlyEl: {},
+    highestEmittedChunkIndex: 0, chunkIndex: 1, stopFinalizationPromise: null, deferTranscription: true, startBtn: {}, recordAudioOnlyEl: {},
     localStorage: { getItem: key => local.get(key), setItem: (key, value) => local.set(key, value) },
     setInterval() {}, log() {}, window: {}, waitForPendingChunkUploads: async () => {},
     captureController: { snapshot: () => ({ sessionOpen: false }), beginFinalization() {},
@@ -119,7 +119,7 @@ test('Stop waits for saves and automatically finalizes after server returns', as
     postCapture: async (url, body) => { if (!online) throw new Error('offline'); calls.push(body); return { finalization: { state: 'waiting_for_transcription' } }; },
   });
   vm.runInContext(html.slice(html.indexOf('  const finalizationStorageKey'), html.indexOf('  captureRecoverBtn?.addEventListener')), context);
-  vm.runInContext(html.slice(html.indexOf('  function finalizeStoppedSession()'), html.indexOf('  function stopChunkTimer()')), context);
+  vm.runInContext(html.slice(html.indexOf('  function expectedAudioBoundary()'), html.indexOf('  function stopChunkTimer()')), context);
   await context.finalizeStoppedSession();
   assert.equal(calls.length, 0);
   await q.pump(); await context.settlePendingFinalizations();
@@ -133,14 +133,16 @@ test('Stop waits for saves and automatically finalizes after server returns', as
 test('recovery starts microphone while the local server is down', async () => {
   let started = 0;
   const context = vm.createContext({ sessionId: '1234567890123', chunkMs: 0, chunkIndex: 2,
+    recoveryAttempt: null, captureOperationId: 0, recorderStopReasons: new WeakMap(), stopRequested: false, paused: false,
+    setTimeout: () => 1, clearTimeout() {},
     highestEmittedChunkIndex: 1, selectedDeviceId: '', recorder: null, stream: null,
-    captureController: { beginRecovery: () => true, snapshot: () => ({ chunkIntervalMs: 120000 }), recoveryFailed: e => assert.fail(e.message) },
+    captureController: { beginRecovery: () => true, recoveryStage() {}, snapshot: () => ({ state: 'recovering', chunkIntervalMs: 120000 }), recoveryFailed: e => assert.fail(e.message) },
     recordingQueueReady: Promise.resolve(), recordingQueue: { ready: true, highestIndex: () => 4 },
     localStorage: { getItem: () => '6', setItem() {} }, recordingSessionMeta: {}, sessionInitPending: false,
     startBtn: {}, chunkCounterEl: {}, recordAudioOnlyEl: { checked: true },
     pauseBtn: {}, resumeBtn: {}, stopBtn: {}, log() {}, localFetch: async () => { throw new Error('offline'); },
     stopChunkTimer() {}, attachCaptureStreamHandlers() {}, startMeter() {}, pickMimeType: () => 'audio/webm',
-    startRecorderCycle: () => { started++; }, navigator: { mediaDevices: { getUserMedia: async () => ({}) } },
+    startRecorderCycle: () => { started++; }, navigator: { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [] }) } },
   });
   vm.runInContext(html.slice(html.indexOf('  async function recoverCapture()'), html.indexOf('  async function finishPendingFinalization()')), context);
   await context.recoverCapture();

@@ -1183,6 +1183,7 @@ def _capture_event_details(data) -> dict:
         "serverState", "finalExpectedChunkIndex", "screenWakeLockSupported",
         "screenWakeLockActive", "clientTimestampMs", "lastAcknowledgedAt",
         "clientBuild",
+        "stage", "attemptId", "generation", "contextState", "timeoutMs", "confirmation",
     }
     return {key: details.get(key) for key in allowed if key in details}
 
@@ -1253,6 +1254,9 @@ def _capture_materialize_event(session_id: str, event: str, details=None, now=No
                 })
         elif name == "capture_recovery_started":
             capture.update({"state": "recovering", "recoveryRequired": True})
+        elif name in {"capture_recovery_failed", "capture_recovery_cancelled"}:
+            capture.update({"state": "interrupted", "interrupted": True, "recoveryRequired": True,
+                            "lastError": str(clean.get("error") or clean.get("reason") or name)[:500]})
         elif name == "capture_recovered":
             capture.update({"state": "recovered_with_gap", "sessionOpen": True,
                             "interrupted": False, "hadInterruption": True, "recoveredWithGap": True,
