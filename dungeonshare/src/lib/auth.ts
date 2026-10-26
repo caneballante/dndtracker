@@ -9,6 +9,7 @@ import { Kysely, PostgresDialect } from "kysely";
 import { headers } from "next/headers";
 import { Pool } from "pg";
 
+import { previewTrustedOrigins } from "@/lib/auth-origins";
 import type { ManagerAccess } from "@/lib/types";
 
 export class AccessDeniedError extends Error {
@@ -63,6 +64,7 @@ function createAuthInstance() {
     },
     secret: process.env.BETTER_AUTH_SECRET,
     baseURL: process.env.BETTER_AUTH_URL,
+    trustedOrigins: previewTrustedOrigins(),
     emailAndPassword: {
       enabled: true,
       disableSignUp:

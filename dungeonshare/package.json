@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "test": "node --experimental-strip-types --test tests/session-memory-contract.test.mjs",
+    "test": "node --experimental-strip-types --test tests/session-memory-contract.test.mjs tests/auth-origins.test.mjs",
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "node scripts/migrate.mjs",
