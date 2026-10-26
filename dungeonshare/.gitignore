@@ -42,3 +42,6 @@ next-env.d.ts
 
 .vercel
 .env*
+!/src/app/api/uploads/
+/src/app/api/uploads/*
+!/src/app/api/uploads/route.ts
