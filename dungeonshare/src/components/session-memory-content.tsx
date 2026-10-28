@@ -37,14 +37,6 @@ export function SessionMemoryContent({
           <div className="session-memory-list">
             {memory.highlights.map((highlight) => (
               <article className="session-memory-highlight" key={highlight.id}>
-                <div className="session-memory-tags">
-                  {highlight.categoryLabels.map((category, index) => (
-                    <span key={`${highlight.id}-category-${index}`}>
-                      {category}
-                    </span>
-                  ))}
-                  <span>{highlight.confidenceLabel} confidence</span>
-                </div>
                 <p>{highlight.summary}</p>
                 {highlight.participants.length ? (
                   <small>
@@ -68,12 +60,6 @@ export function SessionMemoryContent({
           <div className="session-memory-list">
             {memory.events.map((event) => (
               <article className="session-memory-event" key={event.id}>
-                <div className="session-memory-tags">
-                  <span>{event.typeLabel}</span>
-                  <span>{event.statusLabel}</span>
-                  <span>{event.importanceLabel} importance</span>
-                  <span>{event.confidenceLabel} confidence</span>
-                </div>
                 <p>{event.summary}</p>
                 {event.facts.length ? (
                   <ul>
