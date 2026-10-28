@@ -1,0 +1,48 @@
+{
+  "campaignId": "tomb-of-annhilation",
+  "name": "Tomb of Annhilation",
+  "party": "role=Player | player=Jon | character=Witress | class=rogue fighter | race=half elf\nrole=Player | player=Robert | character=Bollertrix | class=Warlock | race=half elf\nrole=Player | player=Dan | character=Edmund | class=Fighter/ paladin | race=half orc\nrole=Player | player=Rubin | character=Ideal | class=articifier | race=teifling\nrole=DM | player=Geoff | character=DM | aliases=DM, GM, Dungeon Master\nrole=Player | player=Justin | character=Pippin | class=Bard | race=halfing\nrole=Player | player=Geir | character=Sermiqina | class=Barbarian | race=halfing",
+  "canonNames": [],
+  "campaignSummary": "",
+  "dungeonMakerJson": {},
+  "sessionSummaries": [
+    {
+      "text": "# D&D Campaign Recap",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1783875146
+    },
+    {
+      "text": "## Summary\nThe party continues their exploration of a dungeon filled with traps, treasures, and undead creatures. They encounter various challenges, including a cursed necklace, a possessed party member, and a series of deadly Bodaks. After navigating through a maze and discovering a sarcophagus, they find a valuable black opal crown, which leads to a series of combat encounters. The session ends with the party facing terracotta warriors and uncovering a teleportation circle, while also dealing with the consequences of their actions, including the loss of a party member's arm.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1783875146
+    },
+    {
+      "text": "## Timeline\n1. **Bollertrix shrinks** after interacting with a maze and finds a key.\n2. **Wit becomes possessed** after touching a skull on a throne, requiring the party to reduce him to zero hit points to stop the possession.\n3. The party discovers a **sarcophagus belonging to the queen of Omen**, who was murdered by a Serac.\n4. They encounter a **mirror of life trapping**, which Cermak successfully avoids, allowing him to break the mirror and release several creatures, including a princess.\n5. The party learns the princess is the **heir of Omen**, kidnapped by a Serac.\n6. After a long rest, they explore further and find a **gold crown topped with a black opal**, worth 5,000 gold pieces.\n7. Upon taking the crown, a door opens, leading to combat with **Bodaks**.\n8. The party engages in combat, suffering damage from the Bodaks' withering gaze.\n9. **Bollertrix vaporizes a Bodak** with a powerful attack.\n10. The party discusses the implications of possessing the crown and the potential for multiple apocalypses.\n11. They encounter **Emeralds**, a lizard who is accidentally killed by Bollertrix.\n12. **Rodrigo**, a lizard familiar, joins the party after the death of Emeralds.\n13. The party discovers a new room filled with **relief carvings of volcanoes** and a skeleton holding a burning candle.\n14. Wit attempts to extinguish the candle, causing **lava to rain down** from the ceiling.\n15. Wit teleports to a new room filled with **living snails and oysters**.\n16. The party encounters **terracotta warriors** and a sarcophagus, leading to further exploration and treasure discovery.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1783875146
+    },
+    {
+      "text": "## Key NPCs\n- **Wit**: A rogue fighter who becomes possessed and later teleports to a new room.\n- **Bollertrix**: A warlock who accidentally kills Emeralds and vaporizes a Bodak.\n- **Edmund**: A fighter/paladin who provides healing and engages in combat.\n- **Ideal**: A tiefling artificer who participates in combat and discussions about the crown.\n- **Emeralds**: A lizard who provides information before being accidentally killed.\n- **Rodrigo**: A lizard familiar who joins the party after Emeralds' death.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1783875146
+    },
+    {
+      "text": "## Loot/Treasure\n- **Black Opal Crown**: Worth 5,000 gold pieces.\n- **Sarcophagus Contents**: 200 gold pieces, 5 moonstones (worth 50 gold pieces each), a fine ruby, and the bones of a commodon.\n- **Cursed Necklace of Fireballs**: If activated, all charges will explode.\n- **Iron Scepter**: Has an aura of transmutation magic with a purpose to destroy a construct.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1783875146
+    },
+    {
+      "text": "## Outstanding Hooks\n- The party must decide what to do with the **black opal crown** and its potential implications.\n- There is a **cursed necklace** that poses a risk if activated.\n- The party has encountered **terracotta warriors**, suggesting further combat and exploration.\n- The **teleportation circle** discovered may lead to new adventures or dangers.\n- The loss of Ideal's arm opens up potential for crafting or magical solutions.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1783875146
+    }
+  ],
+  "createdAt": 1783875146,
+  "updatedAt": 1783875146
+}

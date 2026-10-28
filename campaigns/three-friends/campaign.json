@@ -1,0 +1,11 @@
+{
+  "campaignId": "three-friends",
+  "name": "Three Friends",
+  "party": "role=Player | player=Aidan | character=Aidan | class=Fighter | race=human\nrole=Player | player=Jeanne | character=Jeanne | class=Rogue | race=human\nrole=Player | player=Annie | character=Annie | class=Wizard | race=human\nrole=DM | player=Jon | character=DM | aliases=DM, GM, Dungeon Master",
+  "canonNames": [],
+  "campaignSummary": "",
+  "dungeonMakerJson": {},
+  "sessionSummaries": [],
+  "createdAt": 1777749732,
+  "updatedAt": 1777749732
+}

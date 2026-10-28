@@ -2,13 +2,14 @@
   "campaignId": "parmedia-redux",
   "worldId": "arentor",
   "name": "Parmedia redux",
-  "party": "role=DM | player=Jon | character=DM | aliases=DM, GM, Dungeon Master\nrole=Player | player=Robert | character=Trell | class=Wizard | race=High Elf\nrole=Player | player=Geir | character=Goibert | class=Sourcer | race=Rabbit-folk\nrole=Player | player=Dan | character=Malygris | class=Fighter | race=Human\nrole=Player | player=Geoff | character=Visit | class=Cleric | race=Human | aliases=Dongstrider\nrole=Player | player=Rubin | character=Ghedorim | class=Monk | race=Dragonborn\nrole=Player | player=Justin | character=Gale | class=Wizard | race=Elf",
+  "party": "role=DM | player=Geoff | character=DM | aliases=DM, GM, Dungeon Master\nrole=Player | player=Robert | character=Trell | class=Wizard | race=High Elf\nrole=Player | player=Geir | character=Goibert | class=Sourcerer | race=Rabbit-folk\nrole=Player | player=Rubin | character=Ghedorim | class=Monk | race=Dragonborn\nrole=Player | player=Justin | character=Gale | class=Wizard | race=Elf\nrole=Player | player=jon | character=Frebble | class=Cleric | race=gnome\nrole=Player | player=Geoff | character=Vision | class=Paladin | race=War Construct\nrole=DM | player=Jon | character=DM | aliases=DM, GM, Dungeon Master",
   "canonNames": [
     {
       "name": "King Aerlan",
       "aliases": "Aerlan",
       "type": "npc",
-      "descriptor": "Former King of Parmedia"
+      "descriptor": "Former King of Parmedia",
+      "visibility": "unknown"
     }
   ],
   "campaignSummary": "",
@@ -656,39 +657,93 @@
       "text": "# D&D Session Summary",
       "label": "",
       "sessionId": "",
-      "updatedAt": 1777145220
+      "updatedAt": 1793173691
     },
     {
       "text": "## Summary\nIn this session, the party continued their exploration of a mysterious dungeon, encountering various undead creatures and a waxy-skinned commander. After defeating the commander, they discovered valuable loot, including a wand of Cinderburst and ornate keys. The session ended with the party preparing to investigate a locked metal box and the hallway leading deeper into the dungeon.",
       "label": "",
       "sessionId": "",
-      "updatedAt": 1777145220
+      "updatedAt": 1793173691
     },
     {
       "text": "## Timeline\n- The party explored a dungeon and encountered orcs.\n- They discovered a magical pedestal by a well and defeated zombies and skeletons in a prison.\n- Visit used the spell 'knock' to open a door to a strategy room.\n- Malygris used the mage hand cantrip to reveal a strategy map on a table.\n- Visit prayed over a skeleton, confirming it had died of natural causes, and discovered three ornate stones with sigils.\n- The party examined the table and found divots matching the sigils on the stones.\n- Malygris placed the first stone into the table, revealing a live image of the capital city, Arantoria.\n- The party placed additional stones, revealing images of a tall chamber with a giant mirror and a dark stone chamber lit by blue light.\n- They encountered a waxy-skinned commander who attacked them.\n- The party engaged in combat, with Trell casting Tasha's Hideous Laughter on the commander.\n- After a fierce battle, the commander was defeated.\n- The party found military records, a ring with a star, and two ornate keys on the commander's body.\n- Ghedorim opened a locked metal box, revealing a wand of Cinderburst with three charges.\n- The session concluded with the party preparing to explore further.",
       "label": "",
       "sessionId": "",
-      "updatedAt": 1777145220
+      "updatedAt": 1793173691
     },
     {
       "text": "## Key NPCs\n- **Waxy-skinned Commander**: An undead commander who attacked the party and was ultimately defeated.\n- **Skeleton in Blue Officer's Coat**: Found in the strategy room, confirmed to have died of natural causes.",
       "label": "",
       "sessionId": "",
-      "updatedAt": 1777145220
+      "updatedAt": 1793173691
     },
     {
       "text": "## Loot/Treasure\n- **Wand of Cinderburst**: Allows the casting of burning hands at second level with three charges.\n- **Ring with a Star**: Found on the commander's body, potential magical properties.\n- **Two Ornate Keys**: Found alongside the ring.\n- **Military Records**: Blurry records found in the commander's office.",
       "label": "",
       "sessionId": "",
-      "updatedAt": 1777145220
+      "updatedAt": 1793173691
     },
     {
       "text": "## Outstanding Hooks\n- The party has yet to explore the locked metal box found in the commander's desk.\n- There is a hallway leading deeper into the dungeon that the party has not yet investigated.\n- The significance of the ornate keys and the ring remains unclear, presenting potential future quests or challenges.",
       "label": "",
       "sessionId": "",
-      "updatedAt": 1777145220
+      "updatedAt": 1793173691
+    },
+    {
+      "text": "# Summary",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1793173691
+    },
+    {
+      "text": "In this session, the party discovered that they needed to eat fruit from a magical tree to activate a portal. Once the portal was activated, they found it covered by a heavy fabric upholstery that they could not push aside. Trell used burning hands to create a hole in the fabric, which caught fire and produced smoke. Goibert then cast knock, resulting in a loud explosion that lifted the fabric about three to four feet, revealing a blue glow from the room beyond. Trell and Vexatious jumped through the portal, followed by the rest of the party.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1793173691
+    },
+    {
+      "text": "Upon entering the new room, the party observed a dirty window high up, wooden shelves filled with various items, and two suits of armor. They found a royal decree template, a royal tapestry, and six ceremonial sashes in chests. Vexatious discovered a silver mirror inscribed with a phrase about truth. The party also encountered a sealed door covered in wax, which they opened, releasing a cloud of dust and revealing a cluttered room filled with paperwork. Several party members contracted rabbit fever from the exposure, suffering disadvantage on checks for a short duration.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1793173691
+    },
+    {
+      "text": "The room appeared to be a hoard of old moldy records. The constructs cleared a path for the party to access a door on the far side. Opening the door, they found a low-ceiling guard chamber with an unconscious guard with an empty flagon of beer. There was a heavy banded metal door with a key in the lock. Behind this door, they discovered multiple cells, one of which contained a prisoner claiming to be wrongfully imprisoned. The party decided to free him. However, when Malygris and Ghedorim approached the top of the stairs, they were confronted by three surprised guards. Tensions escalated as Vexatious, eager to see his father, inadvertently revealed their presence. The party attempted to negotiate their way out, claiming to be emissaries delivering Vexatious home, but were ultimately taken prisoner by a troop of 20 guards.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1793173691
+    },
+    {
+      "text": "The party was brought into a large hall where they encountered Councilor Vayne, who expressed concern about his son being present. The party learned they must register their presence in the city and return in three days to discuss a contract. They were also told they needed to register with their adventure guild, Blanders School of Adventuring. Tensions rose again when a party member expressed a desire to attack Vayne for his treatment of Vexatious, leading to an initiative roll. Ultimately, the party was instructed to report to Blanders to ensure they were up to date on adventuring dues, with the warning that they would be incarcerated if they did not comply. They also purchased a map of the city and a counselor card from a rabbit-folk vendor, providing them with information about the city's counselors.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1793173691
+    },
+    {
+      "text": "# Timeline\n- The party learned they need to eat fruit from the tree to activate the portal.\n- The portal was activated but covered by heavy fabric upholstery.\n- Trell used burning hands to create a hole in the fabric, causing it to catch fire.\n- Goibert cast knock, resulting in an explosion that lifted the fabric.\n- The party saw a blue glow from the room beyond the portal.\n- Trell and Vexatious jumped through the portal.\n- The new room contained a dirty window, wooden shelves, and two suits of armor.\n- The party found a royal decree template, a royal tapestry, and ceremonial sashes.\n- Vexatious discovered a silver mirror with an inscription.\n- The party opened a sealed door, releasing dust and revealing a cluttered room.\n- Several party members contracted rabbit fever from exposure.\n- The party found a guard slumped at a table and a heavy banded metal door with a key.\n- They discovered multiple cells, one containing a prisoner claiming wrongful imprisonment.\n- Malygris and Ghedorim encountered three surprised guards at the top of the stairs.\n- The party attempted to negotiate but were taken prisoner by 20 guards.\n- They were brought to a large hall and encountered Councilor Vayne.\n- The party learned they must register their presence and return in three days.\n- Tensions escalated, leading to an initiative roll.\n- The party was instructed to report to Blanders for registration.\n- They purchased a city map and a counselor card from a vendor.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1793173691
+    },
+    {
+      "text": "# Key NPCs\n- **Vexatious Vayne**: The son of Councilor Vayne, eager to see his father.\n- **Councilor Vayne**: Concerned about his son and the party's presence.\n- **The Prisoner**: Claims to be wrongfully imprisoned.\n-**Seralith**: Ancient queen of Arentor.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1793173691
+    },
+    {
+      "text": "# Loot/Treasure\n- **Royal decree template**: Blank with a royal crest.\n- **Royal tapestry**: Displaying the crest of Seralith.\n- **Six ceremonial sashes**: Folded with metals.\n- **Silver mirror**: Inscribed with \"to see clearly is to honor the truth.\"\n- **Map of the city**: Purchased for silver coins.\n- **Counselor card**: Provides information about the city's counselors.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1793173691
+    },
+    {
+      "text": "# Outstanding Hooks\n- The party must return in three days to discuss the contract with Councilor Vayne.\n- The significance of the royal decree template and other items found remains unclear.\n- The party has yet to explore the implications of their encounter with the prisoner.",
+      "label": "",
+      "sessionId": "",
+      "updatedAt": 1793173691
     }
   ],
-  "createdAt": 1777145220,
-  "updatedAt": 1777145220
+  "createdAt": 1793173691,
+  "updatedAt": 1793173691
 }
